@@ -65,7 +65,7 @@ function latch(cpu) {
 	
 	// Update main registers
 	let latch_select = cpu.r_state[1];
-	let extended_addressing_decode = getbit(cpu.r_state[3], 0, 1);
+	let extended_addressing_latch = getbit(cpu.r_state[2], 5, 1);
 	
 	// IR register
 	if (getbit(latch_select, BUS_LATCH_IR, 1)) {
@@ -74,10 +74,11 @@ function latch(cpu) {
 	
 	// MA register
 	if (getbit(latch_select, BUS_LATCH_MA, 1)) {
-		if (extended_addressing_decode) {
+		if (extended_addressing_latch) {
 			cpu.r_reg_ma = getbit(bus(cpu.s_data_bus), 0, 15);
 		} else {
-			cpu.r_reg_ma = getbit(bus(cpu.s_data_bus), 0, 13);
+			cpu.r_reg_ma = cpu.r_reg_pc & 060000;
+			cpu.r_reg_ma |= getbit(bus(cpu.s_data_bus), 0, 13);
 		}
 		cpu.r_reg_maai = (
 			(getbit(cpu.r_reg_ma, 0, 13) & ~07) == 010
@@ -86,7 +87,7 @@ function latch(cpu) {
 	
 	// PC register
 	if (getbit(latch_select, BUS_LATCH_PC, 1)) {
-		if (extended_addressing_decode) {
+		if (extended_addressing_latch) {
 			cpu.r_reg_pc = getbit(bus(cpu.s_data_bus), 0, 15);
 		} else {
 			cpu.r_reg_pc &= 060000;
@@ -323,7 +324,7 @@ function propagate(cpu) {
 	
 	// Step 3: Propagate registers onto their proper buses
 	
-	let extended_addressing_decode = getbit(cpu.r_state[3], 0, 1);
+	let page_zero_addressing = getbit(cpu.r_state[2], 6, 1);
 	
 	// Get the address bus
 	if (getbit(cpu.r_state[2], 4, 1)) {
@@ -332,10 +333,10 @@ function propagate(cpu) {
 			cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_pc);
 		} else {
 			cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_ma);
-			if (!extended_addressing_decode) {
-				cpu.s_addr_bus &= 017777;
-				cpu.s_addr_bus |= cpu.r_reg_pc & 060000;
-			}
+		}
+		if (page_zero_addressing) {
+			// When we are in page zero addressing, the top 2 bits of the address should be zeroed
+			cpu.s_addr_bus &= 017777;
 		}
 	}
 	
@@ -378,15 +379,11 @@ function propagate(cpu) {
 			
 		case BUS_SELECT_CONST:
 			cpu.s_data_bus = assert(cpu.s_data_bus, 0);
-/* 			if (getbit(cpu.r_state[2], 5, 1)) {
-				cpu.s_data_bus |= 01;
-			}
-			if (getbit(cpu.r_state[2], 6, 1)) {
+ 			if (getbit(cpu.r_state[2], 7, 1)) {
+				cpu.s_data_bus |= 007;
+			} else {
 				cpu.s_data_bus |= 020;
 			}
-			if (getbit(cpu.r_state[2], 6, 1)) {
-				cpu.s_data_bus |= 0777756;
-			} */
 			break;
 	
 		default:
@@ -562,12 +559,13 @@ function decode(input) {
 	//	7: Constant
 	// O[2][3] = Select PC / MA address
 	// O[2][4] = Enable address to core
-	// O[2][5:7] = Constant generation
-	//	Bit 0: 0
-	//	Bit 1: 3
-	//	Bit 2: 1-2, 4-17
+	// O[2][5] = Enable extended address latching
+	// O[2][6] = Force page zero address
+	// O[2][7] = Constant generation
+	//	0: 007
+	//	1: 020
 	//
-	// O[3][0] = Enable extended addressing decoding
+	// O[3][0] = ?
 	//
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
@@ -601,6 +599,7 @@ function decode(input) {
 	let constant_value = 0;
 	
 	let extended_addressing_enable = 0;
+	let bank_zero_enable = 0;
 	
 	// Get the decode mode
 	// The next decode mode will default to the current
@@ -787,9 +786,9 @@ function decode(input) {
 							(alu_select_ones << ALU_SELECT_ONES) | 
 							(latch_ob << ALU_LATCH_OB);
 	
-	let bus_config = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (constant_value << 5);
+	let bus_config = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
-	let misc_config = extended_addressing_enable;
+	let misc_config = 0;
 	
 	return [
 			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
