@@ -417,8 +417,7 @@ const STEP_SRV_PC_NEXT = 6;
 // General steps
 const STEP_ISR_EXECUTE_BEGIN = 0;	// Beginning point for all instructions to execute
 const STEP_ISR_INDEX_INC = 1;		// Optional step to increment the previously fetched MA and store it
-const STEP_ISR_INDIR_FETCH = 2;		// Take the value pointed to by MA, and use that as the new MA (observe extended addressing)
-const STEP_ISR_INDIR_COMPLETE = 3;	// First step that indirectable instructions take
+const STEP_ISR_INDIR_COMPLETE = 2;	// First step that indirectable instructions take
 
 const STEP_SRV_DO_INDIR = 32;
 
@@ -716,68 +715,98 @@ function decode(input) {
 		// We will process that here
 		const INDIRECTABLE = [OPCODE_DAC];
 		if (INDIRECTABLE.includes(opcode)) {
+			switch (step) {
+				// Step 1: Check indirection. If not, skip this step and fall to the next step
+				// If it is indirect, fetch the new MA from core
+				// If it's indexed it goes in MA
+				// Otherwise it goes into OB, MB
+				// IF INDIR:
+				//  IF FLAG_MAAI:
+				//   1 -> ZERO_PAGE
+				//	 CORE[MA] -> OB, MB
+				//	 STEP_ISR_INDEX_INC -> NEXT
+				//  ELSE:
+				//	 STEP_ISR_INDEX_INC -> NEXT
+				// ELSE:
+				//  GOTO GOTO STEP_ISR_INDEX_INC
+				case STEP_ISR_EXECUTE_BEGIN:
+					if (indirect) {
+						if (flag_maai) {
+							
+							// Fetch contents of memory from index memory
+							bus_output_select = BUS_SELECT_CORE;
+							enable_addr_to_core = 1;
+							bank_zero_enable = 1;
+							select_pc_ma = ADDR_SELECT_MA;
+							
+							// Place it in OB and MB
+							latch_ob = 1;
+							latch_mb = 1;
+							
+							// Increment the address next cycle
+							next_step = STEP_ISR_INDEX_INC;
+							break;
+						} else {
+							// We have completed the indirection
+							next_step = STEP_ISR_INDIR_COMPLETE;
+						}
+					} else {
+						// Fall to STEP_ISR_INDEX_INC
+						step = STEP_ISR_INDIR_COMPLETE;
+					}
+					
+				// Step 2: Increment the value fetched in step 1, and store it in CORE[MA] / MA
+				// Only do something if we are using the autoincrement functionality
+				// IF INDIR AND FLAG_MAAI:
+				//  EXTEND_MODE -> EXTEND_ENABLE
+				//  (OB OR MB) + 1 -> CORE[MA], MA
+				//  NEXT -> STEP_ISR_INDIR_FETCH
+				// ELSE:
+				//  GOTO STEP_ISR_INDIR_FETCH
+				case STEP_ISR_INDEX_INC:
+					if (indirect && flag_maai) {
+						// Increment the contents of MB
+						bus_output_select = BUS_SELECT_ALU;
+						alu_select_shifter = 0;
+						alu_op_select = ALU_OR;
+						alu_select_ones = 1;
+						
+						// If we are in extend mode, use the full address of what we just incremented
+						extended_addressing_enable = extend_mode;
+						
+						// Place the result of the ALU in core and MA
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						write_core = 1;
+						latch_ma;
+						
+						// Fetch the actual indirect address in the next step
+						next_step = STEP_ISR_INDIR_FETCH
+						
+						break;
+					} else {
+						// Fall to STEP_ISR_INDIR_FETCH
+						step = STEP_ISR_INDIR_FETCH;
+					}
 			
+					
+				default:
+					break;
+			}
 		}
 		
 		switch (opcode)  {
-			case OPCODE_CAL:
-				// TODO: Call subroutine
-				break;
+	//		case OPCODE_CAL:
+	//			// TODO: Call subroutine
+	//			break;
 				
 			case OPCODE_DAC:
 				// Deposit AC
 				switch (step) {
-					// Step 1: Check indirection. If not, skip this step and fall to the next step
-					// If it is indirect, fetch the new MA from core
-					// If it's indexed it goes in MA
-					// Otherwise it goes into OB, MB
-					// IF INDIR:
-					//  IF FLAG_MAAI:
-					//   1 -> ZERO_PAGE
-					//	 CORE[MA] -> OB, MB
-					//	 STEP_ISR_INDEX_INC -> NEXT
-					//  ELSE:
-					//	 GOTO STEP_ISR_INDEX_INC
-					// ELSE:
-					//  GOTO GOTO STEP_ISR_INDEX_INC
-					case STEP_ISR_EXECUTE_BEGIN:
-						if (indirect) {
-							if (flag_maai) {
-								bus_output_select = BUS_SELECT_CORE;
-								enable_addr_to_core = 1;
-								select_pc_ma = ADDR_SELECT_MA;
-								latch_ob = 1;
-								latch_mb = 1;
-								
-								// Increment the address next cycle
-								next_step = STEP_ISR_INDEX_INC;
-								break;
-							} else {
-								// Fall to STEP_ISR_INDEX_INC
-								step = STEP_ISR_INDEX_INC;
-							}
-						} else {
-							// Fall to STEP_ISR_INDEX_INC
-							step = STEP_ISR_INDEX_INC;
-						}
 					
 					
-					// Step 2: Increment the value fetched in step 1, and store it in CORE[MA] / MA
-					// Only do something if we are using the autoincrement functionality
-					// IF INDIR AND FLAG_MAAI:
-					//  EXTEND_MODE -> EXTEND_ENABLE
-					//  (OB OR MB) + 1 -> CORE[MA], MA
-					//  NEXT -> STEP_ISR_INDIR_FETCH
-					// ELSE:
-					//  GOTO STEP_ISR_INDIR_FETCH
-					case STEP_ISR_INDEX_INC:
-						if (indirect && flag_maai) {
-							extended_addressing_enable = extend_mode;
-						} else {
-							// Fall to STEP_ISR_INDIR_FETCH
-							step STEP_ISR_INDIR_FETCH;
-						}
-						break;
+					
+					
 						
 					default:
 						break;
