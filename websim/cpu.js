@@ -889,8 +889,8 @@ function decode(input) {
 						next_step = STEP_ISR_CAL_PC_MB;
 						break;
 						
-					// Store to program counter at CORE[MA]
-					// PC -> CORE[MA]
+					// Store to program counter in MB, OB
+					// PC -> MB, OB
 					// STEP_ISR_CAL_PC_STORE -> NEXT
 					case STEP_ISR_CAL_PC_MB:
 						// Put the contents of PC onto the bus
@@ -905,6 +905,40 @@ function decode(input) {
 						// We can now store the PC
 						next_step = STEP_ISR_CAL_PC_STORE;
 						break;
+						
+					// Store the contents of MB, OB into core
+					// (OB OR MB) -> CORE[MA]
+					// STEP_ISR_CAL_MA_PC -> NEXT
+					case STEP_ISR_CAL_PC_STORE:
+						// Put the ALU onto the bus
+						bus_output_select = BUS_SELECT_ALU;
+						alu_select_shifter = 0;
+						alu_op_select = ALU_OR;
+						
+						// Write to core
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_MA;
+						write_core = 1;
+						
+						// Finally, put MA + 1 into PC
+						next_step = STEP_ISR_CAL_MA_PC;
+						
+					// Put MA + 1 into PC
+					// MA + 1 -> PC
+					// STEP_SRV_FETCH -> NEXT 
+					case STEP_ISR_CAL_MA_PC:
+						// Put MA + 1 onto the bus
+						bus_output_select = BUS_SELECT_CROSS;
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_MA;
+						constant_value = 1;
+						
+						// Latch into PC
+						latch_pc = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
 						
 					
 				}
