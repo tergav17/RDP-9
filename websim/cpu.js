@@ -51,9 +51,13 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0340002;
-cpu_state.r_core[1] = 0600000;
-cpu_state.r_core[2] = 0000001;
+cpu_state.r_core[0] = 0200020;	// LAC 020
+
+cpu_state.r_core[020] = 0123;	// 069
+
+//cpu_state.r_core[0] = 0340002;
+//cpu_state.r_core[1] = 0600000;
+//cpu_state.r_core[2] = 0000001;
 
 /*
  * Takes the currently propagated micro-instruction and updates all registers
@@ -342,6 +346,7 @@ function propagate(cpu) {
 	
 	// Get the data bus
 	let data_bus_select = getbit(cpu.r_state[2], 0, 3)
+	let constant_value = getbit(cpu.r_state[2], 7, 1);
 	switch (data_bus_select) {
 	
 		case BUS_SELECT_EMPTY:
@@ -361,7 +366,7 @@ function propagate(cpu) {
 			
 		case BUS_SELECT_CROSS:
 			// TODO add status bits
-			cpu.s_data_bus = assert(cpu.s_data_bus, ((bus(cpu.s_addr_bus) + getbit(cpu.r_state[1], BUS_LATCH_PC, 1)) & 017777));
+			cpu.s_data_bus = assert(cpu.s_data_bus, ((bus(cpu.s_addr_bus) + constant_value) & 017777));
 			cpu.s_data_bus |= bus(cpu.s_addr_bus) & 060000;
 			break;
 			
@@ -379,7 +384,7 @@ function propagate(cpu) {
 			
 		case BUS_SELECT_CONST:
 			cpu.s_data_bus = assert(cpu.s_data_bus, 0);
- 			if (getbit(cpu.r_state[2], 7, 1)) {
+ 			if (constant_value) {
 				cpu.s_data_bus |= 007;
 			} else {
 				cpu.s_data_bus |= 020;
@@ -401,30 +406,6 @@ const DECODE_MODE_SERVICE = 0;
 const DECODE_MODE_INSTRUCTION = 1;
 const DECODE_MODE_OPERATE = 2;
 const DECODE_MODE_MISC = 3;
-
-// -- SERVICE MODE STEPS --
-
-// Reset steps
-const STEP_SRV_RESET_ENTRY = 0;
-const STEP_SRV_RESET_AC_CLEAR = 1;
-
-// Instruction management steps
-const STEP_SRV_FETCH = 5;
-const STEP_SRV_PC_NEXT = 6;
-
-// --- INSTRUCTION MODE STEPS
-
-// General steps
-const STEP_ISR_EXECUTE_BEGIN = 0;	// Beginning point for all instructions to execute
-const STEP_ISR_INDEX_INC = 1;		// Optional step to increment the previously fetched MA and store it
-const STEP_ISR_INDIR_COMPLETE = 2;	// First step that indirectable instructions take
-
-const STEP_SRV_DO_INDIR = 32;
-
-
-// CAL
-const OPCODE_CAL = 0;
-
 
 // Bus selection modes
 const BUS_SELECT_EMPTY = 0;
@@ -475,25 +456,67 @@ const ALU_LINK_COMP = 1;
 const ALU_LINK_ARITH = 2;
 const ALU_LINK_SHIFT = 3;
 
+// -- SERVICE MODE STEPS --
+
+// Reset steps
+const STEP_SRV_RESET_ENTRY = 0;
+const STEP_SRV_RESET_AC_CLEAR = 1;
+
+// Instruction management steps
+const STEP_SRV_FETCH = 2;
+const STEP_SRV_PC_NEXT = 3;
+
+// --- INSTRUCTION MODE STEPS
+
+// General steps
+const STEP_ISR_EXECUTE_BEGIN = 0;	// Beginning point for all instructions to execute
+const STEP_ISR_INDEX_INC = 1;		// Optional step to increment the previously fetched MA and store it
+const STEP_ISR_INDIR_COMPLETE = 2;	// First step that indirectable instructions take
+
+
 // --- OPCODES ---
 
+// CAL
+const OPCODE_CAL = 0;
+const STEP_ISR_CAL_INDIR = 1;		// Perform simple indirection on MA
+const STEP_ISR_CAL_PC_MB = 2;		// Stash the program counter in MB, OB so it can be stored later 
+const STEP_ISR_CAL_PC_STORE = 3;	// Store the program counter
+const STEP_ISR_CAL_MA_PC = 4;		// Store the MA + 1 into PC
 
 
 // DAC
-
-
 const OPCODE_DAC = 1;
+
+// JMS
 const OPCODE_JMS = 2;
+
+// DZM
 const OPCODE_DZM = 3;
+
+// LAC
 const OPCODE_LAC = 4;
+
+// XOR
 const OPCODE_XOR = 5;
+
+// ADD
 const OPCODE_ADD = 6;
+
 const OPCODE_TAD = 7;
+
 const OPCODE_XCT = 8;
+
 const OPCODE_ISZ = 9;
+
 const OPCODE_AND = 10;
+
 const OPCODE_SAD = 11;
+
 const OPCODE_JMP = 12;
+
+// Instructions defined here will allow for indirect addressing
+const INDIRECTABLE = [OPCODE_DAC, OPCODE_LAC];
+
 /*
  * Part of the propagation process
  *
@@ -563,8 +586,8 @@ function decode(input) {
 	// O[2][5] = Enable extended address latching
 	// O[2][6] = Force page zero address
 	// O[2][7] = Constant generation
-	//	0: 007
-	//	1: 020
+	//	0: 007 / PC + 0
+	//	1: 020 / PC + 1
 	//
 	// O[3][0] = ?
 	//
@@ -689,6 +712,7 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_PC;
 				enable_addr_to_core = 1;
 				latch_pc = 1;
+				constant_value = 1;
 
 				next_step = STEP_ISR_EXECUTE_BEGIN;
 				next_decode_mode = DECODE_MODE_INSTRUCTION;
@@ -709,11 +733,12 @@ function decode(input) {
 		let extend_mode = getbit(input, 9, 1);
 		let flag_maai = getbit(input, 10, 1);
 		
+		console.log("Opcode: " + opcode + ", Step: " + step);
+		
 		// Execute instructions here
 		
 		// Many instructions allow for "indirect addressing"
 		// We will process that here
-		const INDIRECTABLE = [OPCODE_DAC];
 		if (INDIRECTABLE.includes(opcode)) {
 			switch (step) {
 				// Step 1: Check indirection. If not, skip this step and fall to the next step
@@ -726,14 +751,17 @@ function decode(input) {
 				//	 CORE[MA] -> OB, MB
 				//	 STEP_ISR_INDEX_INC -> NEXT
 				//  ELSE:
-				//	 STEP_ISR_INDEX_INC -> NEXT
+				//   EXTEND_MODE -> EXTEND_ENABLE
+				//   CORE[MA] -> MA, MB
+				//	 STEP_ISR_INDIR_COMPLETE -> NEXT
 				// ELSE:
-				//  GOTO GOTO STEP_ISR_INDEX_INC
+				//  GOTO STEP_ISR_INDEX_INC
 				case STEP_ISR_EXECUTE_BEGIN:
 					if (indirect) {
 						if (flag_maai) {
 							
-							// Fetch contents of memory from index memory
+							// Fetch contents of memory from indirect indirect
+							// Make sure we get it from the zero page
 							bus_output_select = BUS_SELECT_CORE;
 							enable_addr_to_core = 1;
 							bank_zero_enable = 1;
@@ -747,11 +775,25 @@ function decode(input) {
 							next_step = STEP_ISR_INDEX_INC;
 							break;
 						} else {
+							
+							// Fetch contents of memory from indirect address
+							bus_output_select = BUS_SELECT_CORE;
+							enable_addr_to_core = 1;
+							select_pc_ma = ADDR_SELECT_MA;
+							
+							// If we are in extend mode, use the full address of what we just incremented
+							extended_addressing_enable = extend_mode;
+							
+							// Place it in MA and MB
+							latch_ma = 1;
+							latch_mb = 1;
+							
 							// We have completed the indirection
 							next_step = STEP_ISR_INDIR_COMPLETE;
+							break;
 						}
 					} else {
-						// Fall to STEP_ISR_INDEX_INC
+						// Fall to STEP_ISR_INDIR_COMPLETE
 						step = STEP_ISR_INDIR_COMPLETE;
 					}
 					
@@ -778,15 +820,14 @@ function decode(input) {
 						select_pc_ma = ADDR_SELECT_MA;
 						enable_addr_to_core = 1;
 						write_core = 1;
-						latch_ma;
+						latch_ma = 1;
 						
-						// Fetch the actual indirect address in the next step
-						next_step = STEP_ISR_INDIR_FETCH
-						
+						// We are done, execute the instruction in the next step
+						next_step = STEP_ISR_INDIR_COMPLETE;
 						break;
 					} else {
-						// Fall to STEP_ISR_INDIR_FETCH
-						step = STEP_ISR_INDIR_FETCH;
+						// Fall to STEP_ISR_INDIR_COMPLETE
+						step = STEP_ISR_INDIR_COMPLETE;
 					}
 			
 					
@@ -796,22 +837,133 @@ function decode(input) {
 		}
 		
 		switch (opcode)  {
-	//		case OPCODE_CAL:
-	//			// TODO: Call subroutine
-	//			break;
+			case OPCODE_CAL:
+				// Call subroutine
+				switch (step) {
+					
+					// Load in 020 to MA and prepare to save PC
+					// EXTEND_MODE -> EXTEND_ENABLE
+					// 020 -> MA
+					// IF INDIRECT:
+					//  STEP_ISR_CAL_INDIR -> NEXT
+					// ELSE:
+					//  STEP_ISR_CAL_PC_MB
+					case STEP_ISR_EXECUTE_BEGIN:
+						// Put 020 on the bus
+						bus_output_select = BUS_SELECT_CONST;
+						constant_value = 1;
+						
+						// Are we extended?
+						extended_addressing_enable = extend_mode;
+						
+						// Store MA
+						latch_ma = 1;
+						
+						// Do we need to indirect?
+						if (indirect) {
+							next_step = STEP_ISR_CAL_INDIR;
+						} else {
+							next_step = STEP_ISR_CAL_PC_MB;
+						}
+						
+						break;
+						
+					// Perform indirection on MA
+					// EXTEND_MODE -> EXTEND_ENABLE
+					// CORE[MA] -> MA, MB
+					// STEP_ISR_CAL_PC_MB -> NEXT
+					case STEP_ISR_CAL_INDIR:
+						// Fetch contents of memory from indirect address
+						bus_output_select = BUS_SELECT_CORE;
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_MA;
+						
+						// If we are in extend mode, use the full address of what we just incremented
+						extended_addressing_enable = extend_mode;
+						
+						// Place it in MA and MB
+						latch_ma = 1;
+						latch_mb = 1;
+						
+						// We have completed the indirection
+						next_step = STEP_ISR_CAL_PC_MB;
+						break;
+						
+					// Store to program counter at CORE[MA]
+					// PC -> CORE[MA]
+					// STEP_ISR_CAL_PC_STORE -> NEXT
+					case STEP_ISR_CAL_PC_MB:
+						// Put the contents of PC onto the bus
+						bus_output_select = BUS_SELECT_CROSS;
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_PC;
+						
+						// Store on MB, OB
+						latch_mb = 1;
+						latch_ob = 1;
+						
+						// We can now store the PC
+						next_step = STEP_ISR_CAL_PC_STORE;
+						break;
+						
+					
+				}
+				break;
 				
 			case OPCODE_DAC:
 				// Deposit AC
 				switch (step) {
 					
-					
-					
-					
+					// Place AC into the memory location pointed to by MA
+					// AC -> CORE[MA]
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_INDIR_COMPLETE:
 						
-					default:
-						break;
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
 						
+						// Setup core write
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						write_core = 1;
+
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+
 				}
+				break;
+				
+			case OPCODE_LAC:
+				// Load AC
+				switch (step) {
+					
+					// Place memory location pointed to by MA into AC
+					// CORE[MA] -> AC
+					// STEP_SRV_FETCH -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+				}
+				break;
+				
+				
+			default:
+				// Instruction not implemented, go fetch another one
+				next_decode_mode = DECODE_MODE_SERVICE;
+				next_step = STEP_SRV_FETCH;
+				break;
+						
 		}
 		
 		
@@ -835,14 +987,14 @@ function decode(input) {
 							(alu_select_ones << ALU_SELECT_ONES) | 
 							(latch_ob << ALU_LATCH_OB);
 	
-	let bus_config = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
+	let bus_control = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
 	let misc_config = 0;
 	
 	return [
 			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
 			latch_settings & 0377, 							// ROM 1
-			bus_config & 0377, 								// ROM 2
+			bus_control & 0377, 								// ROM 2
 			misc_config & 0377,								// ROM 3
 			alu_control & 0377,								// ROM 4
 			];
