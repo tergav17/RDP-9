@@ -51,9 +51,17 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200020;	// LAC 020
+cpu_state.r_core[0] = 0200040;	// LAC 040
+cpu_state.r_core[1] = 0220040;	// LAC I 040
+cpu_state.r_core[2] = 0220010;	// LAC I 010
+cpu_state.r_core[3] = 0220010;	// LAC I 010
 
-cpu_state.r_core[020] = 0123;	// 069
+cpu_state.r_core[010] = 040;
+cpu_state.r_core[040] = 0123;
+cpu_state.r_core[041] = 0124;
+cpu_state.r_core[042] = 0125;
+cpu_state.r_core[0123] = 0321;
+
 
 //cpu_state.r_core[0] = 0340002;
 //cpu_state.r_core[1] = 0600000;
@@ -384,7 +392,7 @@ function propagate(cpu) {
 			
 		case BUS_SELECT_CONST:
 			cpu.s_data_bus = assert(cpu.s_data_bus, 0);
- 			if (constant_value) {
+ 			if (!constant_value) {
 				cpu.s_data_bus |= 007;
 			} else {
 				cpu.s_data_bus |= 020;
@@ -489,6 +497,8 @@ const OPCODE_DAC = 1;
 
 // JMS
 const OPCODE_JMS = 2;
+const STEP_ISR_JMS_PC_STORE = 3;	// Store the program counter
+const STEP_ISR_JMS_MA_PC = 4;		// Store the MA + 1 into PC
 
 // DZM
 const OPCODE_DZM = 3;
@@ -515,7 +525,7 @@ const OPCODE_SAD = 11;
 const OPCODE_JMP = 12;
 
 // Instructions defined here will allow for indirect addressing
-const INDIRECTABLE = [OPCODE_DAC, OPCODE_LAC];
+const INDIRECTABLE = [OPCODE_DAC, OPCODE_LAC, OPCODE_JMS];
 
 /*
  * Part of the propagation process
@@ -968,6 +978,63 @@ function decode(input) {
 				}
 				break;
 				
+			case OPCODE_JMS:
+				// Jump subroutine
+				switch (step) {
+					
+					// Store to program counter in MB, OB
+					// PC -> MB, OB
+					// STEP_ISR_JMS_PC_STORE -> NEXT
+					case STEP_ISR_INDIR_COMPLETE:
+						// Put the contents of PC onto the bus
+						bus_output_select = BUS_SELECT_CROSS;
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_PC;
+						
+						// Store on MB, OB
+						latch_mb = 1;
+						latch_ob = 1;
+						
+						// We can now store the PC
+						next_step = STEP_ISR_JMS_PC_STORE;
+						break;
+						
+					// Store the contents of MB, OB into core
+					// (OB OR MB) -> CORE[MA]
+					// STEP_ISR_JMS_MA_PC -> NEXT
+					case STEP_ISR_JMS_PC_STORE:
+						// Put the ALU onto the bus
+						bus_output_select = BUS_SELECT_ALU;
+						alu_select_shifter = 0;
+						alu_op_select = ALU_OR;
+						
+						// Write to core
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_MA;
+						write_core = 1;
+						
+						// Finally, put MA + 1 into PC
+						next_step = STEP_ISR_JMS_MA_PC;
+						
+					// Put MA + 1 into PC
+					// MA + 1 -> PC
+					// STEP_SRV_FETCH -> NEXT 
+					case STEP_ISR_JMS_MA_PC:
+						// Put MA + 1 onto the bus
+						bus_output_select = BUS_SELECT_CROSS;
+						enable_addr_to_core = 1;
+						select_pc_ma = ADDR_SELECT_MA;
+						constant_value = 1;
+						
+						// Latch into PC
+						latch_pc = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+				}
+				break;
+				
 			case OPCODE_LAC:
 				// Load AC
 				switch (step) {
@@ -990,7 +1057,7 @@ function decode(input) {
 						next_step = STEP_SRV_FETCH;
 				}
 				break;
-				
+
 				
 			default:
 				// Instruction not implemented, go fetch another one
