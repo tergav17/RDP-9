@@ -55,6 +55,9 @@ cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0220040;	// LAC I 040
 cpu_state.r_core[2] = 0220010;	// LAC I 010
 cpu_state.r_core[3] = 0220010;	// LAC I 010
+cpu_state.r_core[4] = 0100030;	// JMS 030
+cpu_state.r_core[030] = 0111111;
+cpu_state.r_core[031] = 0200030;	// LAC 030
 
 cpu_state.r_core[010] = 040;
 cpu_state.r_core[040] = 0123;
@@ -525,7 +528,7 @@ const OPCODE_SAD = 11;
 const OPCODE_JMP = 12;
 
 // Instructions defined here will allow for indirect addressing
-const INDIRECTABLE = [OPCODE_DAC, OPCODE_LAC, OPCODE_JMS];
+const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC];
 
 /*
  * Part of the propagation process
@@ -932,6 +935,7 @@ function decode(input) {
 						
 						// Finally, put MA + 1 into PC
 						next_step = STEP_ISR_CAL_MA_PC;
+						break;
 						
 					// Put MA + 1 into PC
 					// MA + 1 -> PC
@@ -949,8 +953,35 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
 						
 					
+				}
+				break;
+				
+			case OPCODE_DZM:
+				// Deposit Zero
+				switch (step) {
+					
+					// Place 0 into the memory location pointed to by MA
+					// 0 -> CORE[MA]
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_INDIR_COMPLETE:
+						
+						// Put 0 onto the bus
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_CLEAR;
+						
+						// Setup core write
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						write_core = 1;
+
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+
 				}
 				break;
 				
@@ -974,6 +1005,7 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
 
 				}
 				break;
@@ -1014,7 +1046,8 @@ function decode(input) {
 						write_core = 1;
 						
 						// Finally, put MA + 1 into PC
-						next_step = STEP_ISR_JMS_MA_PC;
+						next_step = STEP_ISR_JMS_MA_PC
+						break;
 						
 					// Put MA + 1 into PC
 					// MA + 1 -> PC
@@ -1032,6 +1065,7 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
 				}
 				break;
 				
@@ -1055,6 +1089,7 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
 				}
 				break;
 
