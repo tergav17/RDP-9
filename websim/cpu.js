@@ -525,7 +525,10 @@ const STEP_ISR_XOR_LATCH = 4;		// Latch the result of the XOR into AC
 
 // ADD
 const OPCODE_ADD = 6;
+const STEP_ISR_ADD_AC_OB = 3;		// Send the accumulator to the operator buffer
+const STEP_ISR_ADD_LATCH = 4;		// Latch the result of the ADD into AC
 
+// TAD
 const OPCODE_TAD = 7;
 
 const OPCODE_XCT = 8;
@@ -1142,11 +1145,68 @@ function decode(input) {
 						
 					// Perform the ALU operation and store in AC
 					// (MB XOR OB) -> AC
+					// STEP_SRV_FETCH -> NEXT
 					case STEP_ISR_XOR_LATCH:
 					
 						// Perform the ALU operation
 						bus_output_select = BUS_SELECT_ALU;
 						alu_op_select = ALU_XOR;
+						
+						// Latch AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				break;
+				
+			case OPCODE_ADD:
+				// ADD (One's Compement)
+				switch (step) {
+				
+					// Place CORE[MA] into MB
+					// CORE[MA] -> MB
+					// STEP_ISR_ADD_AC_OB -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch MB
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_ADD_AC_OB;
+						break;
+						
+					// Place AC into OB
+					// AC -> OB
+					// STEP_ISR_ADD_LATCH -> NEXT
+					case STEP_ISR_ADD_AC_OB:
+						
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_ADD_LATCH;
+						break;
+						
+					// Perform the ALU operation and store in AC
+					// (MB ADD OB) -> AC
+					// LINK_ARITH -> L
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_ADD_LATCH:
+					
+						// Perform the ALU operation
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_ADD;
+						alu_select_ones = 1;
+						alu_link_select = ALU_LINK_ARITH;
 						
 						// Latch AC
 						latch_ac = 1;
