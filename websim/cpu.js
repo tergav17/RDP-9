@@ -51,12 +51,11 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200020;	// LAC 020
-cpu_state.r_core[1] = 0240021;	// XOR 021
-cpu_state.r_core[2] = 0100002;	// JMS 002
+cpu_state.r_core[0] = 0200020;	// LAC 000
+cpu_state.r_core[1] = 0340020;	// TAD 0020
+cpu_state.r_core[2] = 0100000;	// JMS 000
 
-cpu_state.r_core[020] = 0b00001111;
-cpu_state.r_core[021] = 0b00111100;
+cpu_state.r_core[020] = 01;
 
 /*
 cpu_state.r_core[0] = 0200040;	// LAC 040
@@ -530,6 +529,8 @@ const STEP_ISR_ADD_LATCH = 4;		// Latch the result of the ADD into AC
 
 // TAD
 const OPCODE_TAD = 7;
+const STEP_ISR_TAD_AC_OB = 3;		// Send the accumulator to the operator buffer
+const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 
 const OPCODE_XCT = 8;
 
@@ -542,7 +543,7 @@ const OPCODE_SAD = 11;
 const OPCODE_JMP = 12;
 
 // Instructions defined here will allow for indirect addressing
-const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC, OPCODE_XOR];
+const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC, OPCODE_XOR, OPCODE_ADD, OPCODE_TAD];
 
 /*
  * Part of the propagation process
@@ -1206,6 +1207,61 @@ function decode(input) {
 						bus_output_select = BUS_SELECT_ALU;
 						alu_op_select = ALU_ADD;
 						alu_select_ones = 1;
+						alu_link_select = ALU_LINK_ARITH;
+						
+						// Latch AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				break;
+				
+			case OPCODE_TAD:
+				// ADD (Twos's Compement)
+				switch (step) {
+				
+					// Place CORE[MA] into MB
+					// CORE[MA] -> MB
+					// STEP_ISR_TAD_AC_OB -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch MB
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_TAD_AC_OB;
+						break;
+						
+					// Place AC into OB
+					// AC -> OB
+					// STEP_ISR_TAD_LATCH -> NEXT
+					case STEP_ISR_TAD_AC_OB:
+						
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_TAD_LATCH;
+						break;
+						
+					// Perform the ALU operation and store in AC
+					// (MB ADD OB) -> AC
+					// LINK_ARITH -> L
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_TAD_LATCH:
+					
+						// Perform the ALU operation
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_ADD;
 						alu_link_select = ALU_LINK_ARITH;
 						
 						// Latch AC
