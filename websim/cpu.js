@@ -52,8 +52,9 @@ cpu_state = {
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
 cpu_state.r_core[0] = 0200020;	// LAC 000
-cpu_state.r_core[1] = 0340020;	// TAD 0020
+cpu_state.r_core[1] = 0400003;	// XCT 003
 cpu_state.r_core[2] = 0100000;	// JMS 000
+cpu_state.r_core[3] = 0340020	// TAD 020
 
 cpu_state.r_core[020] = 01;
 
@@ -523,16 +524,17 @@ const STEP_ISR_XOR_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_XOR_LATCH = 4;		// Latch the result of the XOR into AC
 
 // ADD
-const OPCODE_ADD = 6;
+const OPCODE_ADD = 6;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_ADD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_ADD_LATCH = 4;		// Latch the result of the ADD into AC
 
 // TAD
-const OPCODE_TAD = 7;
+const OPCODE_TAD = 7;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_TAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 
-const OPCODE_XCT = 8;
+const OPCODE_XCT = 8;				// Initial step: Perform a fetch using MA instead of PC
+const STEP_ISR_XCT_NULL = 3;		// Null cycle before returning to instruction execution
 
 const OPCODE_ISZ = 9;
 
@@ -543,7 +545,16 @@ const OPCODE_SAD = 11;
 const OPCODE_JMP = 12;
 
 // Instructions defined here will allow for indirect addressing
-const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC, OPCODE_XOR, OPCODE_ADD, OPCODE_TAD];
+const INDIRECTABLE = [
+	OPCODE_DAC,
+	OPCODE_JMS,
+	OPCODE_DZM,
+	OPCODE_LAC,
+	OPCODE_XOR,
+	OPCODE_ADD,
+	OPCODE_TAD,
+	OPCODE_XCT
+];
 
 /*
  * Part of the propagation process
@@ -1270,6 +1281,36 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				break;
+				
+			case OPCODE_XCT:
+				// Execute Instruction
+				switch (step) {
+					
+					// Fetch using MA instead of PC
+					// 0 -> EXTEND_ENABLE
+					// CORE[PC] -> IR, MA
+					// STEP_ISR_XCT_NULL -> NEXT
+					case STEP_SRV_FETCH:
+						
+						// Read from core, put it in IR, MA, and MB
+						extended_addressing_enable = 0;
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						
+						// Latch IR and MA
+						latch_ir = 1;
+						latch_ma = 1;
+						
+						next_step = STEP_ISR_XCT_NULL;
+						break;
+						
+					// Do nothing to let the fetched instruction propagate
+					case STEP_ISR_XCT_NULL:
+						next_step = STEP_ISR_EXECUTE_BEGIN;
 						break;
 				}
 				break;
