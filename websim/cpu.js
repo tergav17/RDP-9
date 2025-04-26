@@ -51,6 +51,14 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
+cpu_state.r_core[0] = 0200020;	// LAC 020
+cpu_state.r_core[1] = 0240021;	// XOR 021
+cpu_state.r_core[2] = 0100002;	// JMS 002
+
+cpu_state.r_core[020] = 0b00001111;
+cpu_state.r_core[021] = 0b00111100;
+
+/*
 cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0220040;	// LAC I 040
 cpu_state.r_core[2] = 0220010;	// LAC I 010
@@ -65,6 +73,7 @@ cpu_state.r_core[041] = 0124;
 cpu_state.r_core[042] = 0125;
 cpu_state.r_core[0123] = 0321;
 
+*/
 
 //cpu_state.r_core[0] = 0340002;
 //cpu_state.r_core[1] = 0600000;
@@ -495,22 +504,24 @@ const STEP_ISR_CAL_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_CAL_MA_PC = 4;		// Store the MA + 1 into PC
 
 
-// DAC
+// DAC								// Initial step: Store AC into CORE[MA]
 const OPCODE_DAC = 1;
 
 // JMS
-const OPCODE_JMS = 2;
+const OPCODE_JMS = 2;				// Initial step: Transfer PC to MB, OB
 const STEP_ISR_JMS_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_JMS_MA_PC = 4;		// Store the MA + 1 into PC
 
 // DZM
-const OPCODE_DZM = 3;
+const OPCODE_DZM = 3;				// Initial step; Store 0 into CORE[MA]
 
-// LAC
+// LAC								// Initial step: Store CORE[MA] into AC
 const OPCODE_LAC = 4;
 
-// XOR
-const OPCODE_XOR = 5;
+// XOR								
+const OPCODE_XOR = 5;				// Initial step: Store CORE[MA] into MB
+const STEP_ISR_XOR_AC_OB = 3;		// Send the accumulator to the operator buffer
+const STEP_ISR_XOR_LATCH = 4;		// Latch the result of the XOR into AC
 
 // ADD
 const OPCODE_ADD = 6;
@@ -528,7 +539,7 @@ const OPCODE_SAD = 11;
 const OPCODE_JMP = 12;
 
 // Instructions defined here will allow for indirect addressing
-const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC];
+const INDIRECTABLE = [OPCODE_DAC, OPCODE_JMS, OPCODE_DZM, OPCODE_LAC, OPCODE_XOR];
 
 /*
  * Part of the propagation process
@@ -822,7 +833,6 @@ function decode(input) {
 					if (indirect && flag_maai) {
 						// Increment the contents of MB
 						bus_output_select = BUS_SELECT_ALU;
-						alu_select_shifter = 0;
 						alu_op_select = ALU_OR;
 						alu_select_ones = 1;
 						
@@ -925,13 +935,13 @@ function decode(input) {
 					case STEP_ISR_CAL_PC_STORE:
 						// Put the ALU onto the bus
 						bus_output_select = BUS_SELECT_ALU;
-						alu_select_shifter = 0;
 						alu_op_select = ALU_OR;
 						
 						// Write to core
 						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						write_core = 1;
+						latch_mb = 1;
 						
 						// Finally, put MA + 1 into PC
 						next_step = STEP_ISR_CAL_MA_PC;
@@ -976,6 +986,7 @@ function decode(input) {
 						select_pc_ma = ADDR_SELECT_MA;
 						enable_addr_to_core = 1;
 						write_core = 1;
+						latch_mb = 1;
 
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
@@ -1001,6 +1012,7 @@ function decode(input) {
 						select_pc_ma = ADDR_SELECT_MA;
 						enable_addr_to_core = 1;
 						write_core = 1;
+						latch_mb = 1;
 
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
@@ -1037,13 +1049,13 @@ function decode(input) {
 					case STEP_ISR_JMS_PC_STORE:
 						// Put the ALU onto the bus
 						bus_output_select = BUS_SELECT_ALU;
-						alu_select_shifter = 0;
 						alu_op_select = ALU_OR;
 						
 						// Write to core
 						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						write_core = 1;
+						latch_mb = 1;
 						
 						// Finally, put MA + 1 into PC
 						next_step = STEP_ISR_JMS_MA_PC
@@ -1083,6 +1095,59 @@ function decode(input) {
 						select_pc_ma = ADDR_SELECT_MA;
 						enable_addr_to_core = 1;
 
+						// Latch AC
+						latch_ac = 1;
+						latch_mb = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				break;
+				
+			case OPCODE_XOR:
+				// XOR
+				switch (step) {
+				
+					// Place CORE[MA] into MB
+					// CORE[MA] -> MB
+					// STEP_ISR_XOR_AC_OB -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch MB
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_XOR_AC_OB;
+						break;
+						
+					// Place AC into OB
+					// AC -> OB
+					// STEP_ISR_XOR_LATCH -> NEXT
+					case STEP_ISR_XOR_AC_OB:
+						
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_XOR_LATCH;
+						break;
+						
+					// Perform the ALU operation and store in AC
+					// (MB XOR OB) -> AC
+					case STEP_ISR_XOR_LATCH:
+					
+						// Perform the ALU operation
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_XOR;
+						
 						// Latch AC
 						latch_ac = 1;
 						
