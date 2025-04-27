@@ -51,12 +51,17 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200020;	// LAC 000
-cpu_state.r_core[1] = 0400003;	// XCT 003
-cpu_state.r_core[2] = 0100000;	// JMS 000
-cpu_state.r_core[3] = 0340020	// TAD 020
+cpu_state.r_core[0] = 0200020;	// LAC 020
+cpu_state.r_core[1] = 0400007;	// XCT 007
+cpu_state.r_core[2] = 0440021;	// ISZ 021
+cpu_state.r_core[3] = 0100000	// JMS 000
+cpu_state.r_core[4] = 0100037;	// JMS 037
+cpu_state.r_core[7] = 0340020	// TAD 020
 
 cpu_state.r_core[020] = 01;
+cpu_state.r_core[021] = 0777775;
+
+cpu_state.r_core[040] = 0100037; // JMS 037
 
 /*
 cpu_state.r_core[0] = 0200040;	// LAC 040
@@ -153,7 +158,7 @@ function latch(cpu) {
 	) ? 1 : 0;
 	if (getbit(alu_ctrl, ALU_LATCH_OB, 1)) {
 		cpu.r_reg_ob = bus(cpu.s_data_bus);
-		cpu.r_reg_zero = cpu.r_reg_ob ? 1 : 0;
+		cpu.r_reg_zero = cpu.r_reg_ob ? 0 : 1;
 		cpu.r_reg_sign = getbit(cpu.r_reg_ob, 17, 1);
 		cpu.r_reg_link = bus(cpu.s_next_link);
 	}
@@ -483,8 +488,9 @@ const STEP_SRV_RESET_ENTRY = 0;
 const STEP_SRV_RESET_AC_CLEAR = 1;
 
 // Instruction management steps
-const STEP_SRV_FETCH = 2;
-const STEP_SRV_PC_NEXT = 3;
+const STEP_SRV_FETCH = 2;			// Fetch the next instruction
+const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
+const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 
 // --- INSTRUCTION MODE STEPS
 
@@ -536,7 +542,9 @@ const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 const OPCODE_XCT = 8;				// Initial step: Perform a fetch using MA instead of PC
 const STEP_ISR_XCT_NULL = 3;		// Null cycle before returning to instruction execution
 
-const OPCODE_ISZ = 9;
+const OPCODE_ISZ = 9;				// Initial step: Store CORE[MA] into OB, MB
+const STEP_ISR_ISZ_INC = 3;			// Increment value in OB, MB, store in OB and CORE[MA]
+const STEP_ISR_ISZ_NULL = 4;		// Null cycle before checking the value
 
 const OPCODE_AND = 10;
 
@@ -553,7 +561,8 @@ const INDIRECTABLE = [
 	OPCODE_XOR,
 	OPCODE_ADD,
 	OPCODE_TAD,
-	OPCODE_XCT
+	OPCODE_XCT,
+	OPCODE_ISZ
 ];
 
 /*
@@ -625,8 +634,8 @@ function decode(input) {
 	// O[2][5] = Enable extended address latching
 	// O[2][6] = Force page zero address
 	// O[2][7] = Constant generation
-	//	0: 007 / PC + 0
-	//	1: 020 / PC + 1
+	//	0: 007 / ADDR + 0
+	//	1: 020 / ADDR + 1
 	//
 	// O[3][0] = ?
 	//
@@ -694,6 +703,7 @@ function decode(input) {
 			// Clear out the all of the registers
 			// 1 -> EXTEND_ENABLE
 			// 0 -> PC, AC, MQ, STEP
+			// STEP_SRV_FETCH -> NEXT
 			case STEP_SRV_RESET_AC_CLEAR:
 				
 				// Set the bus to 0
@@ -746,6 +756,7 @@ function decode(input) {
 			// PC + 1 -> PC
 			// STEP_ISR_EXECUTE_BEGIN -> NEXT
 			case STEP_SRV_PC_NEXT:
+				
 				// Increment the PC
 				bus_output_select = BUS_SELECT_CROSS;
 				select_pc_ma = ADDR_SELECT_PC;
@@ -757,8 +768,25 @@ function decode(input) {
 				next_decode_mode = DECODE_MODE_INSTRUCTION;
 				break;
 				
+			// Increment the program counter if OB = 0
+			// IF FLAG_ZERO:
+			//  PC +1 -> PC
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_SKIP_ZERO:
+				if (flag_zero) {
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					enable_addr_to_core = 1;
+					latch_pc = 1;
+					constant_value = 1;
+				}
+				
+				next_step = STEP_SRV_FETCH;
+				break;
+				
 			default:
 				break;
+				
 		}
 		
 		// Build the next state
@@ -1286,7 +1314,7 @@ function decode(input) {
 				break;
 				
 			case OPCODE_XCT:
-				// Execute Instruction
+				// Execute instruction
 				switch (step) {
 					
 					// Fetch using MA instead of PC
@@ -1314,6 +1342,57 @@ function decode(input) {
 						break;
 				}
 				break;
+				
+			case OPCODE_ISZ:
+				// Increment and skip if zero
+				switch (step) {
+					
+					// Store CORE[MA] into OB, MB
+					// CORE[MA] -> OB, MB
+					// STEP_ISR_ISZ_INC -> NEXT
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch OB, MB
+						latch_ob = 1;
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_ISZ_INC;
+						break;
+						
+					// Increment OB, MB and store
+					// (OB OR MB) + 1 -> CORE[MA], OB
+					// STEP_ISR_ISZ_NULL -> NEXT
+					case STEP_ISR_ISZ_INC:
+					
+						// Setup ALU to increment
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_OR;
+						alu_select_ones = 1;
+						
+						// Setup core write and OB
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						write_core = 1;
+						latch_mb = 1;
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_ISZ_NULL;
+						break;
+						
+					// Do nothing
+					// STEP_SRV_SKIP_ZERO -> NEXT
+					case STEP_ISR_ISZ_NULL:
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_SKIP_ZERO
+						break;
+						
+				}
+				break;
 
 				
 			default:
@@ -1326,7 +1405,7 @@ function decode(input) {
 		
 		
 		// Build the next state
-		next_state = next_step & 0x007;
+		next_state = next_step & 0x077;
 	}
 	
 	// Return new control register
