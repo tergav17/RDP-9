@@ -546,9 +546,14 @@ const OPCODE_ISZ = 9;				// Initial step: Store CORE[MA] into OB, MB
 const STEP_ISR_ISZ_INC = 3;			// Increment value in OB, MB, store in OB and CORE[MA]
 const STEP_ISR_ISZ_NULL = 4;		// Null cycle before checking the value
 
-const OPCODE_AND = 10;
+const OPCODE_AND = 10;				// Initial step: Store CORE[MA] into MB
+const STEP_ISR_AND_AC_OB = 3;		// Send the accumulator to the operator buffer
+const STEP_ISR_AND_LATCH = 4;		// Latch the result of the AND into AC
 
-const OPCODE_SAD = 11;
+const OPCODE_SAD = 11;				// Initial step: Store CORE[MA] into MB
+const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
+const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
+const STEP_ISR_SAD_NULL = 5;
 
 const OPCODE_JMP = 12;
 
@@ -562,7 +567,10 @@ const INDIRECTABLE = [
 	OPCODE_ADD,
 	OPCODE_TAD,
 	OPCODE_XCT,
-	OPCODE_ISZ
+	OPCODE_ISZ,
+	OPCODE_AND,
+	OPCODE_SAD,
+	OPCODE_JMP
 ];
 
 /*
@@ -1237,7 +1245,7 @@ function decode(input) {
 						break;
 						
 					// Perform the ALU operation and store in AC
-					// (MB ADD OB) -> AC
+					// (MB ADD OB) -> AC, OB
 					// LINK_ARITH -> L
 					// STEP_SRV_FETCH -> NEXT
 					case STEP_ISR_ADD_LATCH:
@@ -1250,6 +1258,7 @@ function decode(input) {
 						
 						// Latch AC
 						latch_ac = 1;
+						latch_ob = 1;
 						
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
@@ -1293,7 +1302,7 @@ function decode(input) {
 						break;
 						
 					// Perform the ALU operation and store in AC
-					// (MB ADD OB) -> AC
+					// (MB ADD OB) -> AC, OB
 					// LINK_ARITH -> L
 					// STEP_SRV_FETCH -> NEXT
 					case STEP_ISR_TAD_LATCH:
@@ -1303,8 +1312,9 @@ function decode(input) {
 						alu_op_select = ALU_ADD;
 						alu_link_select = ALU_LINK_ARITH;
 						
-						// Latch AC
+						// Latch AC and OB
 						latch_ac = 1;
+						latch_ob = 1;
 						
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
@@ -1391,6 +1401,117 @@ function decode(input) {
 						next_step = STEP_SRV_SKIP_ZERO
 						break;
 						
+				}
+				break;
+				
+			case OPCODE_AND:
+				// AND
+				switch (step) {
+				
+					// Place CORE[MA] into MB
+					// CORE[MA] -> MB
+					// STEP_ISR_AND_AC_OB -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch MB
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_AND_AC_OB;
+						break;
+						
+					// Place AC into OB
+					// AC -> OB
+					// STEP_ISR_AND_LATCH -> NEXT
+					case STEP_ISR_AND_AC_OB:
+						
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_AND_LATCH;
+						break;
+						
+					// Perform the ALU operation and store in AC
+					// (MB AND OB) -> AC
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_AND_LATCH:
+					
+						// Perform the ALU operation
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_AND;
+						
+						// Latch AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				break;
+				
+			case OPCODE_SAD:
+				// Skip if AC different
+				switch (step) {
+				
+					// Place CORE[MA] into MB
+					// CORE[MA] -> MB
+					// STEP_ISR_SAD_AC_OB -> NEXT 
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Put the contents of core onto the bus
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+
+						// Latch MB
+						latch_mb = 1;
+						
+						next_step = STEP_ISR_SAD_AC_OB;
+						break;
+						
+					// Place AC into OB
+					// AC -> OB
+					// STEP_ISR_SAD_LATCH -> NEXT
+					case STEP_ISR_SAD_AC_OB:
+						
+						// Put AC onto the bus
+						bus_output_select = BUS_SELECT_AC;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_SAD_LATCH;
+						break;
+						
+					// Perform the ALU operation and store in OB
+					// (MB XOR OB) -> OB
+					// STEP_ISR_SAD_NULL -> NEXT
+					case STEP_ISR_SAD_LATCH:
+					
+						// Perform the ALU operation
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_AND;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						next_step = STEP_ISR_SAD_NULL;
+						break;
+						
+					// Do nothing
+					// STEP_SRV_SKIP_ZERO -> NEXT
+					case STEP_ISR_SAD_LATCH:
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_SKIP_ZERO
+						break;
 				}
 				break;
 
