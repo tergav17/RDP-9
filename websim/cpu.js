@@ -51,17 +51,15 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200020;	// LAC 020
-cpu_state.r_core[1] = 0400007;	// XCT 007
-cpu_state.r_core[2] = 0440021;	// ISZ 021
-cpu_state.r_core[3] = 0100000	// JMS 000
-cpu_state.r_core[4] = 0100037;	// JMS 037
-cpu_state.r_core[7] = 0340020	// TAD 020
+cpu_state.r_core[0] = 0200040;	// LAC 040
+cpu_state.r_core[1] = 0540041;  // SAD 041
+cpu_state.r_core[2] = 0200042;  // LAC 042
 
-cpu_state.r_core[020] = 01;
-cpu_state.r_core[021] = 0777775;
+cpu_state.r_core[040] = 0123123;
+cpu_state.r_core[041] = 0321321;
+cpu_state.r_core[042] = 0777777;
 
-cpu_state.r_core[040] = 0100037; // JMS 037
+
 
 /*
 cpu_state.r_core[0] = 0200040;	// LAC 040
@@ -491,6 +489,7 @@ const STEP_SRV_RESET_AC_CLEAR = 1;
 const STEP_SRV_FETCH = 2;			// Fetch the next instruction
 const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
+const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 
 // --- INSTRUCTION MODE STEPS
 
@@ -791,6 +790,23 @@ function decode(input) {
 				
 				next_step = STEP_SRV_FETCH;
 				break;
+				
+			// Increment the program counter if OB != 0
+			// IF !FLAG_ZERO:
+			//  PC +1 -> PC
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_SKIP_NOT_ZERO:
+				if (!flag_zero) {
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					enable_addr_to_core = 1;
+					latch_pc = 1;
+					constant_value = 1;
+				}
+				
+				next_step = STEP_SRV_FETCH;
+				break;
+				
 				
 			default:
 				break;
@@ -1498,7 +1514,7 @@ function decode(input) {
 					
 						// Perform the ALU operation
 						bus_output_select = BUS_SELECT_ALU;
-						alu_op_select = ALU_AND;
+						alu_op_select = ALU_XOR;
 						
 						// Latch OB
 						latch_ob = 1;
@@ -1507,10 +1523,10 @@ function decode(input) {
 						break;
 						
 					// Do nothing
-					// STEP_SRV_SKIP_ZERO -> NEXT
-					case STEP_ISR_SAD_LATCH:
+					// STEP_SRV_SKIP_NOT_ZERO -> NEXT
+					case STEP_ISR_SAD_NULL:
 						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_SKIP_ZERO
+						next_step = STEP_SRV_SKIP_NOT_ZERO
 						break;
 				}
 				break;
