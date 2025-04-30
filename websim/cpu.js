@@ -51,13 +51,10 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200040;	// LAC 040
-cpu_state.r_core[1] = 0540041;  // SAD 041
-cpu_state.r_core[2] = 0200042;  // LAC 042
+cpu_state.r_core[0] = 0340040;	// TAD 040
+cpu_state.r_core[1] = 0600000;  // JMP 000
 
-cpu_state.r_core[040] = 0123123;
-cpu_state.r_core[041] = 0321321;
-cpu_state.r_core[042] = 0777777;
+cpu_state.r_core[040] = 0000001;
 
 
 
@@ -554,7 +551,7 @@ const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
 
-const OPCODE_JMP = 12;
+const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
 
 // Instructions defined here will allow for indirect addressing
 const INDIRECTABLE = [
@@ -1015,6 +1012,7 @@ function decode(input) {
 						break;
 						
 					// Put MA + 1 into PC
+					// 1 -> EXTEND_ENABLE
 					// MA + 1 -> PC
 					// STEP_SRV_FETCH -> NEXT 
 					case STEP_ISR_CAL_MA_PC:
@@ -1025,6 +1023,7 @@ function decode(input) {
 						constant_value = 1;
 						
 						// Latch into PC
+						extended_addressing_enable = 1;
 						latch_pc = 1;
 						
 						// We are done
@@ -1129,6 +1128,7 @@ function decode(input) {
 						break;
 						
 					// Put MA + 1 into PC
+					// 1 -> EXTEND_ENABLE
 					// MA + 1 -> PC
 					// STEP_SRV_FETCH -> NEXT 
 					case STEP_ISR_JMS_MA_PC:
@@ -1139,6 +1139,7 @@ function decode(input) {
 						constant_value = 1;
 						
 						// Latch into PC
+						extended_addressing_enable = 1;
 						latch_pc = 1;
 						
 						// We are done
@@ -1530,6 +1531,29 @@ function decode(input) {
 						break;
 				}
 				break;
+				
+			case OPCODE_JMP:
+				// Skip if AC different
+				switch (step) {
+					// Store MA into PC
+					// 1 -> EXTEND_ENABLE
+					// MA -> PC
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_INDIR_COMPLETE:
+					
+						// Get MA on the bus
+						bus_output_select = BUS_SELECT_CROSS;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						
+						// Latch PC
+						extended_addressing_enable = 1;
+						latch_pc = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+				}
 
 				
 			default:
