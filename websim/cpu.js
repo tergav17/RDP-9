@@ -553,6 +553,19 @@ const STEP_ISR_SAD_NULL = 5;
 
 const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
 
+// EAE
+const OPCODE_EAE = 13;
+
+// IOT
+const OPCODE_IOT = 14;
+
+// OPR
+const OPCODE_OPR = 15;				// Initial step: AC -> OB
+const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
+const STEP_ISR_OPR_STAGE_ONE = 0	// First stage of OPR, compliment / clear AC and L
+const STEP_ISR_OPR_SWR_OB =  		// Move the switch register into OB
+const STEP_ISR_OPR_STAGE_TWO = 1	// Perform shift operations or OR in the switch register
+
 // Instructions defined here will allow for indirect addressing
 const INDIRECTABLE = [
 	OPCODE_DAC,
