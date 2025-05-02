@@ -563,7 +563,7 @@ const OPCODE_IOT = 14;
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
 const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
 const STEP_ISR_OPR_STAGE_ONE = 0	// First stage of OPR, compliment / clear AC and L
-const STEP_ISR_OPR_SWR_OB =  		// Move the switch register into OB
+const STEP_ISR_OPR_SWR_OB =  2		// Move the switch register into OB
 const STEP_ISR_OPR_STAGE_TWO = 1	// Perform shift operations or OR in the switch register
 
 // Instructions defined here will allow for indirect addressing
