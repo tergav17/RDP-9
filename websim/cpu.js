@@ -746,7 +746,7 @@ function decode(input) {
 			// The instruction should be fetched from memory
 			// We should also check for interrupts and panel operations here
 			// 0 -> EXTEND_ENABLE
-			// CORE[PC] -> IR, MA
+			// CORE[PC] -> IR, MA, OB, MB
 			// STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
 				
@@ -757,9 +757,11 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_PC;
 				enable_addr_to_core = 1;
 				
-				// Latch IR and MA
+				// Latch IR, MA, OB, MB
 				latch_ir = 1;
 				latch_ma = 1;
+				latch_ob = 1;
+				latch_mb = 1;
 				
 				// TODO: Check in on the panel state and interrupts
 				next_step = STEP_SRV_PC_NEXT;
@@ -1566,7 +1568,46 @@ function decode(input) {
 						// We are done
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
+						break;
 				}
+				break;
+				
+			case OPCODE_OPR:
+				// Operate instruction
+				switch (step) {
+					// Either transfer AC into OB, or perform LAW
+					// IF INDIR:
+					//  (OB OR MB) -> AC
+					//  STEP_SRV_FETCH -> NEXT
+					// ELSE:
+					//  AC -> OB
+					//  STEP_ISR_OPR_PRESET_MB -> NEXT
+					case STEP_ISR_EXECUTE_BEGIN:
+					
+						if (indirect) {
+							// Do LAW
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_OR;
+							
+							// Latch AC
+							latch_ac = 1;
+							
+							// We are done
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+						} else {
+							// Normal OPR
+							bus_output_select = BUS_SELECT_AC;
+							
+							// Latch OB
+							latch_ob = 1;
+							
+							next_step = STEP_ISR_OPR_PRESET_MB;
+							break;
+						}
+				}
+				break;
 
 				
 			default:
