@@ -200,6 +200,10 @@ function propagate(cpu) {
 			microcode_input |= 0 << 9; // TODO: Extend mode
 			microcode_input |= cpu.r_reg_maai << 10;
 			break;
+			
+		case DECODE_MODE_OPERATE:
+			break;
+			
 	}
 	cpu.s_ucode_input = microcode_input;
 	cpu.s_ctrl = decode(microcode_input);
@@ -1606,6 +1610,22 @@ function decode(input) {
 							next_step = STEP_ISR_OPR_PRESET_MB;
 							break;
 						}
+						
+					// Preset and MB register incase we want to invert AC
+					// 0777777 -> MB
+					// STEP_ISR_OPR_STAGE_ONE -> NEXT
+					case STEP_ISR_OPR_PRESET_MB:
+						// Put 0777777 on the bus
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_PRESET;
+						
+						// Latch MB
+						latch_mb = 1;
+						
+						// Do the first stage of the OPeRate
+						next_decode_mode = DECODE_MODE_OPERATE;
+						next_step = STEP_ISR_OPR_STAGE_ONE;
+						break;
 				}
 				break;
 
