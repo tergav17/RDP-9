@@ -202,6 +202,10 @@ function propagate(cpu) {
 			break;
 			
 		case DECODE_MODE_OPERATE:
+			microcode_input |= getbit(cpu.r_state[0], 0, 1);
+			microcode_input |= getbit(cpu.r_reg_ir, 0, 6) << 1;
+			microcode_input |= getbit(cpu.r_reg_ir, 12, 3) << 7;
+			microcode_input |= cpu>r_reg_link << 10;
 			break;
 			
 	}
