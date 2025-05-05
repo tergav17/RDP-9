@@ -100,6 +100,8 @@ function mouseDown(e) {
 			}
 		}
 	}
+	
+	/*
 	x = 430; y = 240;
 	sw_num = 15;
 	for (let i = 0; i < 5; i++) {
@@ -114,6 +116,7 @@ function mouseDown(e) {
 			}
 		}
 	}
+	*/
 	
 	propagate(cpu_state);
 	updateFlow(false);
@@ -246,6 +249,7 @@ function drawFlow(cpu) {
 		}
 	}
 	
+	/*
 	// Draw 15-Bank Switches
 	x = 430; y = 240;
 	val = cpu_state.s_switch_addr;
@@ -256,6 +260,7 @@ function drawFlow(cpu) {
 			val = val << 1;
 		}
 	}
+	*/
 }
 
 /*

@@ -378,6 +378,11 @@ function propagate(cpu) {
 	switch (data_bus_select) {
 	
 		case BUS_SELECT_EMPTY:
+		
+			// Put the contents of the switch register on the bus if constant == 0
+			if (!constant_value) {
+				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_switch_data);
+			}
 			break;
 			
 		case BUS_SELECT_AC:
