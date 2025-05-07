@@ -1645,6 +1645,19 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 						
+		} else if (decode_mode == DECODE_MODE_OPERATE) {
+			// Operate step decoding
+			let step = getbit(input, 0, 1);
+			let cma = getbit(input, 1, 1);
+			let cml = getbit(input, 2, 1);
+			let oas = getbit(input, 3, 1);
+			let ral = getbit(input, 4, 1);
+			let rar = getbit(input, 5, 1);
+			let hlt = getbit(input, 6, 1);
+			let arot = getbit(input, 7, 1);
+			let cll = getbit(input, 8, 1);
+			let cla = getbit(input, 9, 1);
+			let flag_link = getbit(input, 10, 1);
 		}
 		
 		
