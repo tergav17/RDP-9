@@ -500,6 +500,7 @@ const STEP_SRV_FETCH = 2;			// Fetch the next instruction
 const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
+const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 
 // --- INSTRUCTION MODE STEPS
 
@@ -575,9 +576,9 @@ const OPCODE_IOT = 14;
 // OPR
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
 const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
-const STEP_ISR_OPR_STAGE_ONE = 0	// First stage of OPR, compliment / clear AC and L
+const STEP_OPR_STAGE_ONE = 0		// First stage of OPR, compliment / clear AC and L
 const STEP_ISR_OPR_SWR_OB =  2		// Move the switch register into OB
-const STEP_ISR_OPR_STAGE_TWO = 1	// Perform shift operations or OR in the switch register
+const STEP_OPR_STAGE_TWO = 1		// Perform shift operations or OR in the switch register
 
 // Instructions defined here will allow for indirect addressing
 const INDIRECTABLE = [
@@ -1633,7 +1634,7 @@ function decode(input) {
 						
 						// Do the first stage of the OPeRate
 						next_decode_mode = DECODE_MODE_OPERATE;
-						next_step = STEP_ISR_OPR_STAGE_ONE;
+						next_step = STEP_OPR_STAGE_ONE;
 						break;
 				}
 				break;
@@ -1658,6 +1659,17 @@ function decode(input) {
 			let cll = getbit(input, 8, 1);
 			let cla = getbit(input, 9, 1);
 			let flag_link = getbit(input, 10, 1);
+			
+			// There are only 2 actual states, but what the hell I'll use a switch anyways
+			switch (step) {
+				
+				case STEP_OPR_STAGE_ONE:
+					break;
+					
+					
+				case STEP_OPR_STAGE_TWO:
+					break;
+			}
 		}
 		
 		
