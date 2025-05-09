@@ -1663,11 +1663,23 @@ function decode(input) {
 			// There are only 2 actual states, but what the hell I'll use a switch anyways
 			switch (step) {
 				
+				// Perform compliments and clearning on AC / L
+				// 
+				//
+				// STEP_ISR_OPR_SWR_OB -> NEXT
+				
 				case STEP_OPR_STAGE_ONE:
 					break;
 					
-					
+				// Perform shift operations / do switch register OR operation
+				//
+				//
+				// STEP_SRV_FETCH -> NEXT
 				case STEP_OPR_STAGE_TWO:
+				
+					// We are done
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_FETCH;
 					break;
 			}
 		}
