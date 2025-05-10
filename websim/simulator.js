@@ -238,6 +238,12 @@ function drawFlow(cpu) {
 	flow_ctx.fillText("INSTRUCTION", x + 15, y - 10);
 	drawRegister(x, y, getbit(cpu.r_reg_ir, 13, 5), 5);
 	
+	// Link register
+	x = 430; y = 90;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("L", x + 4, y - 10);
+	drawRegister(x, y, cpu.r_reg_link, 1);
+	
 	// Draw 18-Bank Switches
 	x = 10; y = 240;
 	let val = cpu_state.s_switch_data;

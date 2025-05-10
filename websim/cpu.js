@@ -1646,47 +1646,66 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 						
-		} else if (decode_mode == DECODE_MODE_OPERATE) {
-			// Operate step decoding
-			let step = getbit(input, 0, 1);
-			let cma = getbit(input, 1, 1);
-			let cml = getbit(input, 2, 1);
-			let oas = getbit(input, 3, 1);
-			let ral = getbit(input, 4, 1);
-			let rar = getbit(input, 5, 1);
-			let hlt = getbit(input, 6, 1);
-			let arot = getbit(input, 7, 1);
-			let cll = getbit(input, 8, 1);
-			let cla = getbit(input, 9, 1);
-			let flag_link = getbit(input, 10, 1);
-			
-			// There are only 2 actual states, but what the hell I'll use a switch anyways
-			switch (step) {
-				
-				// Perform compliments and clearning on AC / L
-				// 
-				//
-				// STEP_ISR_OPR_SWR_OB -> NEXT
-				
-				case STEP_OPR_STAGE_ONE:
-					break;
-					
-				// Perform shift operations / do switch register OR operation
-				//
-				//
-				// STEP_SRV_FETCH -> NEXT
-				case STEP_OPR_STAGE_TWO:
-				
-					// We are done
-					next_decode_mode = DECODE_MODE_SERVICE;
-					next_step = STEP_SRV_FETCH;
-					break;
-			}
 		}
-		
 		
 		// Build the next state
 		next_state = next_step & 0x077;
+	} else if (decode_mode == DECODE_MODE_OPERATE) {
+		// Operate step decoding
+		let step = getbit(input, 0, 1);
+		let cma = getbit(input, 1, 1);
+		let cml = getbit(input, 2, 1);
+		let oas = getbit(input, 3, 1);
+		let ral = getbit(input, 4, 1);
+		let rar = getbit(input, 5, 1);
+		let hlt = getbit(input, 6, 1);
+		let arot = getbit(input, 7, 1);
+		let cll = getbit(input, 8, 1);
+		let cla = getbit(input, 9, 1);
+		let flag_link = getbit(input, 10, 1);
+		
+		// There are only 2 actual states, but what the hell I'll use a switch anyways
+		switch (step) {
+			
+			// Perform compliments and clearning on AC / L
+			// IF CLA:
+			//  IF CMA:
+			//   0777777 -> AC
+			//  ELSE:
+			//   0 -> AC
+			// ELSE:
+			//  IF CMA:
+			//   (OB XOR MB) -> AC
+			//  ELSE:
+			//   (OB AND MB) -> AC
+			// IF CLL:
+			//  IF CML:
+			//   1 -> FLAG_L
+			//  ELSE:
+			//   0 -> FLAG_L
+			// ELSE:
+			//   IF CML:
+			//    !FLAG_L -> FLAG_L
+			//   ELSE:
+			//    FLAG_L -> FLAG_L
+			//   
+			//
+			// STEP_ISR_OPR_SWR_OB -> NEXT
+			
+			case STEP_OPR_STAGE_ONE:
+				break;
+				
+			// Perform shift operations / do switch register OR operation
+			//
+			//
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_OPR_STAGE_TWO:
+			
+				// We are done
+				next_decode_mode = DECODE_MODE_SERVICE;
+				next_step = STEP_SRV_FETCH;
+				break;
+		}
 	}
 	
 	// Return new control register
