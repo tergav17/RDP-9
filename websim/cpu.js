@@ -483,8 +483,8 @@ const ALU_SHIFT_RAR = 0;
 const ALU_SHIFT_RAL = 1;
 const ALU_SHIFT_RTR = 2;
 const ALU_SHIFT_RTL = 3;
-const ALU_LINK_KEEP = 0;
 
+const ALU_LINK_KEEP = 0;
 const ALU_LINK_COMP = 1;
 const ALU_LINK_ARITH = 2;
 const ALU_LINK_SHIFT = 3;
@@ -1670,14 +1670,14 @@ function decode(input) {
 			// Perform compliments and clearning on AC / L
 			// IF CLA:
 			//  IF CMA:
-			//   0777777 -> AC
+			//   0777777 -> AC, OB
 			//  ELSE:
-			//   0 -> AC
+			//   0 -> AC, OB
 			// ELSE:
 			//  IF CMA:
-			//   (OB XOR MB) -> AC
+			//   (OB XOR MB) -> AC, OB
 			//  ELSE:
-			//   (OB AND MB) -> AC
+			//   (OB AND MB) -> AC, OB
 			// IF CLL:
 			//  IF CML:
 			//   1 -> FLAG_L
@@ -1693,6 +1693,44 @@ function decode(input) {
 			// STEP_ISR_OPR_SWR_OB -> NEXT
 			
 			case STEP_OPR_STAGE_ONE:
+				// Take in the output of the ALU
+				bus_output_select = BUS_SELECT_ALU;
+				
+				// Put it into the AC and OB
+				latch_ac = 1;
+				latch_ob = 1;
+			
+				// Do AC stuff first
+				if (cla) {
+					// We are clearing the accumulator
+					if (cma) {
+						alu_op_select = ALU_PRESET;
+					} else {
+						alu_op_select = ALU_CLEAR;
+					}
+				} else {
+					// Either complimenet or don't
+					if (cma) {
+						alu_op_select = ALU_XOR;
+					} else {
+						alu_op_select = ALU_AND;
+					}
+				}
+				
+				// Now set the link
+				let invert_link = 0;
+				if (cll) {
+					// We are clearing the link flag
+					if (cml) {
+						invert_link = flag_link;
+					} else {
+						invert_link = !flag_link;
+					}
+				} else {
+					invert_link = cml;
+				}
+				if (invert_link) 
+					alu_link_select = ALU_LINK_COMP;
 				break;
 				
 			// Perform shift operations / do switch register OR operation
