@@ -1688,8 +1688,6 @@ function decode(input) {
 			//    !FLAG_L -> FLAG_L
 			//   ELSE:
 			//    FLAG_L -> FLAG_L
-			//   
-			//
 			// STEP_ISR_OPR_SWR_OB -> NEXT
 			
 			case STEP_OPR_STAGE_ONE:
@@ -1734,10 +1732,48 @@ function decode(input) {
 				break;
 				
 			// Perform shift operations / do switch register OR operation
-			//
+			// IF OAS:
+			//  (OB OR MB) -> AC
+			// ELSE:
+			//  IF RAL:
+			//   IF AROT:
+			//    OB << 2 -> AC
+			//   ELSE:
+			//    OB << 1 -> AC
+			//  IF RAR:
+			//   IF AROT:
+			//    OB >> 2 -> AC
+			//   ELSE:
+			//    OB >> 1 -> AC
 			//
 			// STEP_SRV_FETCH -> NEXT
 			case STEP_OPR_STAGE_TWO:
+				// Take in the output of the ALU
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR
+			
+				// We can do OAS and rotates, but not both
+				if (oas) {
+					latch_ac = 1;
+				} else {
+					alu_select_shifter = 1;
+					if (ral) {
+						latch_ac = 1;
+						if (arot) {
+							alu_op_select = ALU_SHIFT_RTL;
+						} else {
+							alu_op_select = ALU_SHIFT_RAL;
+						}
+					}
+					if (rar) {
+						latch_ac = 1;
+						if (arot) {
+							alu_op_select = ALU_SHIFT_RTR;
+						} else {
+							alu_op_select = ALU_SHIFT_RAR;
+						}
+					}
+				}
 			
 				// We are done
 				next_decode_mode = DECODE_MODE_SERVICE;
