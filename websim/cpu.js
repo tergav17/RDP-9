@@ -1652,6 +1652,22 @@ function decode(input) {
 						next_decode_mode = DECODE_MODE_OPERATE;
 						next_step = STEP_OPR_STAGE_ONE;
 						break;
+						
+					// Put the switch register into OB
+					// SW -> OB
+					// STEP_OPR_STAGE_TWO -> NEXT
+					case STEP_ISR_OPR_SWR_OB:
+						// Put the switch register on the bus
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Latch OB
+						latch_ob = 1;
+						
+						// Do the second stage of the OPeRate
+						next_decode_mode = DECODE_MODE_OPERATE;
+						next_step = STEP_OPR_STAGE_TWO;
+						break
 				}
 				break;
 
