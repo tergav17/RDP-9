@@ -803,7 +803,7 @@ function decode(input) {
 				
 			// Increment the program counter if OB = 0
 			// IF FLAG_ZERO:
-			//  PC +1 -> PC
+			//  PC + 1 -> PC
 			// STEP_SRV_FETCH -> NEXT
 			case STEP_SRV_SKIP_ZERO:
 				if (flag_zero) {
@@ -819,7 +819,7 @@ function decode(input) {
 				
 			// Increment the program counter if OB != 0
 			// IF !FLAG_ZERO:
-			//  PC +1 -> PC
+			//  PC + 1 -> PC
 			// STEP_SRV_FETCH -> NEXT
 			case STEP_SRV_SKIP_NOT_ZERO:
 				if (!flag_zero) {
@@ -833,6 +833,22 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 				
+			// Increment the program counter based on the skip value
+			// IF FLAG_SKIP:
+			//  PC + 1 -> PC
+			// STEP_ISR_OPR_SWR_OB -> NEXT
+			case STEP_SRV_SKIP_OPR:
+				if (flag_skip) {
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					enable_addr_to_core = 1;
+					latch_pc = 1;
+					constant_value = 1;
+				}
+				
+				next_decode_mode = DECODE_MODE_INSTRUCTION;
+				next_step = STEP_ISR_OPR_SWR_OB;
+				break;
 				
 			default:
 				break;
@@ -1729,6 +1745,11 @@ function decode(input) {
 				}
 				if (invert_link) 
 					alu_link_select = ALU_LINK_COMP;
+				
+				// Execute the skip and switch load steps
+				next_decode_mode = DECODE_MODE_SERVICE;
+				next_step = STEP_SRV_FETCH;
+				
 				break;
 				
 			// Perform shift operations / do switch register OR operation
@@ -1745,17 +1766,18 @@ function decode(input) {
 			//    OB >> 2 -> AC
 			//   ELSE:
 			//    OB >> 1 -> AC
-			//
 			// STEP_SRV_FETCH -> NEXT
 			case STEP_OPR_STAGE_TWO:
 				// Take in the output of the ALU
 				bus_output_select = BUS_SELECT_ALU;
-				alu_op_select = ALU_OR
+				
 			
 				// We can do OAS and rotates, but not both
 				if (oas) {
 					latch_ac = 1;
+					alu_op_select = ALU_OR;
 				} else {
+					latch_ac = 1;
 					alu_select_shifter = 1;
 					if (ral) {
 						latch_ac = 1;
