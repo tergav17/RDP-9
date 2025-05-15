@@ -51,8 +51,9 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0340040;	// TAD 040
-cpu_state.r_core[1] = 0600000;  // JMP 000
+cpu_state.r_core[0] = 0200040;  // LAC 040
+cpu_state.r_core[1] = 0750004;	// CLC
+cpu_state.r_core[2] = 0600001;  // JMP 001
 
 cpu_state.r_core[040] = 0000001;
 
@@ -204,8 +205,8 @@ function propagate(cpu) {
 		case DECODE_MODE_OPERATE:
 			microcode_input |= getbit(cpu.r_state[0], 0, 1);
 			microcode_input |= getbit(cpu.r_reg_ir, 0, 6) << 1;
-			microcode_input |= getbit(cpu.r_reg_ir, 12, 3) << 7;
-			microcode_input |= cpu>r_reg_link << 10;
+			microcode_input |= getbit(cpu.r_reg_ir, 10, 3) << 7;
+			microcode_input |= cpu.r_reg_link << 10;
 			break;
 			
 	}
@@ -215,7 +216,7 @@ function propagate(cpu) {
 	// Step 2: Do ALU related activites
 	let alu_ctrl = cpu.r_state[4];
 	let alu_op_select = getbit(alu_ctrl, ALU_OP_SELECT, 3);
-	let alu_link_select = getbit(alu_ctrl, ALU_LINK_SELECT, 3);
+	let alu_link_select = getbit(alu_ctrl, ALU_LINK_SELECT, 2);
 	let alu_select_shifter = getbit(alu_ctrl, ALU_SELECT_SHIFTER, 1);
 	let alu_select_ones = getbit(alu_ctrl, ALU_SELECT_ONES, 1);
 	
@@ -577,7 +578,7 @@ const OPCODE_IOT = 14;
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
 const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
 const STEP_OPR_STAGE_ONE = 0		// First stage of OPR, compliment / clear AC and L
-const STEP_ISR_OPR_SWR_OB =  2		// Move the switch register into OB
+const STEP_ISR_OPR_SWR_MB =  2		// Move the switch register into OB
 const STEP_OPR_STAGE_TWO = 1		// Perform shift operations or OR in the switch register
 
 // Instructions defined here will allow for indirect addressing
@@ -833,10 +834,14 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 				
-			// Increment the program counter based on the skip value
+			// Increment the program counter based on the skip flag
+			// If the skip flag is not set, set MB to the switch register
 			// IF FLAG_SKIP:
 			//  PC + 1 -> PC
-			// STEP_ISR_OPR_SWR_OB -> NEXT
+			//  STEP_ISR_OPR_SWR_MB -> NEXT
+			// ELSE:
+			//  SW -> MB
+			//  STEP_OPR_STAGE_TWO -> NEXT
 			case STEP_SRV_SKIP_OPR:
 				if (flag_skip) {
 					bus_output_select = BUS_SELECT_CROSS;
@@ -844,10 +849,21 @@ function decode(input) {
 					enable_addr_to_core = 1;
 					latch_pc = 1;
 					constant_value = 1;
+					
+					next_decode_mode = DECODE_MODE_INSTRUCTION;
+					next_step = STEP_ISR_OPR_SWR_MB;
+				} else {
+					// Put the switch register on the bus
+					bus_output_select = BUS_SELECT_EMPTY;
+					constant_value = 0;
+					
+					// Latch MB
+					latch_mb = 1;
+					
+					// Do the second stage of the OPeRate
+					next_decode_mode = DECODE_MODE_OPERATE;
+					next_step = STEP_OPR_STAGE_TWO;
 				}
-				
-				next_decode_mode = DECODE_MODE_INSTRUCTION;
-				next_step = STEP_ISR_OPR_SWR_OB;
 				break;
 				
 			default:
@@ -1653,21 +1669,21 @@ function decode(input) {
 						next_step = STEP_OPR_STAGE_ONE;
 						break;
 						
-					// Put the switch register into OB
-					// SW -> OB
+					// Put the switch register into MB
+					// SW -> MB
 					// STEP_OPR_STAGE_TWO -> NEXT
-					case STEP_ISR_OPR_SWR_OB:
+					case STEP_ISR_OPR_SWR_MB:
 						// Put the switch register on the bus
 						bus_output_select = BUS_SELECT_EMPTY;
 						constant_value = 0;
 						
-						// Latch OB
-						latch_ob = 1;
+						// Latch MB
+						latch_mb = 1;
 						
 						// Do the second stage of the OPeRate
 						next_decode_mode = DECODE_MODE_OPERATE;
 						next_step = STEP_OPR_STAGE_TWO;
-						break
+						break;
 				}
 				break;
 
@@ -1720,7 +1736,7 @@ function decode(input) {
 			//    !FLAG_L -> FLAG_L
 			//   ELSE:
 			//    FLAG_L -> FLAG_L
-			// STEP_ISR_OPR_SWR_OB -> NEXT
+			// STEP_ISR_OPR_SWR_MB -> NEXT
 			
 			case STEP_OPR_STAGE_ONE:
 				// Take in the output of the ALU
@@ -1729,7 +1745,7 @@ function decode(input) {
 				// Put it into the AC and OB
 				latch_ac = 1;
 				latch_ob = 1;
-			
+
 				// Do AC stuff first
 				if (cla) {
 					// We are clearing the accumulator
@@ -1764,7 +1780,7 @@ function decode(input) {
 				
 				// Execute the skip and switch load steps
 				next_decode_mode = DECODE_MODE_SERVICE;
-				next_step = STEP_SRV_FETCH;
+				next_step = STEP_SRV_SKIP_OPR;
 				
 				break;
 				
@@ -1787,16 +1803,17 @@ function decode(input) {
 				// Take in the output of the ALU
 				bus_output_select = BUS_SELECT_ALU;
 				
-			
 				// We can do OAS and rotates, but not both
 				if (oas) {
 					latch_ac = 1;
+					latch_ob = 1;
 					alu_op_select = ALU_OR;
 				} else {
-					latch_ac = 1;
-					alu_select_shifter = 1;
 					if (ral) {
 						latch_ac = 1;
+						latch_ob = 1;
+						alu_select_shifter = 1;
+						alu_link_select = ALU_LINK_SHIFT;
 						if (arot) {
 							alu_op_select = ALU_SHIFT_RTL;
 						} else {
@@ -1805,6 +1822,9 @@ function decode(input) {
 					}
 					if (rar) {
 						latch_ac = 1;
+						latch_ob = 1;
+						alu_select_shifter = 1;
+						alu_link_select = ALU_LINK_SHIFT;
 						if (arot) {
 							alu_op_select = ALU_SHIFT_RTR;
 						} else {
@@ -1818,6 +1838,9 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 		}
+		
+		// Build the next state
+		next_state = next_step & 0x077;
 	}
 	
 	// Return new control register
