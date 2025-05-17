@@ -42,6 +42,18 @@ function simRunHalt() {
 	}
 }
 
+front_panel_ctrl = {
+	halt_step: 0,
+	cont: 0,
+	go_to: 0,
+	exam: 0,
+	exam_next: 0,
+	dept: 0,
+	dept_next: 0,
+	read_in: 0,
+	xct: 0
+}
+
 /*
  * Set PC to 0 and re-propagate
  */
