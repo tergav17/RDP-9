@@ -52,11 +52,12 @@ cpu_state = {
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
 cpu_state.r_core[0] = 0200040;  // LAC 040
-cpu_state.r_core[1] = 0750004;	// CLC
-cpu_state.r_core[2] = 0600001;  // JMP 001
+cpu_state.r_core[1] = 0740010;	// RAL
+cpu_state.r_core[2] = 0740100;  // SMA
+cpu_state.r_core[3] = 0600001;	// JMP 001
+cpu_state.r_core[4] = 0600004;	// JMP 004
 
 cpu_state.r_core[040] = 0000001;
-
 
 
 /*
@@ -150,8 +151,10 @@ function latch(cpu) {
 	cpu.r_reg_skip = (
 		((cpu.r_reg_zero && getbit(cpu.r_reg_ir, 7, 1)) ||
 		(cpu.r_reg_sign && getbit(cpu.r_reg_ir, 6, 1)) || 
-		(!cpu.r_reg_link && getbit(cpu.r_reg_ir, 8, 1))) != getbit(cpu.r_reg_ir, 9, 1)
+		(cpu.r_reg_link && getbit(cpu.r_reg_ir, 8, 1))) 
+		!= getbit(cpu.r_reg_ir, 9, 1)
 	) ? 1 : 0;
+	console.log("Update skip to " + cpu.r_reg_skip + ", Zero: " + cpu.r_reg_zero + ", Sign: " + cpu.r_reg_sign + ", Link: " + cpu.r_reg_link);
 	if (getbit(alu_ctrl, ALU_LATCH_OB, 1)) {
 		cpu.r_reg_ob = bus(cpu.s_data_bus);
 		cpu.r_reg_zero = cpu.r_reg_ob ? 0 : 1;
@@ -621,7 +624,7 @@ function decode(input) {
 	// If Decode Mode == 1 (Instruction Mode)
 	//	I[0:2] = Current step
 	//	I[3] = IR[5]
-	//  I[4] = Indirection
+	//	I[4] = Indirection
 	//	I[5:8] = Instruction
 	//	I[9] = Extended mode
 	//	I[10] =  MA auto index
@@ -637,6 +640,11 @@ function decode(input) {
 	//	I[8] = CLL
 	//	I[9] = CLA
 	//	I[10] = Link Flag
+	// If Decode Mode == 3 (Misc Mode)
+	//	If Step[5] == 0:
+	//		I[0:4] = Current step
+	//		I[5:7] = EAE opcode (IR[6:8])
+	//		I[8] = EAE AC sign
 	
 	// --- OUTPUTS
 	//

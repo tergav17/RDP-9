@@ -246,6 +246,8 @@ function drawFlow(cpu) {
 	
 	// Draw 18-Bank Switches
 	x = 10; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("SWITCH REGISTER", x + 145, y - 5);
 	let val = cpu_state.s_switch_data;
 	for (let i = 0; i < 6; i++) {
 		
@@ -254,6 +256,65 @@ function drawFlow(cpu) {
 			val = val << 1;
 		}
 	}
+	
+	// Draw HALT / STEP switch
+	let bx = 7;
+	x = 430 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("HALT", x - 4, y - 10);
+	flow_ctx.fillText("STEP", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw CONTinue switch
+	x = 465 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("CONT", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw GOTO switch
+	x = 500 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("GOTO", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw EXAMine switch
+	x = 535 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("EXAM", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw EXAMine NEXT switch
+	x = 570 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("EXAM", x - 4, y - 10);
+	flow_ctx.fillText("NEXT", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw DEPosiT switch
+	x = 605 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("DEPT", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw DEPosiT NEXT switch
+	x = 640 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("DEPT", x - 4, y - 10);
+	flow_ctx.fillText("NEXT", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw READ IN switch
+	x = 675 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("READ", x - 4, y - 10);
+	flow_ctx.fillText(" IN ", x - 4, y - 0);
+	drawSwitch(x, y + 5, false);
+	
+	// Draw XCT switch
+	x = 710 + bx; y = 240;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("XCT", x - 2, y - 0);
+	drawSwitch(x, y + 5, false);
 	
 	/*
 	// Draw 15-Bank Switches
