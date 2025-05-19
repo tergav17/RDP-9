@@ -45,7 +45,21 @@ cpu_state = {
 	
 	// Microcode
 	r_state: [0, 0, 0, 0, 0],
-	s_ctrl: [0, 0, 0, 0, 0]
+	s_ctrl: [0, 0, 0, 0, 0],
+	
+	// Front panel stuff
+	front_panel_code: 0,
+	front_panel_ctrl: {
+		halt_step: 0,
+		cont: 0,
+		go_to: 0,
+		exam: 0,
+		exam_next: 0,
+		dept: 0,
+		dept_next: 0,
+		read_in: 0,
+		xct: 0
+	}
 };
  
 // CPU memory init
