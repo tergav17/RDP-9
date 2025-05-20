@@ -263,58 +263,58 @@ function drawFlow(cpu) {
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("HALT", x - 4, y - 10);
 	flow_ctx.fillText("STEP", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.halt_step > 0);
 	
 	// Draw CONTinue switch
 	x = 465 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("CONT", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.cont > 0);
 	
 	// Draw GOTO switch
 	x = 500 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("GOTO", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.go_to > 0);
 	
 	// Draw EXAMine switch
 	x = 535 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("EXAM", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.exam > 0);
 	
 	// Draw EXAMine NEXT switch
 	x = 570 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("EXAM", x - 4, y - 10);
 	flow_ctx.fillText("NEXT", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.exam_next > 0);
 	
 	// Draw DEPosiT switch
 	x = 605 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("DEPT", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.dept > 0);
 	
 	// Draw DEPosiT NEXT switch
 	x = 640 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("DEPT", x - 4, y - 10);
 	flow_ctx.fillText("NEXT", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.dept_next > 0);
 	
 	// Draw READ IN switch
 	x = 675 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("READ", x - 4, y - 10);
 	flow_ctx.fillText(" IN ", x - 4, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.read_in > 0);
 	
 	// Draw XCT switch
 	x = 710 + bx; y = 240;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("XCT", x - 2, y - 0);
-	drawSwitch(x, y + 5, false);
+	drawSwitch(x, y + 5, cpu.front_panel_ctrl.xct > 0);
 	
 	/*
 	// Draw 15-Bank Switches
