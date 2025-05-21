@@ -101,24 +101,6 @@ cpu_state.r_core[0123] = 0321;
  * Final part of micro-instruction execution
  */
 function latch(cpu) {
-
-	// Decrement all front panel bits
-	if (cpu.front_panel_ctrl.halt_step)
-		cpu.front_panel_ctrl.halt_step--;
-	if (cpu.front_panel_ctrl.cont)
-		cpu.front_panel_ctrl.cont--;
-	if (cpu.front_panel_ctrl.go_to)
-		cpu.front_panel_ctrl.go_to--;
-	if (cpu.front_panel_ctrl.exam)
-		cpu.front_panel_ctrl.exam--;
-	if (cpu.front_panel_ctrl.exam_next)
-		cpu.front_panel_ctrl.exam_next--;
-	if (cpu.front_panel_ctrl.dept)
-		cpu.front_panel_ctrl.dept_next--;
-	if (cpu.front_panel_ctrl.read_in)
-		cpu.front_panel_ctrl.read_in--;
-	if (cpu.front_panel_ctrl.xct)
-		cpu.front_panel_ctrl.xct--;
 	
 	// Update main registers
 	let latch_select = cpu.r_state[1];

@@ -64,6 +64,46 @@ function simStep() {
 // event farm!!!! :)
 var clockCyclesPerTick = 1;
 function updateClock() {
+	
+	// Decrement all front panel bits
+	cpu_state.front_panel_state = 0;
+	if (cpu_state.front_panel_ctrl.halt_step) {
+		cpu_state.front_panel_ctrl.halt_step--;
+		cpu_state.front_panel_state = 1;
+	}
+	if (cpu_state.front_panel_ctrl.cont) {
+		cpu_state.front_panel_ctrl.cont--;
+		cpu_state.front_panel_state = 2;
+	}
+	if (cpu_state.front_panel_ctrl.go_to) {
+		cpu_state.front_panel_ctrl.go_to--;
+		cpu_state.front_panel_state = 3;
+	}
+	if (cpu_state.front_panel_ctrl.exam) {
+		cpu_state.front_panel_ctrl.exam--;
+		cpu_state.front_panel_state = 4;
+	}
+	if (cpu_state.front_panel_ctrl.exam_next) {
+		cpu_state.front_panel_ctrl.exam_next--;
+		cpu_state.front_panel_state = 5;
+	}
+	if (cpu_state.front_panel_ctrl.dept) {
+		cpu_state.front_panel_ctrl.dept--;
+		cpu_state.front_panel_state = 6;
+	}
+	if (cpu_state.front_panel_ctrl.dept_next) {
+		cpu_state.front_panel_ctrl.dept_next--;
+		cpu_state.front_panel_state = 7;
+	}
+	if (cpu_state.front_panel_ctrl.read_in) {
+		cpu_state.front_panel_ctrl.read_in--;
+		cpu_state.front_panel_state = 8;
+	}
+	if (cpu_state.front_panel_ctrl.xct) {
+		cpu_state.front_panel_ctrl.xct--;
+		cpu_state.front_panel_state = 9;
+	}
+	
 	if (runClock) {
 		for (let i = 0; i < clockCyclesPerTick; i++) {
 			latch(cpu_state);
