@@ -141,6 +141,45 @@ function mouseDown(e) {
 		}
 	}
 	
+	let bx = 7;
+	x = 430 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.halt_step = 30;
+	}
+	x = 465 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.cont = 30;
+	}
+	x = 500 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.go_to = 30;
+	}
+	x = 535 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.exam = 30;
+	}
+	x = 570 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.exam_next = 30;
+	}
+	x = 605 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.dept = 30;
+	}
+	x = 640 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.dept_next = 30;
+	}
+	x = 675 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.read_in = 30;
+	}
+	x = 710 + bx; y = 240;
+	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
+		cpu_state.front_panel_ctrl.xct = 30;
+	}
+	
+	
 	/*
 	x = 430; y = 240;
 	sw_num = 15;
