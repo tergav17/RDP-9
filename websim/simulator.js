@@ -63,6 +63,7 @@ function simStep() {
 
 // event farm!!!! :)
 var clockCyclesPerTick = 1;
+var last_front_panel_state = 0;
 function updateClock() {
 	
 	// Decrement all front panel bits
@@ -103,6 +104,11 @@ function updateClock() {
 		cpu_state.front_panel_ctrl.xct--;
 		cpu_state.front_panel_state = 9;
 	}
+	if (last_front_panel_state != cpu_state.front_panel_state) {
+		updateFlow(false);
+		last_front_panel_state = cpu_state.front_panel_state;
+	}
+	
 	
 	if (runClock) {
 		for (let i = 0; i < clockCyclesPerTick; i++) {
@@ -142,41 +148,42 @@ function mouseDown(e) {
 	}
 	
 	let bx = 7;
+	let press_time = 5;
 	x = 430 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.halt_step = 30;
+		cpu_state.front_panel_ctrl.halt_step = press_time;
 	}
 	x = 465 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.cont = 30;
+		cpu_state.front_panel_ctrl.cont = press_time;
 	}
 	x = 500 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.go_to = 30;
+		cpu_state.front_panel_ctrl.go_to = press_time;
 	}
 	x = 535 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.exam = 30;
+		cpu_state.front_panel_ctrl.exam = press_time;
 	}
 	x = 570 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.exam_next = 30;
+		cpu_state.front_panel_ctrl.exam_next = press_time;
 	}
 	x = 605 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.dept = 30;
+		cpu_state.front_panel_ctrl.dept = press_time;
 	}
 	x = 640 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.dept_next = 30;
+		cpu_state.front_panel_ctrl.dept_next = press_time;
 	}
 	x = 675 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.read_in = 30;
+		cpu_state.front_panel_ctrl.read_in = press_time;
 	}
 	x = 710 + bx; y = 240;
 	if (mx >= x && mx <= x + 15 && my >= y && my <= y + 30) {
-		cpu_state.front_panel_ctrl.xct = 30;
+		cpu_state.front_panel_ctrl.xct = press_time;
 	}
 	
 	
