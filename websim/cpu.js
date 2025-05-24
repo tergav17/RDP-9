@@ -49,7 +49,7 @@ cpu_state = {
 	
 	// Front panel stuff
 	r_front_panel: 0,
-	front_panel_code: 0,
+	front_panel_state: 0,
 	front_panel_ctrl: {
 		halt_step: 0,
 		cont: 0,
@@ -102,6 +102,10 @@ cpu_state.r_core[0123] = 0321;
  * Final part of micro-instruction execution
  */
 function latch(cpu) {
+	
+	// Set the front panel register
+	// On the real system, this will be done 60 times a second
+	cpu.r_front_panel = cpu.front_panel_state & 0x0F;
 	
 	// Update main registers
 	let latch_select = cpu.r_state[1];
@@ -209,7 +213,7 @@ function propagate(cpu) {
 				microcode_input |= cpu.r_reg_zero << 7;
 				microcode_input |= cpu.r_reg_skip << 8;
 			} else {
-				// TODO insert front panel status
+				microcode_input |= cpu.r_front_panel << 7;
 			}
 			break;
 		
@@ -507,6 +511,17 @@ const ALU_LINK_COMP = 1;
 const ALU_LINK_ARITH = 2;
 const ALU_LINK_SHIFT = 3;
 
+const FP_NOOP = 0;
+const FP_HALT_STEP = 1;
+const FP_CONT = 2;
+const FP_GOTO = 3;
+const FP_EXAM = 4;
+const FP_EXAM_NEXT = 5;
+const FP_DEPT = 6;
+const FP_DEPT_NEXT = 7;
+const FP_READ_IN = 8;
+const FP_XCT = 9;
+
 // -- SERVICE MODE STEPS --
 
 // Reset steps
@@ -514,11 +529,14 @@ const STEP_SRV_RESET_ENTRY = 0;
 const STEP_SRV_RESET_AC_CLEAR = 1;
 
 // Instruction management steps
-const STEP_SRV_FETCH = 2;			// Fetch the next instruction
-const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
+const STEP_SRV_FETCH = 2;		// Fetch the next instruction
+const STEP_SRV_PC_NEXT = 3;		// Increment the program counter unconditionally
+const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
+const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
+
 
 // --- INSTRUCTION MODE STEPS
 
@@ -538,47 +556,47 @@ const STEP_ISR_CAL_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_CAL_MA_PC = 4;		// Store the MA + 1 into PC
 
 
-// DAC								// Initial step: Store AC into CORE[MA]
-const OPCODE_DAC = 1;
+// DAC	
+const OPCODE_DAC = 1;			// Initial step: Store AC into CORE[MA]
 
 // JMS
-const OPCODE_JMS = 2;				// Initial step: Transfer PC to MB, OB
+const OPCODE_JMS = 2;			// Initial step: Transfer PC to MB, OB
 const STEP_ISR_JMS_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_JMS_MA_PC = 4;		// Store the MA + 1 into PC
 
 // DZM
-const OPCODE_DZM = 3;				// Initial step; Store 0 into CORE[MA]
+const OPCODE_DZM = 3;			// Initial step; Store 0 into CORE[MA]
 
-// LAC								// Initial step: Store CORE[MA] into AC
-const OPCODE_LAC = 4;
+// LAC		
+const OPCODE_LAC = 4;			// Initial step: Store CORE[MA] into AC
 
 // XOR								
-const OPCODE_XOR = 5;				// Initial step: Store CORE[MA] into MB
+const OPCODE_XOR = 5;			// Initial step: Store CORE[MA] into MB
 const STEP_ISR_XOR_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_XOR_LATCH = 4;		// Latch the result of the XOR into AC
 
 // ADD
-const OPCODE_ADD = 6;				// Initial step: Store CORE[MA] into MB
+const OPCODE_ADD = 6;			// Initial step: Store CORE[MA] into MB
 const STEP_ISR_ADD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_ADD_LATCH = 4;		// Latch the result of the ADD into AC
 
 // TAD
-const OPCODE_TAD = 7;				// Initial step: Store CORE[MA] into MB
+const OPCODE_TAD = 7;			// Initial step: Store CORE[MA] into MB
 const STEP_ISR_TAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 
-const OPCODE_XCT = 8;				// Initial step: Perform a fetch using MA instead of PC
+const OPCODE_XCT = 8;			// Initial step: Perform a fetch using MA instead of PC
 const STEP_ISR_XCT_NULL = 3;		// Null cycle before returning to instruction execution
 
-const OPCODE_ISZ = 9;				// Initial step: Store CORE[MA] into OB, MB
-const STEP_ISR_ISZ_INC = 3;			// Increment value in OB, MB, store in OB and CORE[MA]
+const OPCODE_ISZ = 9;			// Initial step: Store CORE[MA] into OB, MB
+const STEP_ISR_ISZ_INC = 3;		// Increment value in OB, MB, store in OB and CORE[MA]
 const STEP_ISR_ISZ_NULL = 4;		// Null cycle before checking the value
 
-const OPCODE_AND = 10;				// Initial step: Store CORE[MA] into MB
+const OPCODE_AND = 10;			// Initial step: Store CORE[MA] into MB
 const STEP_ISR_AND_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_AND_LATCH = 4;		// Latch the result of the AND into AC
 
-const OPCODE_SAD = 11;				// Initial step: Store CORE[MA] into MB
+const OPCODE_SAD = 11;			// Initial step: Store CORE[MA] into MB
 const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
@@ -738,13 +756,12 @@ function decode(input) {
 		// Misc step decoding
 		let step = getbit(input, 0, 6);
 		let irq_pending = getbit(input, 6, 1);
-		let panel_status = getbit(input, 7, 4);
+		let front_panel_state = getbit(input, 7, 4);
 		let flag_zero = getbit(input, 7, 1);
 		let flag_skip = getbit(input, 8, 1);
 		
 		
 		switch (step) {
-			
 			// --- SYSTEM RESET BLOCK ---
 			
 			// Reset condition
@@ -757,7 +774,7 @@ function decode(input) {
 			// Clear out the all of the registers
 			// 1 -> EXTEND_ENABLE
 			// 0 -> PC, AC, MQ, STEP
-			// STEP_SRV_FETCH -> NEXT
+			// STEP_SRV_AWAIT_NOFP -> NEXT
 			case STEP_SRV_RESET_AC_CLEAR:
 				
 				// Set the bus to 0
@@ -774,7 +791,7 @@ function decode(input) {
 				latch_step = 1;
 				
 				// TODO: Reset all of the flags
-				next_step = STEP_SRV_FETCH;
+				next_step = STEP_SRV_AWAIT_NOFP;
 				break;
 				
 			// --- INSTRUCTION MANAGEMENT BLOCK ---
@@ -784,11 +801,13 @@ function decode(input) {
 			// We should also check for interrupts and panel operations here
 			// 0 -> EXTEND_ENABLE
 			// CORE[PC] -> IR, MA, OB, MB
-			// STEP_SRV_PC_NEXT -> NEXT
+			// IF FP_HALT_STEP OR FP_XCT:
+			//  STEP_SRV_AWAIT_NOFP -> NEXT
+			// ELSE:
+			//  STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
 				
-				
-				// Read from core, put it in IR, MA, and MB
+				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
 				extended_addressing_enable = 0;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
@@ -800,11 +819,15 @@ function decode(input) {
 				latch_ob = 1;
 				latch_mb = 1;
 				
-				// TODO: Check in on the panel state and interrupts
-				next_step = STEP_SRV_PC_NEXT;
-				break;
-
-				
+				if (front_panel_state == FP_HALT_STEP || front_panel_state == FP_XCT) {
+					// Do nothing and start waiting for the front panel to be neutral
+					next_step = STEP_SRV_AWAIT_NOFP;
+					break;
+				} else {
+					// TODO: Check in on the interrupts
+					next_step = STEP_SRV_PC_NEXT;
+					break;
+				}
 			
 			// Increment the program counter before instruction execution
 			// This after to fetch so that the previously read instruction has
@@ -822,6 +845,65 @@ function decode(input) {
 
 				next_step = STEP_ISR_EXECUTE_BEGIN;
 				next_decode_mode = DECODE_MODE_INSTRUCTION;
+				break;
+				
+			// Await for no switches to be depressed on the front panel
+			// When that happens, go to the halt loop
+			// IF FP_NOOP:
+			//  STEP_SRV_HALT -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH_SKIP_FP -> NEXT
+			case STEP_SRV_AWAIT_NOFP:
+				
+				if (front_panel_state == FP_NOOP) {
+					// Go to the halt loop and await a command
+					next_step = STEP_SRV_HALT;
+					break;
+				} else {
+					// Keep waiting for a neutral front panel
+					next_step = STEP_SRV_AWAIT_NOFP;
+					break;
+				}
+				
+			// The halt state, await for a front panel switch to be depressed
+			// IF FP_HALT_STEP:
+			//  0 -> EXTEND_ENABLE
+			//  CORE[PC] -> IR, MA, OB, MB
+			//  STEP_SRV_PC_NEXT -> NEXT
+			// ELSE IF FP_CONT:
+			//  STEP_SRV_FETCH -> NEXT
+			// ELSE:
+			//  STEP_SRV_HALT -> NEXT
+			case STEP_SRV_HALT:
+			
+				switch (front_panel_state) {
+					
+					case FP_HALT_STEP:
+						// We are doing a single step, re-read in the instruction
+						// Read from core, put it in IR, MA, and MB
+						extended_addressing_enable = 0;
+						bus_output_select = BUS_SELECT_CORE;
+						select_pc_ma = ADDR_SELECT_PC;
+						enable_addr_to_core = 1;
+						
+						// Latch IR, MA, OB, MB
+						latch_ir = 1;
+						latch_ma = 1;
+						latch_ob = 1;
+						latch_mb = 1;
+						
+						next_step = STEP_SRV_PC_NEXT;
+						break;
+						
+					case FP_CONT:
+						next_step = STEP_SRV_FETCH;
+						break;
+					
+					default:
+						// Keep on waiting for something to happen
+						next_step = STEP_SRV_HALT;
+						break;
+				}
 				break;
 				
 			// Increment the program counter if OB = 0

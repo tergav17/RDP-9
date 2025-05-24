@@ -62,7 +62,7 @@ function simStep() {
 }
 
 // event farm!!!! :)
-var clockCyclesPerTick = 1;
+var clockCyclesPerTick = 10;
 var last_front_panel_state = 0;
 function updateClock() {
 	
