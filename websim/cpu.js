@@ -534,7 +534,8 @@ const STEP_SRV_PC_NEXT = 3;		// Increment the program counter unconditionally
 const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
 const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
 const STEP_SRV_REFETCH = 6;		// Perform a refetch and go back to waiting
-const STEP_SRV_SHOW_CORE = 7;
+const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
+const STEP_SRV_MA_NEXT = 8;             // Increment MA and then show it
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
@@ -884,7 +885,13 @@ function decode(input) {
 			//  STEP_SRV_SHOW_CORE -> NEXT
 			// ELSE IF FP_EXAM_NEXT:
 			//  MA + 1 -> MA
+			//  STEP_SRV_MA_NEXT -> NEXT
+			// ELSE IF FP_DEPT:
+			//  SW -> CORE[MA]
 			//  STEP_SRV_SHOW_CORE -> NEXT
+			// ELSE IF FP_DEPT_NEXT
+			//  SW -> CORE[MA]
+			//  STEP_SRV_MA_NEXT -> NEXT
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
 			case STEP_SRV_HALT:
@@ -941,18 +948,39 @@ function decode(input) {
 						
 					case FP_EXAM_NEXT:
 						// Increment MA
-						bus_output_select = BUS_SELECT_CROSS;
+						next_step = STEP_SRV_MA_NEXT;
+						break;
+						
+					case FP_DEPT:
+						// Place the switch register on the bus
+						extended_addressing_enable = 1;
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Get ready to put the value into core
 						select_pc_ma = ADDR_SELECT_MA;
 						enable_addr_to_core = 1;
-						constant_value = 1;
-						
-						// Latch MA
-						latch_ma = 1;
+						write_core = 1;
 						
 						// Show on MB
 						next_step = STEP_SRV_SHOW_CORE;
 						break;
-					
+						
+					case FP_DEPT_NEXT:
+						// Place the switch register on the bus
+						extended_addressing_enable = 1;
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Get ready to put the value into core
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						write_core = 1;
+						
+						// Show on MB
+						next_step = STEP_SRV_MA_NEXT;
+						break;
+						
 					
 					default:
 						// Keep on waiting for something to happen
@@ -1001,6 +1029,23 @@ function decode(input) {
 				next_step = STEP_SRV_AWAIT_NOFP;
 				break;
 				
+			// Increment MA
+			// MA + 1 -> MA
+			// STEP_SRV_SHOW_CORE -> NEXT
+			case STEP_SRV_MA_NEXT:
+				// Increment MA
+				bus_output_select = BUS_SELECT_CROSS;
+				select_pc_ma = ADDR_SELECT_MA;
+				enable_addr_to_core = 1;
+				constant_value = 1;
+				
+				// Latch MA
+				latch_ma = 1;
+				
+				// Show on MB
+				next_step = STEP_SRV_SHOW_CORE;
+				break;
+			
 				
 			// Increment the program counter if OB = 0
 			// IF FLAG_ZERO:
@@ -1072,7 +1117,7 @@ function decode(input) {
 		}
 		
 		// Build the next state
-		next_state = next_step & 0x077;
+		next_state = next_step & 077;
 	} else if (decode_mode == DECODE_MODE_INSTRUCTION) {
 		// Decode an instruction
 		let step = getbit(input, 0, 3);
@@ -1897,7 +1942,7 @@ function decode(input) {
 		}
 		
 		// Build the next state
-		next_state = next_step & 0x077;
+		next_state = next_step & 077;
 	} else if (decode_mode == DECODE_MODE_OPERATE) {
 		// Operate step decoding
 		let step = getbit(input, 0, 1);
@@ -2040,7 +2085,7 @@ function decode(input) {
 		}
 		
 		// Build the next state
-		next_state = next_step & 0x077;
+		next_state = next_step & 077;
 	}
 	
 	// Return new control register
