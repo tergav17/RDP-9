@@ -536,6 +536,7 @@ const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
 const STEP_SRV_REFETCH = 6;		// Perform a refetch and go back to waiting
 const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;             // Increment MA and then show it
+const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
@@ -892,6 +893,10 @@ function decode(input) {
 			// ELSE IF FP_DEPT_NEXT
 			//  SW -> CORE[MA]
 			//  STEP_SRV_MA_NEXT -> NEXT
+			// ELSE IF FP_XCT:
+			//  SW -> IR, MA, OB, MB
+			//  STEP_ISR_EXECUTE_BEGIN -> NEXT
+			//  
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
 			case STEP_SRV_HALT:
@@ -953,7 +958,6 @@ function decode(input) {
 						
 					case FP_DEPT:
 						// Place the switch register on the bus
-						extended_addressing_enable = 1;
 						bus_output_select = BUS_SELECT_EMPTY;
 						constant_value = 0;
 						
@@ -968,7 +972,6 @@ function decode(input) {
 						
 					case FP_DEPT_NEXT:
 						// Place the switch register on the bus
-						extended_addressing_enable = 1;
 						bus_output_select = BUS_SELECT_EMPTY;
 						constant_value = 0;
 						
@@ -981,6 +984,23 @@ function decode(input) {
 						next_step = STEP_SRV_MA_NEXT;
 						break;
 						
+					case FP_XCT:
+						// Place the switch register on the bus
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Do normal fetch stuff
+						// Latch IR, MA, OB, MB
+						latch_ir = 1;
+						latch_ma = 1;
+						latch_ob = 1;
+						latch_mb = 1;
+						
+						console.log("XCT");
+						
+						// Execute the instruction
+						next_step = STEP_SRV_XCT_NULL;
+						break;
 					
 					default:
 						// Keep on waiting for something to happen
@@ -1044,6 +1064,13 @@ function decode(input) {
 				
 				// Show on MB
 				next_step = STEP_SRV_SHOW_CORE;
+				break;
+				
+			// Start executing an arbitrary instruction in IR
+			case STEP_SRV_XCT_NULL:
+				// Begin instruction execution
+				next_decode_mode = DECODE_MODE_INSTRUCTION;
+				next_step = STEP_ISR_EXECUTE_BEGIN;
 				break;
 			
 				
