@@ -70,7 +70,7 @@ cpu_state.r_core[0] = 0200040;  // LAC 040
 cpu_state.r_core[1] = 0740010;	// RAL
 cpu_state.r_core[2] = 0740100;  // SMA
 cpu_state.r_core[3] = 0600001;	// JMP 001
-cpu_state.r_core[4] = 0600004;	// JMP 004
+cpu_state.r_core[4] = 0600000;	// JMP 000
 
 cpu_state.r_core[040] = 0000001;
 
@@ -533,6 +533,7 @@ const STEP_SRV_FETCH = 2;		// Fetch the next instruction
 const STEP_SRV_PC_NEXT = 3;		// Increment the program counter unconditionally
 const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
 const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
+const STEP_SRV_REFETCH = 6;		// Perform a refetch and go back to waiting
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
@@ -774,7 +775,7 @@ function decode(input) {
 			// Clear out the all of the registers
 			// 1 -> EXTEND_ENABLE
 			// 0 -> PC, AC, MQ, STEP
-			// STEP_SRV_AWAIT_NOFP -> NEXT
+			// STEP_SRV_REFETCH -> NEXT
 			case STEP_SRV_RESET_AC_CLEAR:
 				
 				// Set the bus to 0
@@ -791,7 +792,7 @@ function decode(input) {
 				latch_step = 1;
 				
 				// TODO: Reset all of the flags
-				next_step = STEP_SRV_AWAIT_NOFP;
+				next_step = STEP_SRV_REFETCH;
 				break;
 				
 			// --- INSTRUCTION MANAGEMENT BLOCK ---
@@ -872,6 +873,10 @@ function decode(input) {
 			//  STEP_SRV_PC_NEXT -> NEXT
 			// ELSE IF FP_CONT:
 			//  STEP_SRV_FETCH -> NEXT
+			// ELSE IF FP_GOTO:
+			//  1 -> EXTEND_ENABLE
+			//  SW -> PC
+			//  STEP_SRV_REFETCH -> NEXT
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
 			case STEP_SRV_HALT:
@@ -896,7 +901,21 @@ function decode(input) {
 						break;
 						
 					case FP_CONT:
+						// We are going back to normal operation
 						next_step = STEP_SRV_FETCH;
+						break;
+					
+					case FP_GOTO:
+						// Update the program counter using the switch register
+						extended_addressing_enable = 1;
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Latch PC
+						latch_pc = 1;
+						
+						// Refetch
+						next_step = STEP_SRV_REFETCH;
 						break;
 					
 					default:
@@ -905,6 +924,31 @@ function decode(input) {
 						break;
 				}
 				break;
+				
+			// Perform a refetch to update register values
+			// When completed, return to the halt loop
+			// 0 -> EXTEND_ENABLE
+			// CORE[PC] -> IR, MA, OB, MB
+			// STEP_SRV_AWAIT_NOFP -> NEXT
+			case STEP_SRV_REFETCH:
+			
+				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
+				extended_addressing_enable = 0;
+				bus_output_select = BUS_SELECT_CORE;
+				select_pc_ma = ADDR_SELECT_PC;
+				enable_addr_to_core = 1;
+				
+				// Latch IR, MA, OB, MB
+				latch_ir = 1;
+				latch_ma = 1;
+				latch_ob = 1;
+				latch_mb = 1;
+				
+				// Go back to waiting for the NOFP state
+				next_step = STEP_SRV_AWAIT_NOFP;
+				break;
+				
+				
 				
 			// Increment the program counter if OB = 0
 			// IF FLAG_ZERO:
