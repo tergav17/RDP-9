@@ -48,6 +48,7 @@ cpu_state = {
 	s_ctrl: [0, 0, 0, 0, 0],
 	
 	// Front panel stuff
+	r_front_panel: 0,
 	front_panel_code: 0,
 	front_panel_ctrl: {
 		halt_step: 0,
