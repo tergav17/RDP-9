@@ -172,7 +172,7 @@ function latch(cpu) {
 		(cpu.r_reg_link && getbit(cpu.r_reg_ir, 8, 1))) 
 		!= getbit(cpu.r_reg_ir, 9, 1)
 	) ? 1 : 0;
-	console.log("Update skip to " + cpu.r_reg_skip + ", Zero: " + cpu.r_reg_zero + ", Sign: " + cpu.r_reg_sign + ", Link: " + cpu.r_reg_link);
+	//console.log("Update skip to " + cpu.r_reg_skip + ", Zero: " + cpu.r_reg_zero + ", Sign: " + cpu.r_reg_sign + ", Link: " + cpu.r_reg_link);
 	if (getbit(alu_ctrl, ALU_LATCH_OB, 1)) {
 		cpu.r_reg_ob = bus(cpu.s_data_bus);
 		cpu.r_reg_zero = cpu.r_reg_ob ? 0 : 1;
@@ -534,6 +534,7 @@ const STEP_SRV_PC_NEXT = 3;		// Increment the program counter unconditionally
 const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
 const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
 const STEP_SRV_REFETCH = 6;		// Perform a refetch and go back to waiting
+const STEP_SRV_SHOW_CORE = 7;
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
@@ -877,6 +878,13 @@ function decode(input) {
 			//  1 -> EXTEND_ENABLE
 			//  SW -> PC
 			//  STEP_SRV_REFETCH -> NEXT
+			// ELSE IF FP_EXAM:
+			//  1 -> EXTEND_ENABLE
+			//  SW -> MA
+			//  STEP_SRV_SHOW_CORE -> NEXT
+			// ELSE IF FP_EXAM_NEXT:
+			//  MA + 1 -> MA
+			//  STEP_SRV_SHOW_CORE -> NEXT
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
 			case STEP_SRV_HALT:
@@ -917,6 +925,34 @@ function decode(input) {
 						// Refetch
 						next_step = STEP_SRV_REFETCH;
 						break;
+						
+					case FP_EXAM:
+						// Update the memory address using the switch register
+						extended_addressing_enable = 1;
+						bus_output_select = BUS_SELECT_EMPTY;
+						constant_value = 0;
+						
+						// Latch MA
+						latch_ma = 1;
+						
+						// Show on MB
+						next_step = STEP_SRV_SHOW_CORE;
+						break;
+						
+					case FP_EXAM_NEXT:
+						// Increment MA
+						bus_output_select = BUS_SELECT_CROSS;
+						select_pc_ma = ADDR_SELECT_MA;
+						enable_addr_to_core = 1;
+						constant_value = 1;
+						
+						// Latch MA
+						latch_ma = 1;
+						
+						// Show on MB
+						next_step = STEP_SRV_SHOW_CORE;
+						break;
+					
 					
 					default:
 						// Keep on waiting for something to happen
@@ -948,6 +984,22 @@ function decode(input) {
 				next_step = STEP_SRV_AWAIT_NOFP;
 				break;
 				
+			// Use MA to fetch from core and put it in MB
+			// CORE[MA] -> MB
+			// STEP_SRV_AWAIT_NOFP -> NEXT
+			case STEP_SRV_SHOW_CORE:
+			
+				// Put CORE[MA] on the bus
+				bus_output_select = BUS_SELECT_CORE;
+				select_pc_ma = ADDR_SELECT_MA;
+				enable_addr_to_core = 1;
+				
+				// Latch MB
+				latch_mb = 1;
+				
+				// Go back to waiting for the NOFP state
+				next_step = STEP_SRV_AWAIT_NOFP;
+				break;
 				
 				
 			// Increment the program counter if OB = 0
