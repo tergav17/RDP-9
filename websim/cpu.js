@@ -2070,7 +2070,10 @@ function decode(input) {
 			//    OB >> 2 -> AC
 			//   ELSE:
 			//    OB >> 1 -> AC
-			// STEP_SRV_FETCH -> NEXT
+			// IF HALT:
+			//  STEP_SRV_REFETCH -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH -> NEXT
 			case STEP_OPR_STAGE_TWO:
 				// Take in the output of the ALU
 				bus_output_select = BUS_SELECT_ALU;
@@ -2106,8 +2109,13 @@ function decode(input) {
 				}
 			
 				// We are done
-				next_decode_mode = DECODE_MODE_SERVICE;
-				next_step = STEP_SRV_FETCH;
+				if (halt) {
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_REFETCH;
+				} else {
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_FETCH;
+				}
 				break;
 		}
 		
