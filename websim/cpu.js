@@ -529,13 +529,13 @@ const STEP_SRV_RESET_ENTRY = 0;
 const STEP_SRV_RESET_AC_CLEAR = 1;
 
 // Instruction management steps
-const STEP_SRV_FETCH = 2;		// Fetch the next instruction
-const STEP_SRV_PC_NEXT = 3;		// Increment the program counter unconditionally
+const STEP_SRV_FETCH = 2;			// Fetch the next instruction
+const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
 const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
-const STEP_SRV_HALT = 5;		// Halt state, wait for something to happen
-const STEP_SRV_REFETCH = 6;		// Perform a refetch and go back to waiting
+const STEP_SRV_HALT = 5;			// Halt state, wait for something to happen
+const STEP_SRV_REFETCH = 6;			// Perform a refetch and go back to waiting
 const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
-const STEP_SRV_MA_NEXT = 8;             // Increment MA and then show it
+const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
@@ -561,46 +561,46 @@ const STEP_ISR_CAL_MA_PC = 4;		// Store the MA + 1 into PC
 
 
 // DAC	
-const OPCODE_DAC = 1;			// Initial step: Store AC into CORE[MA]
+const OPCODE_DAC = 1;				// Initial step: Store AC into CORE[MA]
 
 // JMS
-const OPCODE_JMS = 2;			// Initial step: Transfer PC to MB, OB
+const OPCODE_JMS = 2;				// Initial step: Transfer PC to MB, OB
 const STEP_ISR_JMS_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_JMS_MA_PC = 4;		// Store the MA + 1 into PC
 
 // DZM
-const OPCODE_DZM = 3;			// Initial step; Store 0 into CORE[MA]
+const OPCODE_DZM = 3;				// Initial step; Store 0 into CORE[MA]
 
 // LAC		
-const OPCODE_LAC = 4;			// Initial step: Store CORE[MA] into AC
+const OPCODE_LAC = 4;				// Initial step: Store CORE[MA] into AC
 
 // XOR								
-const OPCODE_XOR = 5;			// Initial step: Store CORE[MA] into MB
+const OPCODE_XOR = 5;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_XOR_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_XOR_LATCH = 4;		// Latch the result of the XOR into AC
 
 // ADD
-const OPCODE_ADD = 6;			// Initial step: Store CORE[MA] into MB
+const OPCODE_ADD = 6;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_ADD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_ADD_LATCH = 4;		// Latch the result of the ADD into AC
 
 // TAD
-const OPCODE_TAD = 7;			// Initial step: Store CORE[MA] into MB
+const OPCODE_TAD = 7;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_TAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 
-const OPCODE_XCT = 8;			// Initial step: Perform a fetch using MA instead of PC
+const OPCODE_XCT = 8;				// Initial step: Perform a fetch using MA instead of PC
 const STEP_ISR_XCT_NULL = 3;		// Null cycle before returning to instruction execution
 
-const OPCODE_ISZ = 9;			// Initial step: Store CORE[MA] into OB, MB
-const STEP_ISR_ISZ_INC = 3;		// Increment value in OB, MB, store in OB and CORE[MA]
+const OPCODE_ISZ = 9;				// Initial step: Store CORE[MA] into OB, MB
+const STEP_ISR_ISZ_INC = 3;			// Increment value in OB, MB, store in OB and CORE[MA]
 const STEP_ISR_ISZ_NULL = 4;		// Null cycle before checking the value
 
-const OPCODE_AND = 10;			// Initial step: Store CORE[MA] into MB
+const OPCODE_AND = 10;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_AND_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_AND_LATCH = 4;		// Latch the result of the AND into AC
 
-const OPCODE_SAD = 11;			// Initial step: Store CORE[MA] into MB
+const OPCODE_SAD = 11;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
