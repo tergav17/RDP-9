@@ -141,32 +141,14 @@ terminal.onkeypress = function(e) {
 
 /* --- DEBUGGING STUFF --- */
 
-/*
+
 // Instruction dump function
-dump_isr.onclick = function() {
-	// Grab the bank
-	let bank = cpu_state.isr_bank;
-	let manual = getManualBank();
-	if (manual >= 0 && manual <= 255) {
-		bank = manual;
-	}
+dump_core.onclick = function() {
 	
-	// Dump header
-	let content = "BANK : 0x" + (bank).toString(16).padStart(2, '0').toUpperCase() + "\n";
-	
-	// Dump contents
-	for (let i = 0x80; i < 0x100; i++) {
-		content += "0x" + (i).toString(16).padStart(2, '0').toUpperCase() + " : ";
-		
-		let isr = cpu_state.imem[128 * bank + (i & 0x7F)];
-		content += (isr).toString(16).padStart(4, '0').toUpperCase() + " "
-		content += decode([], isr, [0, 0, 0, 0]);
-		content += "\n"
-	}
-	
-	
-	readout.value = content;
+	readout.value = "Core dump"
 }
+
+/*
 
 // Data dump function
 dump_data.onclick = function() {
