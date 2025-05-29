@@ -145,7 +145,20 @@ terminal.onkeypress = function(e) {
 // Instruction dump function
 dump_core.onclick = function() {
 	
-	readout.value = "Core dump"
+	let out = "";
+	
+	let addr = 0;
+	let rowlen = 4;
+	for (let i = 0; i < 32768 / rowlen; i++) {
+		out += addr.toString(8).padStart(5, "0") + ": ";
+		for (let o = 0; o < rowlen; o++) {
+			out += cpu_state.r_core[addr].toString(8).padStart(6, "0") + " ";
+			addr++;
+		}
+		out += "\n";
+	}
+	
+	readout.value = out;
 }
 
 /*
