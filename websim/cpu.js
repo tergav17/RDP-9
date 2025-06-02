@@ -1959,6 +1959,12 @@ function decode(input) {
 				}
 				break;
 
+			case OPCODE_IOT;
+				// IO transfer instruction
+				switch (step) {
+					case STEP_ISR_EXECUTE_BEGIN:
+						break;
+				}
 				
 			default:
 				// Instruction not implemented, go fetch another one
