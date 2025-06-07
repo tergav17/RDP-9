@@ -649,9 +649,12 @@ function decode(input) {
 	// I[11:12] = Decode Mode
 	// If Decode Mode == 0 (Service Mode)
 	// 	I[0:5] = Current step
-	//	I[6] = Interrupt pending
+	//	I[6] = I/O subsystem request
 	//	If Step < 32:
-	//		I[7:10] = Front panel status
+	//		If Step < 16:
+	//			I[7:10] = Front panel status
+	//		Else:
+	//			I[7:10] = I/O request status
 	//	If Step >= 32:
 	//		I[7] = Zero flag
 	//		I[8] = OPR skip flag
