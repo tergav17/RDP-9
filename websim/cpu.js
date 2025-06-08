@@ -636,6 +636,20 @@ const INDIRECTABLE = [
 	OPCODE_JMP
 ];
 
+// I/O coprocessor status constants
+const IO_COPROC_REQ_NULL = 0;			// The I/O coprocessor is idle and not requesting any operation
+const IO_COPROC_REQ_INT = 1;			// The I/O coprocessor is requesting an interrupt
+const IO_COPROC_REQ_INC = 2;			// The I/O coprocessor is requesting a memory increment operation
+const IO_COPROC_REQ_CH_READ = 3;		// The I/O coprocessor is requesting to read from a channel
+const IO_COPROC_REQ_CH_WRITE = 4;		// The I/O coprocessor is requesting to write to a channel
+const IO_COPROC_REQ_DMA_READ = 5;		// The I/O coprocessor is requesting to do a DMA read operation
+const IO_COPROC_REQ_DMA_WRITE = 6;		// The I/O coprocessor is requesting to do a DMA write operation
+const IO_COPROC_ACK = 8;				// Acknowledge the completion of an IOT
+const IO_COPROC_ACK_WRITE = 9;			// Acknowledge IOT completion and provide a return word
+const IO_COPROC_ACK_SKIP = 10;			// Acknowledge IOT completion and tell the processor to skip
+const IO_COPROC_ACK_WSKIP = 11;			// Acknowledge IOT completion, write a word, and skip
+const IO_COPROC_NOT_PRESENT = 15;		// The I/O coprocessor is not installed in the machine
+
 /*
  * Part of the propagation process
  *
@@ -1962,7 +1976,7 @@ function decode(input) {
 				}
 				break;
 
-			case OPCODE_IOT;
+			case OPCODE_IOT:
 				// IO transfer instruction
 				switch (step) {
 					case STEP_ISR_EXECUTE_BEGIN:
@@ -2118,7 +2132,7 @@ function decode(input) {
 				}
 			
 				// We are done
-				if (halt) {
+				if (hlt) {
 					next_decode_mode = DECODE_MODE_SERVICE;
 					next_step = STEP_SRV_REFETCH;
 				} else {
