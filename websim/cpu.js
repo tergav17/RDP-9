@@ -730,7 +730,8 @@ function decode(input) {
 	//	0: 007 / ADDR + 0
 	//	1: 020 / ADDR + 1
 	//
-	// O[3][0] = ?
+	// O[3][0] = IOT coprocessor attention request
+	// O[3][1] = 
 	//
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
