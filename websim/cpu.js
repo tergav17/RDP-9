@@ -731,7 +731,9 @@ function decode(input) {
 	//	1: 020 / ADDR + 1
 	//
 	// O[3][0] = IOT coprocessor attention request
-	// O[3][1] = 
+	// O[3][1] = Coprocessor operation acknowledge
+	// O[3][2] = Coprocessor transfer control
+	// O[4][3] = Halt indicator
 	//
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
@@ -766,6 +768,12 @@ function decode(input) {
 	
 	let extended_addressing_enable = 0;
 	let bank_zero_enable = 0;
+	
+	// IOT stuff
+	let iot_req = 0;
+	let coproc_ack = 0;
+	let coproc_trans_ctrl = 0;
+	let halt_indicator = 0;
 	
 	// Get the decode mode
 	// The next decode mode will default to the current
