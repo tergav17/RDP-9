@@ -522,6 +522,12 @@ const FP_DEPT_NEXT = 7;
 const FP_READ_IN = 8;
 const FP_XCT = 9;
 
+// MISC stuff
+const IOCP_REQ = 0;
+const IOCP_ACK = 1;
+const IOCP_TRANS_CTRL = 2;
+const HALT_INDICATE = 3;
+
 // -- SERVICE MODE STEPS --
 
 // Reset steps
@@ -770,7 +776,7 @@ function decode(input) {
 	let bank_zero_enable = 0;
 	
 	// IOT stuff
-	let iot_req = 0;
+	let coproc_req = 0;
 	let coproc_ack = 0;
 	let coproc_trans_ctrl = 0;
 	let halt_indicator = 0;
@@ -2173,7 +2179,10 @@ function decode(input) {
 	
 	let bus_control = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
-	let misc_config = 0;
+	let misc_config =	(coproc_req << IOCP_REQ) |
+						(coproc_ack << IOCP_ACK) |
+						(coproc_trans_ctrl << IOCP_TRANS_CTRL) |
+						(halt_indicator << HALT_INDICATE);
 	
 	return [
 			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
