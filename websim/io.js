@@ -11,7 +11,14 @@ const terminal = document.getElementById("terminal");
 const readout = document.getElementById("readout");
 const dump_bank = document.getElementById("core-dump-bank");
 
+/* --- IO COPROCESSOR EMULATION --- */
 
+/*
+ * Clock the coprocessor, should be done before the next set of microcode control signals are sent out
+ */
+function coproc_clk(cpu) {
+	
+}
 
 /* --- TERMINAL STUFF --- */
 
