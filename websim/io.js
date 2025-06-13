@@ -13,11 +13,24 @@ const dump_bank = document.getElementById("core-dump-bank");
 
 /* --- IO COPROCESSOR EMULATION --- */
 
+coproc_state = {
+	
+};
+
 /*
  * Clock the coprocessor, should be done before the next set of microcode control signals are sent out
  */
-function coproc_clk(cpu) {
+function coproc_clk(cpu, state) {
+
+	// Coprocessor status to return to CPU
+	status = 15;
+
+	// Read in the status lines associated with the COPROC control
 	
+	
+	
+	// Set coproc status
+	cpu.s_coproc_state = status;
 }
 
 /* --- TERMINAL STUFF --- */

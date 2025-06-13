@@ -56,7 +56,7 @@ function simReset() {
  * Execute a single cycle
  */
 function simStep() {
-	coproc_clk(cpu_state);
+	coproc_clk(cpu_state, coproc_state);
 	latch(cpu_state);
 	propagate(cpu_state);
 	updateFlow(false);

@@ -34,6 +34,9 @@ cpu_state = {
 	r_reg_skip: 0,			// OPR skip condition on last OB
 	r_reg_maai: 0,			// MA auto index
 	
+	// Coprocessor status
+	s_coproc_status: 0,
+	
 	// Switch Registers
 	s_switch_data: 0,
 	s_switch_addr: 0,
@@ -213,7 +216,11 @@ function propagate(cpu) {
 				microcode_input |= cpu.r_reg_zero << 7;
 				microcode_input |= cpu.r_reg_skip << 8;
 			} else {
-				microcode_input |= cpu.r_front_panel << 7;
+				if (step < 16) {
+					microcode_input |= cpu.r_front_panel << 7;
+				} else {
+					microcode_input |= cpu.s_coproc_status << 7;
+				}
 			}
 			break;
 		
