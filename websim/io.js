@@ -26,7 +26,9 @@ function coproc_clk(cpu, state) {
 	status = 15;
 
 	// Read in the status lines associated with the COPROC control
-	
+	let coproc_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
+	let coproc_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
+	let coproc_trans_ctrl = getbit(cpu.r_state[3], IOCP,TRANS_CTRL, 1);
 	
 	
 	// Set coproc status
