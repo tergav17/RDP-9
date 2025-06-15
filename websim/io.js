@@ -13,8 +13,15 @@ const dump_bank = document.getElementById("core-dump-bank");
 
 /* --- IO COPROCESSOR EMULATION --- */
 
+const COPROC_EMU_READY = 0;
+const COPROC_EMU_SERVICE_IOT_BEGIN = 1;
+
 coproc_state = {
+	// Used to pause the coprocessor simulation for a number of cycles
+	delay = 0;
 	
+	// Coprocessor state machien state
+	operation = COPROC_EMU_READY;
 };
 
 /*
@@ -23,7 +30,7 @@ coproc_state = {
 function coproc_clk(cpu, state) {
 
 	// Coprocessor status to return to CPU
-	status = 15;
+	status = IO_COPROC_NOT_PRESENT;
 
 	// Read in the status lines associated with the COPROC control
 	let coproc_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
@@ -31,8 +38,33 @@ function coproc_clk(cpu, state) {
 	let coproc_trans_ctrl = getbit(cpu.r_state[3], IOCP,TRANS_CTRL, 1);
 	
 	
+	// Check if the coprocessor is delaying
+	if (state.delay > 0) {
+		state.delay--;
+		return;
+	}
+	
+	awitch (state.operation) {
+		
+		case COPROC_EMU_READY:
+			// Coprocessor ready loop
+			// Await request from main processor
+			if (coproc_req) {
+				state.delay = 10;
+				state.operation = COPROC_EMU_SERVICE_IOT_BEGIN;
+			}
+			break;
+			
+		case COPROC_EMU_SERVICE_IOT_BEGIN:
+			// Start processing an IOT here
+			break;
+		
+		default:
+			break;
+	}
+	
 	// Set coproc status
-	cpu.s_coproc_state = status;
+	cpu.r_coproc_state = status;
 }
 
 /* --- TERMINAL STUFF --- */
