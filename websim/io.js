@@ -44,7 +44,7 @@ function coproc_clk(cpu, state) {
 		return;
 	}
 	
-	awitch (state.operation) {
+	switch (state.operation) {
 		
 		case COPROC_EMU_READY:
 			// Coprocessor ready loop

@@ -27,3 +27,4 @@ the usage of external devices requires that the I/O coprocessor hardware be inst
 and does not map well to interfacing with more "modern" hardware. By offloading the translation of I/O responibilities to a simpler system, much of the complexity of an
 already very complicated homebrew computing project is avoided. It should be noted that this approach is not uncommon for similar legacy minicomputer products created in the
 late 70s and early 80s.
+

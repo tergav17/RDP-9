@@ -550,6 +550,10 @@ const STEP_SRV_REFETCH = 6;			// Perform a refetch and go back to waiting
 const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
+
+const STEP_SRV_IO_POLL = 16;		// Wait for the I/O coprocessor to become ready, or halt if missing
+const STEP_SRV_IO_WAIT = 17;		// Wait for the I/O coprocessor to return a resolution code. Handle resolution when done
+
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
@@ -712,7 +716,7 @@ function decode(input) {
 	//		I[5:7] = EAE opcode (IR[6:8])
 	//		I[8] = EAE AC sign
 	
-	// --- OUTPUTS
+	// --- OUTPUTS ---
 	//
 	// O[0][0:5] = Next step
 	// O[0][6:7] = Next decode mode
