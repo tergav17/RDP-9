@@ -406,11 +406,16 @@ function propagate(cpu) {
 	let constant_value = getbit(cpu.r_state[2], 7, 1);
 	switch (data_bus_select) {
 	
-		case BUS_SELECT_EMPTY:
+		case BUS_SELECT_EXTERNAL:
 		
 			// Put the contents of the switch register on the bus if constant == 0
 			if (!constant_value) {
 				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_switch_data);
+			}
+			
+			// Otherwise put the coprocessor output register on the bus
+			else {
+			
 			}
 			break;
 			
@@ -470,7 +475,7 @@ const DECODE_MODE_OPERATE = 2;
 const DECODE_MODE_MISC = 3;
 
 // Bus selection modes
-const BUS_SELECT_EMPTY = 0;
+const BUS_SELECT_EXTERNAL = 0;
 const BUS_SELECT_AC = 1;
 const BUS_SELECT_STEP = 2;
 const BUS_SELECT_MQ = 3;
@@ -665,6 +670,8 @@ const IO_COPROC_ACK = 8;				// Acknowledge the completion of an IOT
 const IO_COPROC_ACK_WRITE = 9;			// Acknowledge IOT completion and provide a return word
 const IO_COPROC_ACK_SKIP = 10;			// Acknowledge IOT completion and tell the processor to skip
 const IO_COPROC_ACK_WSKIP = 11;			// Acknowledge IOT completion, write a word, and skip
+const IO_COPROC_ACK_FLAGS = 12;			// Acknowledge IOT completion, write to flags register
+const IO_COPROC_ACK_FSKIP = 13;			// Acknowledge IOT completion, write to flags register, and skip
 const IO_COPROC_NOT_PRESENT = 15;		// The I/O coprocessor is not installed in the machine
 
 /*
@@ -777,7 +784,7 @@ function decode(input) {
 	let alu_select_ones = 0;
 	let latch_ob = 0;
 	
-	let bus_output_select = BUS_SELECT_EMPTY;
+	let bus_output_select = BUS_SELECT_EXTERNAL;
 	
 	let select_pc_ma = ADDR_SELECT_PC;
 	let enable_addr_to_core = 0;
@@ -971,7 +978,7 @@ function decode(input) {
 					case FP_GOTO:
 						// Update the program counter using the switch register
 						extended_addressing_enable = 1;
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Latch PC
@@ -984,7 +991,7 @@ function decode(input) {
 					case FP_EXAM:
 						// Update the memory address using the switch register
 						extended_addressing_enable = 1;
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Latch MA
@@ -1001,7 +1008,7 @@ function decode(input) {
 						
 					case FP_DEPT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Get ready to put the value into core
@@ -1015,7 +1022,7 @@ function decode(input) {
 						
 					case FP_DEPT_NEXT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Get ready to put the value into core
@@ -1029,7 +1036,7 @@ function decode(input) {
 						
 					case FP_XCT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Do normal fetch stuff
@@ -1169,7 +1176,7 @@ function decode(input) {
 					next_step = STEP_ISR_OPR_SWR_MB;
 				} else {
 					// Put the switch register on the bus
-					bus_output_select = BUS_SELECT_EMPTY;
+					bus_output_select = BUS_SELECT_EXTERNAL;
 					constant_value = 0;
 					
 					// Latch MB
@@ -1989,7 +1996,7 @@ function decode(input) {
 					// STEP_OPR_STAGE_TWO -> NEXT
 					case STEP_ISR_OPR_SWR_MB:
 						// Put the switch register on the bus
-						bus_output_select = BUS_SELECT_EMPTY;
+						bus_output_select = BUS_SELECT_EXTERNAL;
 						constant_value = 0;
 						
 						// Latch MB
