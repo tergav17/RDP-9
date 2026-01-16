@@ -18,10 +18,10 @@ const COPROC_EMU_SERVICE_IOT_BEGIN = 1;
 
 coproc_state = {
 	// Used to pause the coprocessor simulation for a number of cycles
-	delay = 0;
+	delay: 0,
 	
 	// Coprocessor state machien state
-	operation = COPROC_EMU_READY;
+	operation: COPROC_EMU_READY
 };
 
 /*
@@ -35,7 +35,7 @@ function coproc_clk(cpu, state) {
 	// Read in the status lines associated with the COPROC control
 	let coproc_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
 	let coproc_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
-	let coproc_trans_ctrl = getbit(cpu.r_state[3], IOCP,TRANS_CTRL, 1);
+	let coproc_trans_ctrl = getbit(cpu.r_state[3], IOCP_TRANS_CTRL, 1);
 	
 	
 	// Check if the coprocessor is delaying

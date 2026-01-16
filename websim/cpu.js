@@ -69,13 +69,25 @@ cpu_state = {
 // CPU memory init
 cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memory
 
-cpu_state.r_core[0] = 0200040;  // LAC 040
-cpu_state.r_core[1] = 0740010;	// RAL
-cpu_state.r_core[2] = 0740100;  // SMA
-cpu_state.r_core[3] = 0600001;	// JMP 001
-cpu_state.r_core[4] = 0600000;	// JMP 000
+//cpu_state.r_core[0] = 0200040;  // LAC 040
+//cpu_state.r_core[1] = 0740010;	// RAL
+//cpu_state.r_core[2] = 0740100;  // SMA
+//cpu_state.r_core[3] = 0600001;	// JMP 001
+//cpu_state.r_core[4] = 0600000;	// JMP 000
 
-cpu_state.r_core[040] = 0000001;
+// Simple tape read in program
+cpu_state.r_core[0] = 0600100; // Initial jump to 0100
+cpu_state.r_core[0100] = 0200177;	// LAC 0177		Read in location
+cpu_state.r_core[0101] = 0040010;	// DEP 0010		Read in pointer
+cpu_state.r_core[0102] = 0700144;	// RSB			Set reader to binary mode and clear buffer
+cpu_state.r_core[0103] = 0700101;	// RSF			Check reader flag
+cpu_state.r_core[0104] = 0600103;	// JMP 0103		Jump back to the previous instruction if not set
+cpu_state.r_core[0105] = 0700112;	// RRB			Clear AC, read buffer, clear flag
+cpu_state.r_core[0106] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
+cpu_state.r_core[0107] = 0600102;	// JMP 00102	Prepare to read another word 
+
+
+//cpu_state.r_core[040] = 0000001;
 
 
 /*
