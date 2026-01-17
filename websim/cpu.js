@@ -249,6 +249,9 @@ function propagate(cpu) {
 			microcode_input |= cpu.r_reg_link << 10;
 			break;
 			
+		case DECODE_MODE_MISC:
+			break;
+			
 	}
 	cpu.s_ucode_input = microcode_input;
 	cpu.s_ctrl = decode(microcode_input);
@@ -730,10 +733,13 @@ function decode(input) {
 	//	I[9] = CLA
 	//	I[10] = Link Flag
 	// If Decode Mode == 3 (Misc Mode)
-	//	If Step[5] == 0:
-	//		I[0:4] = Current step
-	//		I[5:7] = EAE opcode (IR[6:8])
-	//		I[8] = EAE AC sign
+	//	I[0:5] = Current step
+	//	If Step < 32:
+	//		I[6:8] = IOT/EAE Setup (IR[15:17])
+	//		I[9] = ?
+	//	Else:
+	//		I[6:8] = EAE opcode (IR[6:8])
+	//		I[9] = EAE AC sign
 	
 	// --- OUTPUTS ---
 	//
@@ -2025,6 +2031,7 @@ function decode(input) {
 				// IO transfer instruction
 				switch (step) {
 					case STEP_ISR_EXECUTE_BEGIN:
+						console.log("Start IOT decode");
 						break;
 				}
 				
