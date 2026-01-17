@@ -34,8 +34,9 @@ cpu_state = {
 	r_reg_skip: 0,			// OPR skip condition on last OB
 	r_reg_maai: 0,			// MA auto index
 	
-	// Coprocessor status
+	// Coprocessor stuff
 	s_coproc_status: 0,
+	s_coproc_attn_req: 0,
 	
 	// Switch Registers
 	s_switch_data: 0,
@@ -222,11 +223,16 @@ function propagate(cpu) {
 		case DECODE_MODE_SERVICE:
 			let step = cpu.r_state[0] & 077
 			microcode_input |= step;
-			microcode_input |= 0 << 6; // TODO: Interrupt pending?
+			microcode_input |= cpu.s_coproc_attn_req << 6;
 			if (step >= 32) {
-				// Put flags
-				microcode_input |= cpu.r_reg_zero << 7;
-				microcode_input |= cpu.r_reg_skip << 8;
+				if (step < 48) {
+					// Put flags
+					microcode_input |= cpu.r_reg_zero << 7;
+					microcode_input |= cpu.r_reg_skip << 8;
+				} else {
+					// Put lower instruction
+					microcode_input |= getbit(cpu.r_reg_ir, 0, 4) << 7;
+				}
 			} else {
 				if (step < 16) {
 					microcode_input |= cpu.r_front_panel << 7;
@@ -250,6 +256,10 @@ function propagate(cpu) {
 			break;
 			
 		case DECODE_MODE_MISC:
+			microcode_input |= step;
+			if (step < 32) {
+				
+			}
 			break;
 			
 	}
@@ -571,12 +581,14 @@ const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 
-const STEP_SRV_IO_POLL = 16;		// Wait for the I/O coprocessor to become ready, or halt if missing
-const STEP_SRV_IO_WAIT = 17;		// Wait for the I/O coprocessor to return a resolution code. Handle resolution when done
+const STEP_SRV_IOCP_WAIT = 16;		// Wait for the I/O coprocessor to stop transmitting an acknowledgement code. Halt if not present
+const STEP_SRV_IOCP_READY = 17;		// Signal to the IOCP that an IOT is ready. Wait for an acknowledgement code to appear
 
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
+
+const STEP_SRV_IOT_CLEAR_AC = 48;	// If the bit `14 of IR active, AC = 0
 
 
 // --- INSTRUCTION MODE STEPS
@@ -709,13 +721,17 @@ function decode(input) {
 	//		Else:
 	//			I[7:10] = I/O request status
 	//	If Step >= 32:
-	//		I[7] = Zero flag
-	//		I[8] = OPR skip flag
-	//		I[9] = 
-	//		I[10] = 
+	//		If Step < 48:
+	//			I[7] = Zero flag
+	//			I[8] = OPR skip flag
+	//			I[9] = 
+	//			I[10] = 
+	//		Else:
+	//			I[7:10] = IR['17:'14]
+	//			
 	// If Decode Mode == 1 (Instruction Mode)
 	//	I[0:2] = Current step
-	//	I[3] = IR[5]
+	//	I[3] = IR['5]
 	//	I[4] = Indirection
 	//	I[5:8] = Instruction
 	//	I[9] = Extended mode
@@ -735,10 +751,9 @@ function decode(input) {
 	// If Decode Mode == 3 (Misc Mode)
 	//	I[0:5] = Current step
 	//	If Step < 32:
-	//		I[6:8] = IOT/EAE Setup (IR[15:17])
-	//		I[9] = ?
+	//		I[7:10] = 
 	//	Else:
-	//		I[6:8] = EAE opcode (IR[6:8])
+	//		I[6:8] = EAE opcode (IR['8:'6])
 	//		I[9] = EAE AC sign
 	
 	// --- OUTPUTS ---
@@ -812,8 +827,8 @@ function decode(input) {
 	let bank_zero_enable = 0;
 	
 	// IOT stuff
-	let coproc_req = 0;
-	let coproc_ack = 0;
+	let iocp_req = 0;
+	let iocp_ack = 0;
 	let coproc_trans_ctrl = 0;
 	let halt_indicator = 0;
 	
@@ -829,8 +844,13 @@ function decode(input) {
 		let step = getbit(input, 0, 6);
 		let irq_pending = getbit(input, 6, 1);
 		let front_panel_state = getbit(input, 7, 4);
+		let iocp_status = getbit(input, 7, 4);
 		let flag_zero = getbit(input, 7, 1);
 		let flag_skip = getbit(input, 8, 1);
+		let eae_or_ac_sc = getbit(input, 7, 1);
+		let eae_or_ac_mq = getbit(input, 8, 1);
+		let eae_comp_mq = getbit(input, 9, 1);
+		let iot_clear_ac = getbit(input, 10, 1);
 		
 		
 		switch (step) {
@@ -968,6 +988,9 @@ function decode(input) {
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
 			case STEP_SRV_HALT:
+			
+				// Indicate halt
+				halt_indicator = 1;
 			
 				switch (front_panel_state) {
 					
@@ -1205,6 +1228,88 @@ function decode(input) {
 					next_step = STEP_OPR_STAGE_TWO;
 				}
 				break;
+				
+			// Check if IR bit `14 (IOT instruction AC clear flag) is set
+			// If so, clear out AC
+			// IF IOT_CLEAR_AC:
+			//	0 -> AC
+			// STEP_SRV_IO_WAIT -> NEXT
+			case STEP_SRV_IOT_CLEAR_AC:
+				// Set the bus to 0
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_CLEAR;
+			
+				if (iot_clear_ac) {
+					console.log("Clear AC");
+					latch_ac = 1;
+				}
+				
+				next_step = STEP_SRV_IOCP_WAIT;
+				break;
+				
+			// Wait for the IOCP to stop transmitting an ACK status code
+			// Once this happens, it indicates that the IOCP is ready for another request
+			// If the IOCP is not present, halt the machine
+			// IF IOCP_STATUS = IO_COPROC_NOT_PRESENT
+			//  STEP_SRV_REFETCH -> NEXT
+			// ELSE:
+			//  IF IOCP_STATUS >= 8:
+			//   STEP_SRV_IOCP_WAIT -> NEXT
+			//  ELSE:
+			//   GOTO STEP_SRV_IOCP_READY
+			case STEP_SRV_IOCP_WAIT:
+				
+				console.log("IOCP status in wait is " + iocp_status);
+				
+				// Halt if not present
+				if (iocp_status == IO_COPROC_NOT_PRESENT) {
+					next_step = STEP_SRV_REFETCH;
+					break;
+				}
+				
+				// Do we see an ack?
+				if (iocp_status >= 8) {
+					next_step = STEP_SRV_IOCP_WAIT;
+					break;
+				}
+				
+				// Goto STEP_SRV_IOCP_READY
+				
+			// Present the IOCP to the processor and await an acknowledgement code
+			// AC will be placed on the the data bus, while MA in full will be placed on the address bus
+			// IF IOCP_STATUS >= 8:
+			//  [TODO IOCP ACK CODES]
+			// ELSE:
+			//  AC -> COPROC_DATA
+			//  MA -> COPROC_ADDR
+			//  1 -> IOCP_REQ
+			//  STEP_SRV_IOCP_READY -> NEXT
+			case STEP_SRV_IOCP_READY:
+			
+			console.log("IOCP status in ready is " + iocp_status);
+				
+				if (iocp_status >= 8) {
+					// Handle the acknowledgement
+					next_step = STEP_SRV_FETCH;
+				} else {
+					// Tell the IOCP we have an IOT ready for it
+					iocp_req = 1;
+					
+					// Put AC on the data bus
+					bus_output_select = BUS_SELECT_AC;
+					
+					// Put MA on the address bus
+					extended_addressing_enable = 0;
+					select_pc_ma = ADDR_SELECT_MA;
+					enable_addr_to_core = 1;
+					
+					next_step = STEP_SRV_IOCP_READY;
+				}
+				
+				
+				break;
+			
+	
 				
 			default:
 				break;
@@ -2031,9 +2136,17 @@ function decode(input) {
 				// IO transfer instruction
 				switch (step) {
 					case STEP_ISR_EXECUTE_BEGIN:
+						
+						// We don't really have anything that needs to be done here
+						// Just redirect to the IOT logic in service
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_IOT_CLEAR_AC;
+						
 						console.log("Start IOT decode");
+						
 						break;
 				}
+				break;
 				
 			default:
 				// Instruction not implemented, go fetch another one
@@ -2216,8 +2329,8 @@ function decode(input) {
 	
 	let bus_control = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
-	let misc_config =	(coproc_req << IOCP_REQ) |
-						(coproc_ack << IOCP_ACK) |
+	let misc_config =	(iocp_req << IOCP_REQ) |
+						(iocp_ack << IOCP_ACK) |
 						(coproc_trans_ctrl << IOCP_TRANS_CTRL) |
 						(halt_indicator << HALT_INDICATE);
 	

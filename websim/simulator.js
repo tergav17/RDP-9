@@ -113,6 +113,7 @@ function updateClock() {
 	
 	if (runClock) {
 		for (let i = 0; i < clockCyclesPerTick; i++) {
+			coproc_clk(cpu_state, coproc_state);
 			latch(cpu_state);
 			propagate(cpu_state);
 		}

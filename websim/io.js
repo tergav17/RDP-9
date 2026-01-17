@@ -20,7 +20,7 @@ coproc_state = {
 	// Used to pause the coprocessor simulation for a number of cycles
 	delay: 0,
 	
-	// Coprocessor state machien state
+	// Coprocessor state machine state
 	operation: COPROC_EMU_READY
 };
 
@@ -33,9 +33,8 @@ function coproc_clk(cpu, state) {
 	status = IO_COPROC_NOT_PRESENT;
 
 	// Read in the status lines associated with the COPROC control
-	let coproc_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
-	let coproc_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
-	let coproc_trans_ctrl = getbit(cpu.r_state[3], IOCP_TRANS_CTRL, 1);
+	let iocp_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
+	let iocp_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
 	
 	
 	// Check if the coprocessor is delaying
@@ -49,7 +48,7 @@ function coproc_clk(cpu, state) {
 		case COPROC_EMU_READY:
 			// Coprocessor ready loop
 			// Await request from main processor
-			if (coproc_req) {
+			if (iocp_req) {
 				state.delay = 10;
 				state.operation = COPROC_EMU_SERVICE_IOT_BEGIN;
 			}
@@ -64,7 +63,8 @@ function coproc_clk(cpu, state) {
 	}
 	
 	// Set coproc status
-	cpu.r_coproc_state = status;
+	console.log("Set cpu to " + status);
+	cpu.s_coproc_status = status;
 }
 
 /* --- TERMINAL STUFF --- */
