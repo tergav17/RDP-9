@@ -1232,16 +1232,20 @@ function decode(input) {
 			// Check if IR bit `14 (IOT instruction AC clear flag) is set
 			// If so, clear out AC
 			// IF IOT_CLEAR_AC:
-			//	0 -> AC
+			//	0 -> AC, MB
+			// ELSE:
+			//  AC -> MB
 			// STEP_SRV_IO_WAIT -> NEXT
 			case STEP_SRV_IOT_CLEAR_AC:
 				// Set the bus to 0
-				bus_output_select = BUS_SELECT_ALU;
-				alu_op_select = ALU_CLEAR;
-			
+				
+				latch_mb = 1;
 				if (iot_clear_ac) {
-					console.log("Clear AC");
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_CLEAR;
 					latch_ac = 1;
+				} else {
+					bus_output_select = BUS_SELECT_AC;
 				}
 				
 				next_step = STEP_SRV_IOCP_WAIT;
@@ -1278,6 +1282,7 @@ function decode(input) {
 			// Present the IOCP to the processor and await an acknowledgement code
 			// AC will be placed on the the data bus, while MA in full will be placed on the address bus
 			// IF IOCP_STATUS >= 8:
+			//  1 -> IOCP_ACK
 			//  [TODO IOCP ACK CODES]
 			// ELSE:
 			//  AC -> COPROC_DATA
@@ -1290,6 +1295,16 @@ function decode(input) {
 				
 				if (iocp_status >= 8) {
 					// Handle the acknowledgement
+					iocp_ack = 1;
+					
+					switch (iocp_status) {
+						default:
+						case IO_COPROC_ACK:
+						
+							break;
+					}
+					
+					
 					next_step = STEP_SRV_FETCH;
 				} else {
 					// Tell the IOCP we have an IOT ready for it

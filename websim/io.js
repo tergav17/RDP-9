@@ -6,19 +6,39 @@
  
 // I/O elements 
 const dump_core = document.getElementById("button-dump-core");
+const mount_ppt = document.getElementById("button-mount-ppt");
+const rewind_ppt = document.getElementById("button-rewind-ppt");
 const upload_core = document.getElementById("upload-core");
 const terminal = document.getElementById("terminal");
 const readout = document.getElementById("readout");
-const dump_bank = document.getElementById("core-dump-bank");
+
+const upload_ppt = document.getElementById("upload-ppt");
 
 /* --- IO COPROCESSOR EMULATION --- */
 
 const COPROC_EMU_READY = 0;
 const COPROC_EMU_SERVICE_IOT_BEGIN = 1;
+const COPROC_EMU_IOT_ACK = 2;
+
+ppt_state = {
+	
+	// Paper tape data
+	data: [],
+	
+	// Paper tape pointer
+	pointer: 0
+	
+};
 
 coproc_state = {
 	// Used to pause the coprocessor simulation for a number of cycles
 	delay: 0,
+	
+	// Latch that is set when an ack is recieved
+	ack_latch: 0,
+	
+	// Write register
+	r_write: 0,
 	
 	// Coprocessor state machine state
 	operation: COPROC_EMU_READY
@@ -30,11 +50,15 @@ coproc_state = {
 function coproc_clk(cpu, state) {
 
 	// Coprocessor status to return to CPU
-	status = IO_COPROC_NOT_PRESENT;
+	status = cpu.s_coproc_status;
 
 	// Read in the status lines associated with the COPROC control
 	let iocp_req = getbit(cpu.r_state[3], IOCP_REQ, 1);
 	let iocp_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
+	
+	// Set the ack_latch if needed
+	if (iocp_ack)
+		state.ack_latch = 1;
 	
 	
 	// Check if the coprocessor is delaying
@@ -49,13 +73,33 @@ function coproc_clk(cpu, state) {
 			// Coprocessor ready loop
 			// Await request from main processor
 			if (iocp_req) {
-				state.delay = 10;
+				state.delay = 4;
 				state.operation = COPROC_EMU_SERVICE_IOT_BEGIN;
 			}
+			state = IO_COPROC_REQ_NULL;
 			break;
 			
 		case COPROC_EMU_SERVICE_IOT_BEGIN:
 			// Start processing an IOT here
+			
+			let data = cpu.s_data_bus;
+			let addr = cpu.s_addr_bus;
+			
+			console.log("Doing IOT on device " + addr + " with data " + data); 
+			
+			// Acknowledge that the IOT has been serviced and the write register is written
+			state.operation = COPROC_EMU_IOT_ACK
+			status = IO_COPROC_ACK;
+			break;
+			
+			
+		case COPROC_EMU_IOT_ACK:
+			// Wait for the main processor to acknowledge that it has read the data
+			if (state.ack_latch) {
+				state.ack_latch = 0;
+				state.operation = COPROC_EMU_READY;
+				status = IO_COPROC_REQ_NULL;
+			}
 			break;
 		
 		default:
@@ -63,7 +107,6 @@ function coproc_clk(cpu, state) {
 	}
 	
 	// Set coproc status
-	console.log("Set cpu to " + status);
 	cpu.s_coproc_status = status;
 }
 
@@ -215,107 +258,38 @@ dump_core.onclick = function() {
 	readout.value = out;
 }
 
-/*
-
-// Data dump function
-dump_data.onclick = function() {
-	// Grab the bank
-	let bank = cpu_state.data_bank;
-	let manual = getManualBank();
-	if (manual >= 0 && manual <= 255) {
-		bank = manual;
-	}
-	
-	// Dump header
-	let content = "BANK : 0x" + (bank).toString(16).padStart(2, '0').toUpperCase() + "\n";
-	
-	// Dump contents
-	for (let i = 0; i < 0x80; i += 8) {
-		content += "0x" + (i).toString(16).padStart(2, '0').toUpperCase() + " : ";
-		
-		for (let o = 0; o < 8; o++) {
-			content += (cpu_state.dmem[bank * 128 + i + o]).toString(16).padStart(2, '0').toUpperCase() + " ";
-		}
-		
-		content += " \"";
-		for (let o = 0; o < 8; o++) {
-			let b = cpu_state.dmem[bank * 128 + i + o];
-			if (b >= 0x20 && b <= 0x7E) {
-				content += String.fromCharCode(b);
-			} else {
-				content += ".";
-			}
-		}
-		
-		content += "\"\n"
-	}
-	
-	
-	readout.value = content;
-}
-
-function getManualBank() {
-	let str = dump_bank.value.toLowerCase();
-	
-	if (str.startsWith("0x")) {
-		return parseInt(str, 16);
-	} else {
-		return parseInt(str, 10);
-	}
-}
-*/
 
 /* --- FILE LOADING STUFF --- */
 
-/*
-// Link "LOAD .SAV" button to file input
-document.getElementById("button-load-sav").onclick = function() {
-	if (runClock) {
-		alert("Halt processor before loading .SAV");
-	} else {
-		upload_sav.click();
-	}
+
+// Link "LOAD .PPT" button to file input
+mount_ppt.onclick = function() {
+	upload_ppt.click();
 }
 
-// Shove the .SAV into memory when uploaded
-upload_sav.addEventListener('change', function(e) {
-	let savFile = upload_sav.files[0];
+// Rewind PPT in reader
+rewind_ppt.onclick = function() {
+	ppt_state.pointer = 0;
+}
+
+// Shove the .PPT into buffer when uploaded
+upload_ppt.addEventListener('change', function(e) {
+	let pptFile = upload_ppt.files[0];
 	
 
 	(async () => {
-        let fileContent = new Uint8Array(await savFile.arrayBuffer());
+        let fileContent = new Uint8Array(await pptFile.arrayBuffer());
 
-        let block = 0;
-		while (block + 512 <= fileContent.length) {
-			if (fileContent[block] != 0x02 || fileContent[block + 1] != 0x81) {
-				alert("Malformed .SAV File!");
-				break;
-			}
-			
-			// Get bank to load into
-			bank = fileContent[block + 2];
-			
-			cpu_state.isr_bank = bank;
-			cpu_state.data_bank = bank;
-			
-			for (let o = 0; o < 128; o++) {
-				dataStore(cpu_state, o, fileContent[block + o + 128]);
-				isrStore(cpu_state, o + 128, (fileContent[block + (o*2) + 256] << 8) + fileContent[block + (o*2) + 257]);
-			}
-			
-			block += 512;
+		// Copy in ppt data and reset pointer
+		for (let i = 0; i < fileContent.length; i++) {
+			ppt_state.data[i] = fileContent[i];
 		}
-		
-		cpu_state.isr_bank = 1;
-		cpu_state.data_bank = 1;
-		cpu_state.pc = 0x80;
-		
-		// Make sure the visual display is updated 
-		propagate(cpu_state, isrFetch(cpu_state, cpu_state.pc));
-		updateFlow(false);
-		upload_sav.value = null;
+		ppt_state.pointer = 0;
+		alert("Loaded " + ppt_state.data.length + " bytes");
 	})();
 });
+
+/*
 
 // Link "MOUNT .IMG" button to file input
 document.getElementById("button-mount-img").onclick = function() {
