@@ -20,14 +20,35 @@ const COPROC_EMU_READY = 0;
 const COPROC_EMU_SERVICE_IOT_BEGIN = 1;
 const COPROC_EMU_IOT_ACK = 2;
 
+const PPTR_MODE_ALPHA = 0;
+const PPTR_MODE_BINARY = 1;
+
 ppt_state = {
 	
 	// Paper tape data
 	data: [],
 	
+	// Paper tape buffer
+	buffer: 0,
+	
+	// Paper tape has data
+	flag: 1,
+	
+	// Paper tape reader mode
+	mode: PPTR_MODE_ALPHA,
+	
+	// Paper tape delay
+	delay: 0,
+	
 	// Paper tape pointer
 	pointer: 0
 	
+};
+
+device_states = {
+	
+	// Paper tape state
+	ppt: ppt_state
 };
 
 coproc_state = {
@@ -36,18 +57,27 @@ coproc_state = {
 	
 	// Latch that is set when an ack is recieved
 	ack_latch: 0,
-	
-	// Write register
-	r_write: 0,
+
 	
 	// Coprocessor state machine state
 	operation: COPROC_EMU_READY
 };
 
+
+const IOT_ISR_DEVICE_FIELD = 6;
+const IOT_ISR_SUBDEVICE_FIELD = 4;
+const IOT_ISR_PULSE_FIELD = 0;
+
+const PPTR_DEVICE_ID = 1;
+
+
 /*
  * Clock the coprocessor, should be done before the next set of microcode control signals are sent out
  */
-function coproc_clk(cpu, state) {
+function coproc_clk(cpu, state, devices) {
+	
+	// Update all device logic
+	device_tick(devices);
 
 	// Coprocessor status to return to CPU
 	status = cpu.s_coproc_status;
@@ -84,12 +114,59 @@ function coproc_clk(cpu, state) {
 			
 			let data = cpu.s_data_bus;
 			let addr = cpu.s_addr_bus;
+			let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
+			let subdevice = getbit(addr, IOT_ISR_SUBDEVICE_FIELD, 2);
+			let pulse = getbit(addr, IOT_ISR_PULSE_FIELD, 3);
 			
-			console.log("Doing IOT on device " + addr + " with data " + data); 
+			console.log("Doing IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
+			status = IO_COPROC_ACK;
+			switch (device) {
+				
+				case PPTR_DEVICE_ID:
+					// Paper tape reader
+					let ppt = devices.ppt;
+					let doskip = false;
+					
+					// Check ready flag
+					if (pulse & 01) {
+						console.log(ppt.flag);
+						if (ppt.flag) {
+							doskip = true;
+						}
+					}
+					
+					// Read from buffer
+					if (pulse & 02) {
+						cpu.s_coproc_write = ppt.buffer;
+						status = IO_COPROC_ACK_WRITE;
+					}
+					
+					// Update PPTR mode
+					if (pulse & 04) {
+						if (subdevice & 02) {
+							ppt.mode = PPTR_MODE_BINARY;
+							console.log("Set to binary mode");
+						} else {
+							ppt.mode = PPTR_MODE_ALPHA;
+							console.log("Set to alpha mode");
+						}
+						ppt.flag = 0;
+					}
+					
+					// Append the skip
+					status = append_skip(status, doskip);
+					break;
+				
+				default:
+					// Acknowledge and do nothing
+					break;
+				
+			}
+			
+			
 			
 			// Acknowledge that the IOT has been serviced and the write register is written
-			state.operation = COPROC_EMU_IOT_ACK
-			status = IO_COPROC_ACK;
+			state.operation = COPROC_EMU_IOT_ACK;
 			break;
 			
 			
@@ -108,6 +185,66 @@ function coproc_clk(cpu, state) {
 	
 	// Set coproc status
 	cpu.s_coproc_status = status;
+}
+
+/*
+ * Append a skip onto an existing base acknowledgement value
+ */
+function append_skip(base, skip) {
+	if (!skip)
+		return base;
+	
+	switch (parseInt(base)) {
+		case IO_COPROC_ACK:
+			return IO_COPROC_ACK_SKIP;
+			
+		case IO_COPROC_ACK_WRITE:
+			return IO_COPROC_ACK_WSKIP;
+			
+		case IO_COPROC_ACK_FLAGS:
+			return IO_COPROC_ACK_FSKIP;
+			
+		default:
+			return base;
+	}
+}
+
+/* --- DEVICE STUFF --- */
+
+/*
+ * Device tick, used for timing certain things
+ */
+function device_tick(devices) {
+	
+	// Tick the paper table subsystem
+	ppt_tick(devices.ppt);
+}
+
+function ppt_tick(ppt) {
+	
+	
+	// Below this is all stuff that can be delayed
+	if (ppt.delay > 0) {
+		ppt.delay--;
+		return;
+	}
+	
+	// Try to read in a new value if the flag is low
+	if (!ppt.flag) {
+		if (ppt.mode == PPTR_MODE_ALPHA && ppt.pointer < ppt.data.length) {
+			ppt.buffer = ppt.data[ppt.pointer];
+			ppt.pointer++;
+			ppt.flag = 1;
+			ppt.delay = 10;
+		}
+		if (ppt.mode == PPTR_MODE_BINARY && ppt.pointer < (ppt.data.length + 2)) {
+			let i = ppt.pointer;
+			ppt.buffer = getbit(ppt.data[i+2], 0, 6) | (getbit(ppt.data[i+1], 0, 6) << 6) | (getbit(ppt.data[i], 0, 6) << 12);
+			ppt.pointer += 2;
+			ppt.flag = 1;
+			ppt.delay = 30;
+		}
+	}
 }
 
 /* --- TERMINAL STUFF --- */

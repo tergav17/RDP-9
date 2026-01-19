@@ -36,6 +36,7 @@ cpu_state = {
 	
 	// Coprocessor stuff
 	s_coproc_status: 0,
+	s_coproc_write: 0,
 	s_coproc_attn_req: 0,
 	
 	// Switch Registers
@@ -77,15 +78,13 @@ cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memor
 //cpu_state.r_core[4] = 0600000;	// JMP 000
 
 // Simple tape read in program
-cpu_state.r_core[0] = 0600100; // Initial jump to 0100
-cpu_state.r_core[0100] = 0200177;	// LAC 0177		Read in location
-cpu_state.r_core[0101] = 0040010;	// DEP 0010		Read in pointer
-cpu_state.r_core[0102] = 0700144;	// RSB			Set reader to binary mode and clear buffer
-cpu_state.r_core[0103] = 0700101;	// RSF			Check reader flag
-cpu_state.r_core[0104] = 0600103;	// JMP 0103		Jump back to the previous instruction if not set
-cpu_state.r_core[0105] = 0700112;	// RRB			Clear AC, read buffer, clear flag
-cpu_state.r_core[0106] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
-cpu_state.r_core[0107] = 0600102;	// JMP 00102	Prepare to read another word 
+cpu_state.r_core[0] = 0700144;	// RSB			Set reader to binary mode and clear buffer
+cpu_state.r_core[1] = 0700101;	// RSF			Check reader flag
+cpu_state.r_core[2] = 0600001;	// JMP 0001		Jump back to the previous instruction if not set
+cpu_state.r_core[3] = 0700112;	// RRB			Clear AC, read buffer, clear flag
+cpu_state.r_core[4] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
+cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word 
+cpu_state.r_core[010] = 0000022; // Pointer location
 
 
 //cpu_state.r_core[040] = 0000001;
@@ -429,6 +428,7 @@ function propagate(cpu) {
 	// Get the data bus
 	let data_bus_select = getbit(cpu.r_state[2], 0, 3)
 	let constant_value = getbit(cpu.r_state[2], 7, 1);
+	let iocp_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
 	switch (data_bus_select) {
 	
 		case BUS_SELECT_EXTERNAL:
@@ -439,8 +439,8 @@ function propagate(cpu) {
 			}
 			
 			// Otherwise put the coprocessor output register on the bus
-			else {
-			
+			if (iocp_ack) {
+				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_coproc_write);
 			}
 			break;
 			
@@ -587,6 +587,7 @@ const STEP_SRV_IOCP_READY = 17;		// Signal to the IOCP that an IOT is ready. Wai
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
+const STEP_SRV_SKIP = 35;			// Unconditional skip
 
 const STEP_SRV_IOT_CLEAR_AC = 48;	// If the bit `14 of IR active, AC = 0
 
@@ -661,6 +662,9 @@ const OPCODE_EAE = 13;
 
 // IOT
 const OPCODE_IOT = 14;
+const STEP_ISR_IOT_WRITE = 1;
+const STEP_ISR_IOT_WSKIP = 2;
+
 
 // OPR
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
@@ -1229,6 +1233,20 @@ function decode(input) {
 				}
 				break;
 				
+			// Increment the program counter, then fetch
+			//  PC + 1 -> PC
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_SKIP:
+				bus_output_select = BUS_SELECT_CROSS;
+				select_pc_ma = ADDR_SELECT_PC;
+				enable_addr_to_core = 1;
+				latch_pc = 1;
+				constant_value = 1;
+
+				
+				next_step = STEP_SRV_FETCH;
+				break;
+				
 			// Check if IR bit `14 (IOT instruction AC clear flag) is set
 			// If so, clear out AC
 			// IF IOT_CLEAR_AC:
@@ -1283,6 +1301,7 @@ function decode(input) {
 			// AC will be placed on the the data bus, while MA in full will be placed on the address bus
 			// IF IOCP_STATUS >= 8:
 			//  1 -> IOCP_ACK
+			//  IOCP_WRITE -> OB
 			//  [TODO IOCP ACK CODES]
 			// ELSE:
 			//  AC -> COPROC_DATA
@@ -1295,17 +1314,38 @@ function decode(input) {
 				
 				if (iocp_status >= 8) {
 					// Handle the acknowledgement
+					bus_output_select = BUS_SELECT_EXTERNAL;
 					iocp_ack = 1;
+					constant_value = 1;
+					latch_ob = 1;
 					
 					switch (iocp_status) {
 						default:
 						case IO_COPROC_ACK:
-						
+							next_step = STEP_SRV_FETCH;
 							break;
+							
+							
+						case IO_COPROC_ACK_WRITE:
+							console.log("Ack write recieved");
+							next_decode_mode = DECODE_MODE_INSTRUCTION;
+							next_step = STEP_ISR_IOT_WRITE;
+							break;
+							
+						case IO_COPROC_ACK_SKIP:
+							next_step = STEP_SRV_SKIP;
+							break;
+							
+						case IO_COPROC_ACK_WSKIP:
+							next_decode_mode = DECODE_MODE_INSTRUCTION;
+							next_step = STEP_ISR_IOT_WSKIP;
+							break;
+							
+							
 					}
 					
 					
-					next_step = STEP_SRV_FETCH;
+					
 				} else {
 					// Tell the IOCP we have an IOT ready for it
 					iocp_req = 1;
@@ -2156,10 +2196,45 @@ function decode(input) {
 						// Just redirect to the IOT logic in service
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_IOT_CLEAR_AC;
-						
-						console.log("Start IOT decode");
+
 						
 						break;
+						
+					// Do an OR between OB and MB and put it in AC
+					// OB OR MB -> AC
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_ISR_IOT_WRITE:
+
+						// Do an OR between OB and MB
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_OR;
+						
+						// Store in AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+						
+					// Do an OR between OB and MB and put it in AC
+					// We'll do a skip at the end of this one
+					// OB OR MB -> AC
+					// STEP_SRV_SKIP -> NEXT
+					case STEP_ISR_IOT_WSKIP:
+						
+						// Do an OR between OB and MB
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_OR;
+						
+						// Store in AC
+						latch_ac = 1;
+						
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_SKIP;
+						break;
+						
 				}
 				break;
 				

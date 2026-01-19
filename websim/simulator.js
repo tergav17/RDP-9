@@ -56,14 +56,14 @@ function simReset() {
  * Execute a single cycle
  */
 function simStep() {
-	coproc_clk(cpu_state, coproc_state);
+	coproc_clk(cpu_state, coproc_state, device_states);
 	latch(cpu_state);
 	propagate(cpu_state);
 	updateFlow(false);
 }
 
 // event farm!!!! :)
-var clockCyclesPerTick = 10;
+var clockCyclesPerTick = 100;
 var last_front_panel_state = 0;
 function updateClock() {
 	
@@ -113,7 +113,7 @@ function updateClock() {
 	
 	if (runClock) {
 		for (let i = 0; i < clockCyclesPerTick; i++) {
-			coproc_clk(cpu_state, coproc_state);
+			coproc_clk(cpu_state, coproc_state, device_states);
 			latch(cpu_state);
 			propagate(cpu_state);
 		}
