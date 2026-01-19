@@ -84,7 +84,7 @@ cpu_state.r_core[2] = 0600001;	// JMP 0001		Jump back to the previous instructio
 cpu_state.r_core[3] = 0700112;	// RRB			Clear AC, read buffer, clear flag
 cpu_state.r_core[4] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
 cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word 
-cpu_state.r_core[010] = 0000022; // Pointer location
+cpu_state.r_core[010] = 0000021; // Pointer location
 
 
 //cpu_state.r_core[040] = 0000001;
@@ -1091,8 +1091,6 @@ function decode(input) {
 						latch_ob = 1;
 						latch_mb = 1;
 						
-						console.log("XCT");
-						
 						// Execute the instruction
 						next_step = STEP_SRV_XCT_NULL;
 						break;
@@ -1281,8 +1279,6 @@ function decode(input) {
 			//   GOTO STEP_SRV_IOCP_READY
 			case STEP_SRV_IOCP_WAIT:
 				
-				console.log("IOCP status in wait is " + iocp_status);
-				
 				// Halt if not present
 				if (iocp_status == IO_COPROC_NOT_PRESENT) {
 					next_step = STEP_SRV_REFETCH;
@@ -1309,8 +1305,6 @@ function decode(input) {
 			//  1 -> IOCP_REQ
 			//  STEP_SRV_IOCP_READY -> NEXT
 			case STEP_SRV_IOCP_READY:
-			
-			console.log("IOCP status in ready is " + iocp_status);
 				
 				if (iocp_status >= 8) {
 					// Handle the acknowledgement
@@ -1327,7 +1321,6 @@ function decode(input) {
 							
 							
 						case IO_COPROC_ACK_WRITE:
-							console.log("Ack write recieved");
 							next_decode_mode = DECODE_MODE_INSTRUCTION;
 							next_step = STEP_ISR_IOT_WRITE;
 							break;

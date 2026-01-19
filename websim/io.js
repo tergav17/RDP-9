@@ -45,10 +45,22 @@ ppt_state = {
 	
 };
 
+tty_state = {
+	
+	// Printer ready flag
+	printer_flag: 1,
+	
+	// Printer delay constant
+	printer_delay: 0
+}
+
 device_states = {
 	
 	// Paper tape state
-	ppt: ppt_state
+	ppt: ppt_state,
+	
+	// Teleprinter state
+	tty: tty_state
 };
 
 coproc_state = {
@@ -69,6 +81,7 @@ const IOT_ISR_SUBDEVICE_FIELD = 4;
 const IOT_ISR_PULSE_FIELD = 0;
 
 const PPTR_DEVICE_ID = 1;
+const TTY_PRINT_DEVICE_ID = 4;
 
 
 /*
@@ -118,18 +131,16 @@ function coproc_clk(cpu, state, devices) {
 			let subdevice = getbit(addr, IOT_ISR_SUBDEVICE_FIELD, 2);
 			let pulse = getbit(addr, IOT_ISR_PULSE_FIELD, 3);
 			
-			console.log("Doing IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
 			status = IO_COPROC_ACK;
+			let doskip = false;
 			switch (device) {
 				
 				case PPTR_DEVICE_ID:
 					// Paper tape reader
 					let ppt = devices.ppt;
-					let doskip = false;
 					
 					// Check ready flag
 					if (pulse & 01) {
-						console.log(ppt.flag);
 						if (ppt.flag) {
 							doskip = true;
 						}
@@ -145,10 +156,8 @@ function coproc_clk(cpu, state, devices) {
 					if (pulse & 04) {
 						if (subdevice & 02) {
 							ppt.mode = PPTR_MODE_BINARY;
-							console.log("Set to binary mode");
 						} else {
 							ppt.mode = PPTR_MODE_ALPHA;
-							console.log("Set to alpha mode");
 						}
 						ppt.flag = 0;
 					}
@@ -156,9 +165,37 @@ function coproc_clk(cpu, state, devices) {
 					// Append the skip
 					status = append_skip(status, doskip);
 					break;
+					
+				case TTY_PRINT_DEVICE_ID:
+					// Teletype printer
+					let tty = devices.tty;
+					
+					// Check printer ready flag
+					if (pulse & 01) {
+						if (tty.printer_flag) {
+							doskip = true;
+						}
+					}
+					
+					// Reset teleprinter flag
+					if (pulse & 02) {
+						tty.printer_flag = 0;
+					}
+					
+					// Print something to the terminal
+					if (pulse & 04) {
+						tty.printer_delay = 300;
+						uart_output(data & 0177);
+						
+					}
+				
+					// Append the skip
+					status = append_skip(status, doskip);
+					break;
 				
 				default:
 					// Acknowledge and do nothing
+					console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
 					break;
 				
 			}
@@ -216,8 +253,24 @@ function append_skip(base, skip) {
  */
 function device_tick(devices) {
 	
-	// Tick the paper table subsystem
+	// Tick the teleprinter subsystem
+	tty_tick(devices.tty);
+	
+	// Tick the paper tape subsystem
 	ppt_tick(devices.ppt);
+}
+
+function tty_tick(tty) {
+	
+	// Decrement printer delay value
+	if (tty.printer_delay > 0) {
+		tty.printer_delay--;
+		
+		if (tty.printer_delay == 0) {
+			tty.printer_flag = 1;
+		}
+	}
+	
 }
 
 function ppt_tick(ppt) {
@@ -240,7 +293,7 @@ function ppt_tick(ppt) {
 		if (ppt.mode == PPTR_MODE_BINARY && ppt.pointer < (ppt.data.length + 2)) {
 			let i = ppt.pointer;
 			ppt.buffer = getbit(ppt.data[i+2], 0, 6) | (getbit(ppt.data[i+1], 0, 6) << 6) | (getbit(ppt.data[i], 0, 6) << 12);
-			ppt.pointer += 2;
+			ppt.pointer += 3;
 			ppt.flag = 1;
 			ppt.delay = 30;
 		}
@@ -250,56 +303,12 @@ function ppt_tick(ppt) {
 /* --- TERMINAL STUFF --- */
 
 /*
- * Write a byte to the UART
- */
-function uartWrite(register, val) {
-	switch (register & 0x7) {
-		case 0x00:
-			// Transmit Holding Register
-			uartOutput(val);
-			break;
-		
-		case 0x7:
-			// Scratchpad Register
-			uartScratchpad = val;
-			break;
-		
-		default:
-			break;
-	}
-}
-
-
-/*
- * Reads a byte from the UART
- */
-function uartRead(register) {
-	switch (register & 0x7) {
-		case 0x0:
-			// Receive Holding Register
-			uartHasCharacter = false;
-			return uartChar & 0xFF;
-			
-		case 0x5:
-			// Line Status Register
-			return 0x20 + (uartHasCharacter ? 1 : 0);
-			
-		case 0x7:
-			// Scratchpad Register
-			return uartScratchpad;
-		
-		default:
-			return 0xFF;
-	}
-}
-
-/*
  * Inputs a value into the UART
  */
 uartHasCharacter = false;
 uartChar = 0;
 uartScratchpad = 0; 
-function uartInput(ch) {
+function uart_input(ch) {
 	uartHasCharacter = true;
 	uartChar = ch;
 }
@@ -307,7 +316,7 @@ function uartInput(ch) {
 /*
  * Ouputs a value to the UART
  */
-function uartOutput(ch) {
+function uart_output(ch) {
 	
 	switch (ch) {
 		case 0x08:
