@@ -304,7 +304,11 @@ function propagate(cpu) {
 		
 			// Do A ADD B
 			arith_out = arith_input_a + arith_input_b;
-			arith_carry_out = getbit(shift_input + arith_input_b, 18, 1);
+			if (alu_select_ones) {
+				arith_carry_out = getbit(shift_input + arith_input_b, 18, 1);
+			} else {
+				arith_carry_out = getbit(arith_out, 18, 1);
+			}
 			break;
 			
 		case ALU_XOR:
@@ -331,7 +335,6 @@ function propagate(cpu) {
 			arith_out = 01777777;
 			break;
 	}
-	arith_out &= 0777777;
 	
 	// 1's mode
 	if (alu_select_ones) {
@@ -341,13 +344,14 @@ function propagate(cpu) {
 		}
 		
 		arith_link_out = (
-			(!getbit(arith_out, 17, 1) != getbit(arith_input_b, 17, 1)) &&
+			(!getbit(arith_input_a, 17, 1) != getbit(arith_input_b, 17, 1)) &&
 			(getbit(arith_out, 17, 1) != getbit(arith_input_a, 17, 1))
 		) ? 1 : 0;
 		arith_link_out |= cpu.r_reg_link
 	} else {
 		arith_link_out = getbit(arith_out, 18, 1);
 	}
+	arith_out &= 0777777;
 	
 	// Perform shift operations
 	let shift_out = 0;
@@ -2311,9 +2315,9 @@ function decode(input) {
 				if (cll) {
 					// We are clearing the link flag
 					if (cml) {
-						invert_link = flag_link;
-					} else {
 						invert_link = !flag_link;
+					} else {
+						invert_link = flag_link;
 					}
 				} else {
 					invert_link = cml;
