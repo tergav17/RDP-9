@@ -34,6 +34,9 @@ cpu_state = {
 	r_reg_skip: 0,			// OPR skip condition on last OB
 	r_reg_maai: 0,			// MA auto index
 	
+	// Front panel signals
+	s_halt_indicator: 0,
+	
 	// Coprocessor stuff
 	s_coproc_status: 0,
 	s_coproc_write: 0,
@@ -264,6 +267,8 @@ function propagate(cpu) {
 	}
 	cpu.s_ucode_input = microcode_input;
 	cpu.s_ctrl = decode(microcode_input);
+	
+	cpu.s_halt_indicator = getbit(cpu.s_ctrl[3], HALT_INDICATE, 1);
 	
 	// Step 2: Do ALU related activites
 	let alu_ctrl = cpu.r_state[4];
@@ -1379,7 +1384,7 @@ function decode(input) {
 		let extend_mode = getbit(input, 9, 1);
 		let flag_maai = getbit(input, 10, 1);
 		
-		console.log("Opcode: " + opcode + ", Step: " + step);
+		//console.log("Opcode: " + opcode + ", Step: " + step);
 		
 		// Execute instructions here
 		
