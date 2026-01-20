@@ -14,6 +14,8 @@ const readout = document.getElementById("readout");
 
 const upload_ppt = document.getElementById("upload-ppt");
 
+const play_bell = document.getElementById("play-bell");
+
 /* --- IO COPROCESSOR EMULATION --- */
 
 const COPROC_EMU_READY = 0;
@@ -133,6 +135,7 @@ function coproc_clk(cpu, state, devices) {
 			
 			status = IO_COPROC_ACK;
 			let doskip = false;
+			console.log("IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
 			switch (device) {
 				
 				case PPTR_DEVICE_ID:
@@ -318,7 +321,15 @@ function uart_input(ch) {
  */
 function uart_output(ch) {
 	
+	console.log("Got: " + ch);
+	
 	switch (ch) {
+		
+		case 0x07:
+			// Bell
+			play_bell.play();
+			break;
+		
 		case 0x08:
 			// Backspace
 			terminal.value = terminal.value.substring(0, terminal.value.length-1);

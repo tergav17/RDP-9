@@ -329,14 +329,20 @@ function drawFlow(cpu) {
 	// Link register
 	x = 430; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("L", x + 4, y - 10);
+	flow_ctx.fillText("LNK", x - 2, y - 10);
 	drawRegister(x, y, cpu.r_reg_link, 1);
 	
-	// Halt signal
-	x = 606; y = 90;
+	// PIE signal
+	x = 454; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("HALT", x - 5, y - 10);
-	drawRegister(x, y, cpu.s_halt_indicator, 1);
+	flow_ctx.fillText("PIE", x - 2 , y - 10);
+	drawRegister(x, y, 0, 1);
+	
+	// Run signal
+	x = 478; y = 90;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("RUN", x - 2 , y - 10);
+	drawRegister(x, y, !cpu.s_halt_indicator, 1);
 	
 	// Draw 18-Bank Switches
 	x = 10; y = 240;
