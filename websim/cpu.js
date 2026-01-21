@@ -439,19 +439,6 @@ function propagate(cpu) {
 	let constant_value = getbit(cpu.r_state[2], 7, 1);
 	let iocp_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
 	switch (data_bus_select) {
-	
-		case BUS_SELECT_EXTERNAL:
-		
-			// Put the contents of the switch register on the bus if constant == 0
-			if (!constant_value) {
-				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_switch_data);
-			}
-			
-			// Otherwise put the coprocessor output register on the bus
-			if (iocp_ack) {
-				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_coproc_write);
-			}
-			break;
 			
 		case BUS_SELECT_AC:
 			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_ac);
@@ -476,6 +463,11 @@ function propagate(cpu) {
 				cpu.s_data_bus = assert(cpu.s_data_bus, shift_out);
 			} else {
 				cpu.s_data_bus = assert(cpu.s_data_bus, arith_out);
+				
+				// Special provision for ORing any result with 020 if needed
+				if (constant_value) {
+					cpu.s_data_bus |= 020;
+				}
 			}
 			break;
 			
@@ -483,12 +475,15 @@ function propagate(cpu) {
 			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_core[bus(cpu.s_addr_bus)]);
 			break;
 			
-		case BUS_SELECT_CONST:
-			cpu.s_data_bus = assert(cpu.s_data_bus, 0);
- 			if (!constant_value) {
-				cpu.s_data_bus |= 007;
-			} else {
-				cpu.s_data_bus |= 020;
+		case BUS_SELECT_SWR:
+			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_switch_data);
+			break;
+			
+		case BUS_SELECT_EXTERNAL:
+
+			// Otherwise put the coprocessor output register on the bus
+			if (iocp_ack) {
+				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_coproc_write);
 			}
 			break;
 	
@@ -509,14 +504,14 @@ const DECODE_MODE_OPERATE = 2;
 const DECODE_MODE_MISC = 3;
 
 // Bus selection modes
-const BUS_SELECT_EXTERNAL = 0;
-const BUS_SELECT_AC = 1;
-const BUS_SELECT_STEP = 2;
-const BUS_SELECT_MQ = 3;
-const BUS_SELECT_CROSS = 4;
-const BUS_SELECT_ALU = 5;
-const BUS_SELECT_CORE = 6;
-const BUS_SELECT_CONST = 7;
+const BUS_SELECT_AC = 0;
+const BUS_SELECT_STEP = 1;
+const BUS_SELECT_MQ = 2;
+const BUS_SELECT_CROSS = 3;
+const BUS_SELECT_ALU = 4;
+const BUS_SELECT_CORE = 5;
+const BUS_SELECT_SWR = 6;
+const BUS_SELECT_EXTERNAL = 7;
 
 const BUS_LATCH_IR = 0;
 const BUS_LATCH_MA = 1;
@@ -830,7 +825,7 @@ function decode(input) {
 	let alu_select_ones = 0;
 	let latch_ob = 0;
 	
-	let bus_output_select = BUS_SELECT_EXTERNAL;
+	let bus_output_select = BUS_SELECT_AC;
 	
 	let select_pc_ma = ADDR_SELECT_PC;
 	let enable_addr_to_core = 0;
@@ -1032,8 +1027,7 @@ function decode(input) {
 					case FP_GOTO:
 						// Update the program counter using the switch register
 						extended_addressing_enable = 1;
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Latch PC
 						latch_pc = 1;
@@ -1045,8 +1039,7 @@ function decode(input) {
 					case FP_EXAM:
 						// Update the memory address using the switch register
 						extended_addressing_enable = 1;
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Latch MA
 						latch_ma = 1;
@@ -1062,8 +1055,7 @@ function decode(input) {
 						
 					case FP_DEPT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Get ready to put the value into core
 						select_pc_ma = ADDR_SELECT_MA;
@@ -1076,8 +1068,7 @@ function decode(input) {
 						
 					case FP_DEPT_NEXT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Get ready to put the value into core
 						select_pc_ma = ADDR_SELECT_MA;
@@ -1090,8 +1081,7 @@ function decode(input) {
 						
 					case FP_XCT:
 						// Place the switch register on the bus
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Do normal fetch stuff
 						// Latch IR, MA, OB, MB
@@ -1228,8 +1218,7 @@ function decode(input) {
 					next_step = STEP_ISR_OPR_SWR_MB;
 				} else {
 					// Put the switch register on the bus
-					bus_output_select = BUS_SELECT_EXTERNAL;
-					constant_value = 0;
+					bus_output_select = BUS_SELECT_SWR;
 					
 					// Latch MB
 					latch_mb = 1;
@@ -1500,7 +1489,8 @@ function decode(input) {
 					//  STEP_ISR_CAL_PC_MB
 					case STEP_ISR_EXECUTE_BEGIN:
 						// Put 020 on the bus
-						bus_output_select = BUS_SELECT_CONST;
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_CLEAR;
 						constant_value = 1;
 						
 						// Are we extended?
@@ -2176,8 +2166,7 @@ function decode(input) {
 					// STEP_OPR_STAGE_TWO -> NEXT
 					case STEP_ISR_OPR_SWR_MB:
 						// Put the switch register on the bus
-						bus_output_select = BUS_SELECT_EXTERNAL;
-						constant_value = 0;
+						bus_output_select = BUS_SELECT_SWR;
 						
 						// Latch MB
 						latch_mb = 1;
