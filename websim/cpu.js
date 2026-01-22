@@ -421,17 +421,15 @@ function propagate(cpu) {
 	let page_zero_addressing = getbit(cpu.r_state[2], 6, 1);
 	
 	// Get the address bus
-	if (getbit(cpu.r_state[2], 4, 1)) {
-		let pc_ma_switch = getbit(cpu.r_state[2], 3, 1);
-		if (pc_ma_switch == ADDR_SELECT_PC) {
-			cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_pc);
-		} else {
-			cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_ma);
-		}
-		if (page_zero_addressing) {
-			// When we are in page zero addressing, the top 2 bits of the address should be zeroed
-			cpu.s_addr_bus &= 017777;
-		}
+	let pc_ma_switch = getbit(cpu.r_state[2], 3, 1);
+	if (pc_ma_switch == ADDR_SELECT_PC) {
+		cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_pc);
+	} else {
+		cpu.s_addr_bus = assert(cpu.s_addr_bus, cpu.r_reg_ma);
+	}
+	if (page_zero_addressing) {
+		// When we are in page zero addressing, the top 2 bits of the address should be zeroed
+		cpu.s_addr_bus &= 017777;
 	}
 	
 	// Get the data bus
@@ -788,12 +786,12 @@ function decode(input) {
 	// 	6: Core
 	//	7: Constant
 	// O[2][3] = Select PC / MA address
-	// O[2][4] = Enable address to core
+	// O[2][4] = 
 	// O[2][5] = Enable extended address latching
 	// O[2][6] = Force page zero address
 	// O[2][7] = Constant generation
-	//	0: 007 / ADDR + 0
-	//	1: 020 / ADDR + 1
+	//	0: ALU | 0 / ADDR + 0
+	//	1: ALU | 020 / ADDR + 1
 	//
 	// O[3][0] = IOT coprocessor attention request
 	// O[3][1] = Coprocessor operation acknowledge
@@ -828,7 +826,7 @@ function decode(input) {
 	let bus_output_select = BUS_SELECT_AC;
 	
 	let select_pc_ma = ADDR_SELECT_PC;
-	let enable_addr_to_core = 0;
+	let todo_blank = 0;
 	let constant_value = 0;
 	
 	let extended_addressing_enable = 0;
@@ -911,7 +909,6 @@ function decode(input) {
 				extended_addressing_enable = 0;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
-				enable_addr_to_core = 1;
 				
 				// Latch IR, MA, OB, MB
 				latch_ir = 1;
@@ -939,7 +936,6 @@ function decode(input) {
 				// Increment the PC
 				bus_output_select = BUS_SELECT_CROSS;
 				select_pc_ma = ADDR_SELECT_PC;
-				enable_addr_to_core = 1;
 				latch_pc = 1;
 				constant_value = 1;
 
@@ -1008,7 +1004,6 @@ function decode(input) {
 						extended_addressing_enable = 0;
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_PC;
-						enable_addr_to_core = 1;
 						
 						// Latch IR, MA, OB, MB
 						latch_ir = 1;
@@ -1059,7 +1054,6 @@ function decode(input) {
 						
 						// Get ready to put the value into core
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						
 						// Show on MB
@@ -1072,7 +1066,6 @@ function decode(input) {
 						
 						// Get ready to put the value into core
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						
 						// Show on MB
@@ -1112,7 +1105,6 @@ function decode(input) {
 				extended_addressing_enable = 0;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
-				enable_addr_to_core = 1;
 				
 				// Latch IR, MA, OB, MB
 				latch_ir = 1;
@@ -1132,7 +1124,6 @@ function decode(input) {
 				// Put CORE[MA] on the bus
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_MA;
-				enable_addr_to_core = 1;
 				
 				// Latch MB
 				latch_mb = 1;
@@ -1148,7 +1139,6 @@ function decode(input) {
 				// Increment MA
 				bus_output_select = BUS_SELECT_CROSS;
 				select_pc_ma = ADDR_SELECT_MA;
-				enable_addr_to_core = 1;
 				constant_value = 1;
 				
 				// Latch MA
@@ -1174,7 +1164,6 @@ function decode(input) {
 				if (flag_zero) {
 					bus_output_select = BUS_SELECT_CROSS;
 					select_pc_ma = ADDR_SELECT_PC;
-					enable_addr_to_core = 1;
 					latch_pc = 1;
 					constant_value = 1;
 				}
@@ -1190,7 +1179,6 @@ function decode(input) {
 				if (!flag_zero) {
 					bus_output_select = BUS_SELECT_CROSS;
 					select_pc_ma = ADDR_SELECT_PC;
-					enable_addr_to_core = 1;
 					latch_pc = 1;
 					constant_value = 1;
 				}
@@ -1210,7 +1198,6 @@ function decode(input) {
 				if (flag_skip) {
 					bus_output_select = BUS_SELECT_CROSS;
 					select_pc_ma = ADDR_SELECT_PC;
-					enable_addr_to_core = 1;
 					latch_pc = 1;
 					constant_value = 1;
 					
@@ -1235,7 +1222,6 @@ function decode(input) {
 			case STEP_SRV_SKIP:
 				bus_output_select = BUS_SELECT_CROSS;
 				select_pc_ma = ADDR_SELECT_PC;
-				enable_addr_to_core = 1;
 				latch_pc = 1;
 				constant_value = 1;
 
@@ -1347,7 +1333,6 @@ function decode(input) {
 					// Put MA on the address bus
 					extended_addressing_enable = 0;
 					select_pc_ma = ADDR_SELECT_MA;
-					enable_addr_to_core = 1;
 					
 					next_step = STEP_SRV_IOCP_READY;
 				}
@@ -1403,7 +1388,6 @@ function decode(input) {
 							// Fetch contents of memory from indirect indirect
 							// Make sure we get it from the zero page
 							bus_output_select = BUS_SELECT_CORE;
-							enable_addr_to_core = 1;
 							bank_zero_enable = 1;
 							select_pc_ma = ADDR_SELECT_MA;
 							
@@ -1418,7 +1402,6 @@ function decode(input) {
 							
 							// Fetch contents of memory from indirect address
 							bus_output_select = BUS_SELECT_CORE;
-							enable_addr_to_core = 1;
 							select_pc_ma = ADDR_SELECT_MA;
 							
 							// If we are in extend mode, use the full address of what we just incremented
@@ -1457,7 +1440,6 @@ function decode(input) {
 						
 						// Place the result of the ALU in core and MA
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						latch_ma = 1;
 						
@@ -1515,7 +1497,6 @@ function decode(input) {
 					case STEP_ISR_CAL_INDIR:
 						// Fetch contents of memory from indirect address
 						bus_output_select = BUS_SELECT_CORE;
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						
 						// If we are in extend mode, use the full address of what we just incremented
@@ -1535,7 +1516,6 @@ function decode(input) {
 					case STEP_ISR_CAL_PC_MB:
 						// Put the contents of PC onto the bus
 						bus_output_select = BUS_SELECT_CROSS;
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_PC;
 						
 						// Store on MB, OB
@@ -1555,7 +1535,6 @@ function decode(input) {
 						alu_op_select = ALU_OR;
 						
 						// Write to core
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						write_core = 1;
 						latch_mb = 1;
@@ -1571,7 +1550,6 @@ function decode(input) {
 					case STEP_ISR_CAL_MA_PC:
 						// Put MA + 1 onto the bus
 						bus_output_select = BUS_SELECT_CROSS;
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						constant_value = 1;
 						
@@ -1603,7 +1581,6 @@ function decode(input) {
 						
 						// Setup core write
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						latch_mb = 1;
 
@@ -1629,7 +1606,6 @@ function decode(input) {
 						
 						// Setup core write
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						latch_mb = 1;
 
@@ -1651,7 +1627,6 @@ function decode(input) {
 					case STEP_ISR_INDIR_COMPLETE:
 						// Put the contents of PC onto the bus
 						bus_output_select = BUS_SELECT_CROSS;
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_PC;
 						
 						// Store on MB, OB
@@ -1671,7 +1646,6 @@ function decode(input) {
 						alu_op_select = ALU_OR;
 						
 						// Write to core
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						write_core = 1;
 						latch_mb = 1;
@@ -1687,7 +1661,6 @@ function decode(input) {
 					case STEP_ISR_JMS_MA_PC:
 						// Put MA + 1 onto the bus
 						bus_output_select = BUS_SELECT_CROSS;
-						enable_addr_to_core = 1;
 						select_pc_ma = ADDR_SELECT_MA;
 						constant_value = 1;
 						
@@ -1714,7 +1687,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch AC
 						latch_ac = 1;
@@ -1739,7 +1711,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch MB
 						latch_mb = 1;
@@ -1792,7 +1763,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch MB
 						latch_mb = 1;
@@ -1849,7 +1819,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch MB
 						latch_mb = 1;
@@ -1907,7 +1876,6 @@ function decode(input) {
 						extended_addressing_enable = 0;
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						
 						// Latch IR and MA
 						latch_ir = 1;
@@ -1935,7 +1903,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch OB, MB
 						latch_ob = 1;
@@ -1956,7 +1923,6 @@ function decode(input) {
 						
 						// Setup core write and OB
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						write_core = 1;
 						latch_mb = 1;
 						latch_ob = 1;
@@ -1986,7 +1952,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch MB
 						latch_mb = 1;
@@ -2039,7 +2004,6 @@ function decode(input) {
 						// Put the contents of core onto the bus
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 
 						// Latch MB
 						latch_mb = 1;
@@ -2097,7 +2061,6 @@ function decode(input) {
 						// Get MA on the bus
 						bus_output_select = BUS_SELECT_CROSS;
 						select_pc_ma = ADDR_SELECT_MA;
-						enable_addr_to_core = 1;
 						
 						// Latch PC
 						extended_addressing_enable = 1;
@@ -2408,7 +2371,7 @@ function decode(input) {
 							(alu_select_ones << ALU_SELECT_ONES) | 
 							(latch_ob << ALU_LATCH_OB);
 	
-	let bus_control = bus_output_select | (select_pc_ma << 3) | (enable_addr_to_core << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
+	let bus_control = bus_output_select | (select_pc_ma << 3) | (todo_blank << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
 	let misc_config =	(iocp_req << IOCP_REQ) |
 						(iocp_ack << IOCP_ACK) |
