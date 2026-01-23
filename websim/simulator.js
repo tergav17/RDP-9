@@ -69,7 +69,7 @@ function simStep() {
 }
 
 // event farm!!!! :)
-var clockCyclesPerTick = 100;
+var clockCyclesPerTick = 1000;
 var last_front_panel_state = 0;
 function updateClock() {
 	
@@ -122,9 +122,9 @@ function updateClock() {
 			coproc_clk(cpu_state, coproc_state, device_states);
 			latch(cpu_state);
 			propagate(cpu_state);
-			updateFlow(false);
 		}
 	}
+	updateFlow(false);
 }
 
 

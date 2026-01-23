@@ -464,9 +464,9 @@ function propagate(cpu) {
 			break;
 			
 		case BUS_SELECT_CROSS:
-			// TODO add status bits
 			cpu.s_data_bus = assert(cpu.s_data_bus, ((bus(cpu.s_addr_bus) + constant_value) & 017777));
 			cpu.s_data_bus |= bus(cpu.s_addr_bus) & 060000;
+			cpu.s_data_bus |= cpu.r_reg_link << 17;
 			break;
 			
 		case BUS_SELECT_ALU:
