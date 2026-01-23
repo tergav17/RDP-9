@@ -42,6 +42,12 @@ function simRunHalt() {
 	}
 }
 
+// Hack function to halt the machine
+function simHalt() {
+	runClock = true;
+	simRunHalt();
+}
+
 /*
  * Set PC to 0 and re-propagate
  */
@@ -111,13 +117,13 @@ function updateClock() {
 	}
 	
 	
-	if (runClock) {
-		for (let i = 0; i < clockCyclesPerTick; i++) {
+	for (let i = 0; i < clockCyclesPerTick; i++) {
+		if (runClock) {
 			coproc_clk(cpu_state, coproc_state, device_states);
 			latch(cpu_state);
 			propagate(cpu_state);
+			updateFlow(false);
 		}
-		updateFlow(false);
 	}
 }
 

@@ -5,6 +5,9 @@
  */
  
  
+// Optional breakpoint
+var breakpoint_addr = -1; 
+
 /*
  * Current CPU state
  *
@@ -131,6 +134,16 @@ function latch(cpu) {
 	
 	// IR register
 	if (getbit(latch_select, BUS_LATCH_IR, 1)) {
+		
+		// Breakpoint stuff
+		if (getbit(cpu.r_state[3], IR_FETCH_INDICATE, 1)) {
+			if (cpu.s_addr_bus == breakpoint_addr) {
+				cpu.front_panel_ctrl.halt_step = 100;
+				cpu_state.front_panel_state = 1;
+				console.log("Hit breakpoint");
+			}
+		}
+		
 		cpu.r_reg_ir = bus(cpu.s_data_bus)
 	}
 	
@@ -566,6 +579,7 @@ const IOCP_REQ = 0;
 const IOCP_ACK = 1;
 const IOCP_TRANS_CTRL = 2;
 const HALT_INDICATE = 3;
+const IR_FETCH_INDICATE = 7;
 
 // -- SERVICE MODE STEPS --
 
@@ -796,7 +810,8 @@ function decode(input) {
 	// O[3][0] = IOT coprocessor attention request
 	// O[3][1] = Coprocessor operation acknowledge
 	// O[3][2] = Coprocessor transfer control
-	// O[4][3] = Halt indicator
+	// O[3][3] = Halt indicator
+	// O[3][7] = Instruction fetch cycle
 	//
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
@@ -837,6 +852,9 @@ function decode(input) {
 	let iocp_ack = 0;
 	let coproc_trans_ctrl = 0;
 	let halt_indicator = 0;
+	
+	// Debug stuff
+	let ir_fetch_indicate = 0;
 	
 	// Get the decode mode
 	// The next decode mode will default to the current
@@ -915,6 +933,9 @@ function decode(input) {
 				latch_ma = 1;
 				latch_ob = 1;
 				latch_mb = 1;
+				
+				// Debug: indicate ir fetch
+				ir_fetch_indicate = 1;
 				
 				if (front_panel_state == FP_HALT_STEP || front_panel_state == FP_XCT) {
 					// Do nothing and start waiting for the front panel to be neutral
@@ -2376,7 +2397,8 @@ function decode(input) {
 	let misc_config =	(iocp_req << IOCP_REQ) |
 						(iocp_ack << IOCP_ACK) |
 						(coproc_trans_ctrl << IOCP_TRANS_CTRL) |
-						(halt_indicator << HALT_INDICATE);
+						(halt_indicator << HALT_INDICATE) |
+						(ir_fetch_indicate << IR_FETCH_INDICATE);
 	
 	return [
 			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
