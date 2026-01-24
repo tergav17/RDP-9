@@ -62,6 +62,7 @@ function simReset() {
  * Execute a single cycle
  */
 function simStep() {
+	
 	coproc_clk(cpu_state, coproc_state, device_states);
 	latch(cpu_state);
 	propagate(cpu_state);
@@ -76,7 +77,9 @@ function updateClock() {
 	// Decrement all front panel bits
 	cpu_state.front_panel_state = 0;
 	if (cpu_state.front_panel_ctrl.halt_step) {
-		cpu_state.front_panel_ctrl.halt_step--;
+		if (runClock) {
+			cpu_state.front_panel_ctrl.halt_step--;
+		}
 		cpu_state.front_panel_state = 1;
 	}
 	if (cpu_state.front_panel_ctrl.cont) {

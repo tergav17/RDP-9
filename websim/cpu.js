@@ -93,6 +93,9 @@ cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word
 cpu_state.r_core[010] = 0000021; // Pointer location
 
 
+cpu_state.r_core[0] = 0400011;
+cpu_state.r_core[011] = 0777777;	
+
 //cpu_state.r_core[040] = 0000001;
 
 
@@ -1891,7 +1894,7 @@ function decode(input) {
 					// 0 -> EXTEND_ENABLE
 					// CORE[PC] -> IR, MA
 					// STEP_ISR_XCT_NULL -> NEXT
-					case STEP_SRV_FETCH:
+					case STEP_ISR_INDIR_COMPLETE:
 						
 						// Read from core, put it in IR, MA, and MB
 						extended_addressing_enable = 0;
@@ -1901,6 +1904,8 @@ function decode(input) {
 						// Latch IR and MA
 						latch_ir = 1;
 						latch_ma = 1;
+						latch_mb = 1;
+						latch_ob = 1;
 						
 						next_step = STEP_ISR_XCT_NULL;
 						break;
