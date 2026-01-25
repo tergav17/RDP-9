@@ -280,7 +280,7 @@ function propagate(cpu) {
 	cpu.s_ucode_input = microcode_input;
 	cpu.s_ctrl = decode(microcode_input);
 	
-	cpu.s_halt_indicator = getbit(cpu.s_ctrl[3], HALT_INDICATE, 1);
+	cpu.s_halt_indicator = getbit(cpu.s_ctrl[2], HALT_INDICATE, 1);
 	
 	// Step 2: Do ALU related activites
 	let alu_ctrl = cpu.r_state[4];
@@ -577,7 +577,7 @@ const FP_XCT = 9;
 const IOCP_REQ = 0;
 const IOCP_ACK = 1;
 const IOCP_TRANS_CTRL = 2;
-const HALT_INDICATE = 3;
+const HALT_INDICATE = 4;
 const IR_FETCH_INDICATE = 7;
 
 // -- SERVICE MODE STEPS --
@@ -589,12 +589,13 @@ const STEP_SRV_RESET_AC_CLEAR = 1;
 // Instruction management steps
 const STEP_SRV_FETCH = 2;			// Fetch the next instruction
 const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
-const STEP_SRV_AWAIT_NOFP = 4;		// Awaits for no no switches to be depressed on the front panel
+const STEP_SRV_PC_NEXT_IGFP = 4;	// Increment PC, ignore all front panel operations
 const STEP_SRV_HALT = 5;			// Halt state, wait for something to happen
 const STEP_SRV_REFETCH = 6;			// Perform a refetch and go back to waiting
 const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
+const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no no switches to be depressed on the front panel
 
 const STEP_SRV_IOCP_WAIT = 16;		// Wait for the I/O coprocessor to stop transmitting an acknowledgement code. Halt if not present
 const STEP_SRV_IOCP_READY = 17;		// Signal to the IOCP that an IOT is ready. Wait for an acknowledgement code to appear
@@ -743,7 +744,7 @@ function decode(input) {
 	//		If Step < 48:
 	//			I[7] = Zero flag
 	//			I[8] = OPR skip flag
-	//			I[9] = 
+	//			I[9] = Transfer request
 	//			I[10] = Interrupt request
 	//		Else:
 	//			I[7:10] = IR['17:'14]
@@ -799,7 +800,7 @@ function decode(input) {
 	// 	6: Core
 	//	7: Constant
 	// O[2][3] = Select PC / MA address
-	// O[2][4] = 
+	// O[2][4] = Halt indicator
 	// O[2][5] = Enable extended address latching
 	// O[2][6] = Force page zero address
 	// O[2][7] = Constant generation
@@ -809,7 +810,7 @@ function decode(input) {
 	// O[3][0] = IOT coprocessor attention request
 	// O[3][1] = Coprocessor operation acknowledge
 	// O[3][2] = Coprocessor transfer control
-	// O[3][3] = Halt indicator
+	// O[3][3] = 
 	// O[3][7] = Instruction fetch cycle
 	//
 	// O[4][0:2] = ALU operation select
@@ -840,7 +841,6 @@ function decode(input) {
 	let bus_output_select = BUS_SELECT_AC;
 	
 	let select_pc_ma = ADDR_SELECT_PC;
-	let todo_blank = 0;
 	let constant_value = 0;
 	
 	let extended_addressing_enable = 0;
@@ -850,9 +850,9 @@ function decode(input) {
 	let iocp_req = 0;
 	let iocp_ack = 0;
 	let coproc_trans_ctrl = 0;
-	let halt_indicator = 0;
 	
 	// Debug stuff
+	let halt_indicator = 0;
 	let ir_fetch_indicate = 0;
 	
 	// Get the decode mode
@@ -913,13 +913,10 @@ function decode(input) {
 			
 			// Start an instruction execution cycle
 			// The instruction should be fetched from memory
-			// We should also check for interrupts and panel operations here
+			// We should also check for interrupts and device requires
 			// 0 -> EXTEND_ENABLE
 			// CORE[PC] -> IR, MA, OB, MB
-			// IF FP_HALT_STEP OR FP_XCT:
-			//  STEP_SRV_AWAIT_NOFP -> NEXT
-			// ELSE:
-			//  STEP_SRV_PC_NEXT -> NEXT
+			// STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
 				
 				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
@@ -933,27 +930,47 @@ function decode(input) {
 				latch_ob = 1;
 				latch_mb = 1;
 				
-				// Debug: indicate ir fetch
+				// Debug: indicate IR fetch
 				ir_fetch_indicate = 1;
+				
+				next_step = STEP_SRV_PC_NEXT;
+				break;
+			
+			// Increment the program counter before instruction execution
+			// This after to fetch so that the previously read instruction has
+			// time to be decoded
+			// Alternativly, if the front panel needs attention we should do that 
+			// instead
+			// IF FP_HALT_STEP OR FP_XCT:
+			//  STEP_SRV_AWAIT_NOFP -> NEXT
+			// ELSE:
+			//  PC + 1 -> PC
+			//  STEP_ISR_EXECUTE_BEGIN -> NEXT
+			case STEP_SRV_PC_NEXT:
 				
 				if (front_panel_state == FP_HALT_STEP || front_panel_state == FP_XCT) {
 					// Do nothing and start waiting for the front panel to be neutral
 					next_step = STEP_SRV_AWAIT_NOFP;
 					break;
 				} else {
-					// TODO: Check in on the interrupts
-					next_step = STEP_SRV_PC_NEXT;
+					// Increment the PC
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					latch_pc = 1;
+					constant_value = 1;
+
+					next_step = STEP_ISR_EXECUTE_BEGIN;
+					next_decode_mode = DECODE_MODE_INSTRUCTION;
 					break;
 				}
-			
+				
 			// Increment the program counter before instruction execution
 			// This after to fetch so that the previously read instruction has
 			// time to be decoded
 			// PC + 1 -> PC
 			// STEP_ISR_EXECUTE_BEGIN -> NEXT
-			case STEP_SRV_PC_NEXT:
-				
-				// Increment the PC
+			case STEP_SRV_PC_NEXT_IGFP:
+					// Increment the PC
 				bus_output_select = BUS_SELECT_CROSS;
 				select_pc_ma = ADDR_SELECT_PC;
 				latch_pc = 1;
@@ -985,7 +1002,7 @@ function decode(input) {
 			// IF FP_HALT_STEP:
 			//  0 -> EXTEND_ENABLE
 			//  CORE[PC] -> IR, MA, OB, MB
-			//  STEP_SRV_PC_NEXT -> NEXT
+			//  STEP_SRV_PC_NEXT_IGFP -> NEXT
 			// ELSE IF FP_CONT:
 			//  STEP_SRV_FETCH -> NEXT
 			// ELSE IF FP_GOTO:
@@ -1031,7 +1048,7 @@ function decode(input) {
 						latch_ob = 1;
 						latch_mb = 1;
 						
-						next_step = STEP_SRV_PC_NEXT;
+						next_step = STEP_SRV_PC_NEXT_IGFP;
 						break;
 						
 					case FP_CONT:
@@ -2393,12 +2410,11 @@ function decode(input) {
 							(alu_select_ones << ALU_SELECT_ONES) | 
 							(latch_ob << ALU_LATCH_OB);
 	
-	let bus_control = bus_output_select | (select_pc_ma << 3) | (todo_blank << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
+	let bus_control = bus_output_select | (select_pc_ma << 3) | (halt_indicator << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
 	
 	let misc_config =	(iocp_req << IOCP_REQ) |
 						(iocp_ack << IOCP_ACK) |
 						(coproc_trans_ctrl << IOCP_TRANS_CTRL) |
-						(halt_indicator << HALT_INDICATE) |
 						(ir_fetch_indicate << IR_FETCH_INDICATE);
 	
 	return [
