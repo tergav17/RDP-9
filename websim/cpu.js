@@ -92,10 +92,6 @@ cpu_state.r_core[4] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
 cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word 
 cpu_state.r_core[010] = 0000021; // Pointer location
 
-
-cpu_state.r_core[0] = 0400011;
-cpu_state.r_core[011] = 0777777;	
-
 //cpu_state.r_core[040] = 0000001;
 
 
@@ -748,7 +744,7 @@ function decode(input) {
 	//			I[7] = Zero flag
 	//			I[8] = OPR skip flag
 	//			I[9] = 
-	//			I[10] = 
+	//			I[10] = Interrupt request
 	//		Else:
 	//			I[7:10] = IR['17:'14]
 	//			
