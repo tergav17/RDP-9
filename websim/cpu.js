@@ -25,6 +25,7 @@ cpu_state = {
 	r_reg_ma: 0,			// Memory Address
 	r_reg_ir: 0,			// Instruction Register
 	r_reg_ob: 0,			// Operator Buffer
+	r_reg_wrtbk: 0,			// Writeback Register
 	
 	// ALU stuff
 	s_next_link: 0,
@@ -36,6 +37,7 @@ cpu_state = {
 	r_reg_sign: 0,			// OB = Sign flag
 	r_reg_skip: 0,			// OPR skip condition on last OB
 	r_reg_maai: 0,			// MA auto index
+	r_reg_iskp: 0,			// IOT skip
 	
 	// Front panel signals
 	s_halt_indicator: 0,
@@ -739,7 +741,10 @@ function decode(input) {
 	//		If Step < 16:
 	//			I[7:10] = Front panel status
 	//		Else:
-	//			I[7:10] = I/O request status
+	//			I[7] = DMA request
+	//			I[8] = Data channel request
+	//			I[9] = IOT skip request
+	//			I[10] = 
 	//	If Step >= 32:
 	//		If Step < 48:
 	//			I[7] = Zero flag
@@ -791,14 +796,14 @@ function decode(input) {
 	// O[1][7] = Write Core
 	//
 	// O[2][0:2] = Define bus select
-	//	0: Bus empty
-	//	1: AC register
-	//	2: STEP register
-	//	3: MQ register
-	//	4: PC crossbar
-	//	5: ALU result
-	// 	6: Core
-	//	7: Constant
+	//	0: AC register
+	//	1: STEP register
+	//	2: MQ register
+	//	3: PC crossbar
+	//	4: ALU result
+	// 	5: Core
+	//  6: Switch register
+	//	7: External
 	// O[2][3] = Select PC / MA address
 	// O[2][4] = Halt indicator
 	// O[2][5] = Enable extended address latching
@@ -807,10 +812,11 @@ function decode(input) {
 	//	0: ALU | 0 / ADDR + 0
 	//	1: ALU | 020 / ADDR + 1
 	//
-	// O[3][0] = IOT coprocessor attention request
-	// O[3][1] = Coprocessor operation acknowledge
-	// O[3][2] = Coprocessor transfer control
-	// O[3][3] = 
+	// O[3][0] = Latch WRTBK
+	// O[3][1] = Clear all flags
+	// O[3][2] = IOT active
+	// O[3][3] = IOT writeback pulse
+	// O[3][4] = Device request grant
 	// O[3][7] = Instruction fetch cycle
 	//
 	// O[4][0:2] = ALU operation select
