@@ -43,7 +43,7 @@ cpu_state = {
 	s_halt_indicator: 0,
 	
 	// Coprocessor stuff
-	s_coproc_status: 0,
+	s_coproc_status: 15,
 	s_coproc_write: 0,
 	s_coproc_attn_req: 0,
 	
@@ -55,6 +55,7 @@ cpu_state = {
 	s_data_bus: 0,
 	s_addr_bus: 0,
 	s_ucode_input: 0,
+	s_device_bus: 0,
 	
 	// Microcode
 	r_state: [0, 0, 0, 0, 0],

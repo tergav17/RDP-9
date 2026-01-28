@@ -59,14 +59,21 @@ function simReset() {
 }
 
 /*
- * Execute a single cycle
+ * Execute a single cycle, update flow
  */
 function simStep() {
-	
-	coproc_clk(cpu_state, coproc_state, device_states);
-	latch(cpu_state);
-	propagate(cpu_state);
+	simTick();
 	updateFlow(false);
+}
+
+/*
+ * Execute a single clock cycle. Update CPU and IO state but do not redraw
+ */ 
+function simTick() {
+	latch(cpu_state);
+	io_latch(cpu_state, device_states);
+	propagate(cpu_state);
+	io_propagate(cpu_state, device_states);
 }
 
 // event farm!!!! :)
@@ -122,9 +129,7 @@ function updateClock() {
 	
 	for (let i = 0; i < clockCyclesPerTick; i++) {
 		if (runClock) {
-			coproc_clk(cpu_state, coproc_state, device_states);
-			latch(cpu_state);
-			propagate(cpu_state);
+			simTick();
 		}
 	}
 	updateFlow(false);
