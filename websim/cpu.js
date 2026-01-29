@@ -42,14 +42,11 @@ cpu_state = {
 	// Front panel signals
 	s_halt_indicator: 0,
 	
-	// Coprocessor stuff
-	s_coproc_status: 15,
-	s_coproc_write: 0,
-	s_coproc_attn_req: 0,
+	// IO stuff
+	s_iot_extrn: 0,
 	
 	// Switch Registers
 	s_switch_data: 0,
-	s_switch_addr: 0,
 	
 	// System buses
 	s_data_bus: 0,
@@ -197,6 +194,11 @@ function latch(cpu, devices) {
 		cpu.r_core[bus(cpu.s_addr_bus)] = bus(cpu.s_data_bus);
 	}
 	
+	// Write to writeback
+	if (getbit(cpu.r_state[3], BUS_LATCH_WRTBK, 1)) {
+		cpu.r_reg_wrtbk = bus(cpu.s_data_bus);
+	}
+	
 	// ALU registers
 	let alu_ctrl = cpu.r_state[4];
 	cpu.r_reg_skip = (
@@ -235,7 +237,7 @@ function propagate(cpu, devices) {
 	cpu.s_addr_bus = -1;
 	cpu.s_alu_arith_out = -1;
 	cpu.s_alu_shift_out = -1;
-	cpu.s_device_bus = -1;
+	cpu.s_device_bus = -1
 	
 	// Step 1: Get the microstate that the CPU will execute in the next cycle
 	let decode_mode = getbit(cpu.r_state[0], 6, 2);
@@ -454,7 +456,6 @@ function propagate(cpu, devices) {
 	// Get the data bus
 	let data_bus_select = getbit(cpu.r_state[2], 0, 3)
 	let constant_value = getbit(cpu.r_state[2], 7, 1);
-	let iocp_ack = getbit(cpu.r_state[3], IOCP_ACK, 1);
 	switch (data_bus_select) {
 			
 		case BUS_SELECT_AC:
@@ -507,7 +508,11 @@ function propagate(cpu, devices) {
 	
 	if (data_bus_select == BUS_SELECT_EXTERNAL) {
 		io_propagate(cpu, devices);
-		cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_device_bus);
+		if (cpu.s_iot_extrn) {
+			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_device_bus);
+		} else {
+			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_wrtbk);
+		}
 	} else {
 		// Put the data bus on the device bus
 		cpu.s_device_bus = assert(cpu.s_device_bus, cpu.s_data_bus);
@@ -574,6 +579,8 @@ const ALU_LINK_COMP = 1;
 const ALU_LINK_ARITH = 2;
 const ALU_LINK_SHIFT = 3;
 
+
+// Front panel stuff
 const FP_NOOP = 0;
 const FP_HALT_STEP = 1;
 const FP_CONT = 2;
@@ -585,10 +592,15 @@ const FP_DEPT_NEXT = 7;
 const FP_READ_IN = 8;
 const FP_XCT = 9;
 
+// IOT stuff
+const BUS_LATCH_WRTBK = 0;
+const CLEAR_ALL_FLAGS = 1;
+const IOT_ACTIVE = 2;
+const IOT_WRTBK_PULSE = 3;
+const DEVICE_REQ_GRANT = 4;
+
+
 // MISC stuff
-const IOCP_REQ = 0;
-const IOCP_ACK = 1;
-const IOCP_TRANS_CTRL = 2;
 const HALT_INDICATE = 4;
 const IR_FETCH_INDICATE = 7;
 
@@ -607,17 +619,18 @@ const STEP_SRV_REFETCH = 6;			// Perform a refetch and go back to waiting
 const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
-const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no no switches to be depressed on the front panel
-
-const STEP_SRV_IOCP_WAIT = 16;		// Wait for the I/O coprocessor to stop transmitting an acknowledgement code. Halt if not present
-const STEP_SRV_IOCP_READY = 17;		// Signal to the IOCP that an IOT is ready. Wait for an acknowledgement code to appear
+const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no switches to be depressed on the front panel
+const STEP_SRV_FETCH_IGDV = 11;		// Fetch the next instruction, ignore devices
 
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 const STEP_SRV_SKIP = 35;			// Unconditional skip
+const STEP_SRV_SKIP_IOT = 36;		// Skip based on IOT condition
 
-const STEP_SRV_IOT_CLEAR_AC = 48;	// If the bit `14 of IR active, AC = 0
+const STEP_SRV_IOT_READ_PHASE = 48;	// First phase of the IOT that allows a device to read AC
+const STEP_SRV_IOT_WRITE_PHASE = 49;// Second phase of the IOT that allows for a device to return a value
+const STEP_SRV_IOT_LATCH_AC = 50;	// Latch the result of the IOT into AC
 
 
 // --- INSTRUCTION MODE STEPS
@@ -716,22 +729,6 @@ const INDIRECTABLE = [
 	OPCODE_SAD,
 	OPCODE_JMP
 ];
-
-// I/O coprocessor status constants
-const IO_COPROC_REQ_NULL = 0;			// The I/O coprocessor is idle and not requesting any operation
-const IO_COPROC_REQ_INT = 1;			// The I/O coprocessor is requesting an interrupt
-const IO_COPROC_REQ_INC = 2;			// The I/O coprocessor is requesting a memory increment operation
-const IO_COPROC_REQ_CH_READ = 3;		// The I/O coprocessor is requesting to read from a channel
-const IO_COPROC_REQ_CH_WRITE = 4;		// The I/O coprocessor is requesting to write to a channel
-const IO_COPROC_REQ_DMA_READ = 5;		// The I/O coprocessor is requesting to do a DMA read operation
-const IO_COPROC_REQ_DMA_WRITE = 6;		// The I/O coprocessor is requesting to do a DMA write operation
-const IO_COPROC_ACK = 8;				// Acknowledge the completion of an IOT
-const IO_COPROC_ACK_WRITE = 9;			// Acknowledge IOT completion and provide a return word
-const IO_COPROC_ACK_SKIP = 10;			// Acknowledge IOT completion and tell the processor to skip
-const IO_COPROC_ACK_WSKIP = 11;			// Acknowledge IOT completion, write a word, and skip
-const IO_COPROC_ACK_FLAGS = 12;			// Acknowledge IOT completion, write to flags register
-const IO_COPROC_ACK_FSKIP = 13;			// Acknowledge IOT completion, write to flags register, and skip
-const IO_COPROC_NOT_PRESENT = 15;		// The I/O coprocessor is not installed in the machine
 
 /*
  * Part of the propagation process
@@ -863,10 +860,12 @@ function decode(input) {
 	let bank_zero_enable = 0;
 	
 	// IOT stuff
-	let iocp_req = 0;
-	let iocp_ack = 0;
-	let coproc_trans_ctrl = 0;
-	
+	let latch_wrtbk = 0;
+	let clear_all_flags = 0;
+	let iot_active = 0;
+	let iot_wrtbk_pulse = 0;
+	let device_req_grant = 0;
+
 	// Debug stuff
 	let halt_indicator = 0;
 	let ir_fetch_indicate = 0;
@@ -883,9 +882,9 @@ function decode(input) {
 		let step = getbit(input, 0, 6);
 		let irq_pending = getbit(input, 6, 1);
 		let front_panel_state = getbit(input, 7, 4);
-		let iocp_status = getbit(input, 7, 4);
 		let flag_zero = getbit(input, 7, 1);
 		let flag_skip = getbit(input, 8, 1);
+		let flag_iot_skip = getbit(input, 9, 1);
 		let eae_or_ac_sc = getbit(input, 7, 1);
 		let eae_or_ac_mq = getbit(input, 8, 1);
 		let eae_comp_mq = getbit(input, 9, 1);
@@ -934,6 +933,31 @@ function decode(input) {
 			// CORE[PC] -> IR, MA, OB, MB
 			// STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
+				
+				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
+				extended_addressing_enable = 0;
+				bus_output_select = BUS_SELECT_CORE;
+				select_pc_ma = ADDR_SELECT_PC;
+				
+				// Latch IR, MA, OB, MB
+				latch_ir = 1;
+				latch_ma = 1;
+				latch_ob = 1;
+				latch_mb = 1;
+				
+				// Debug: indicate IR fetch
+				ir_fetch_indicate = 1;
+				
+				next_step = STEP_SRV_PC_NEXT;
+				break;
+				
+			// Start an instruction execution cycle
+			// The instruction should be fetched from memory
+			// No device requests will be sampled here
+			// 0 -> EXTEND_ENABLE
+			// CORE[PC] -> IR, MA, OB, MB
+			// STEP_SRV_PC_NEXT -> NEXT
+			case STEP_SRV_FETCH_IGDV:
 				
 				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
 				extended_addressing_enable = 0;
@@ -1283,114 +1307,85 @@ function decode(input) {
 				break;
 				
 			// Check if IR bit `14 (IOT instruction AC clear flag) is set
-			// If so, clear out AC
+			// If so, place AC in OB + WRTBK
+			// Otherwise place O
+			// Also keep MA on the address bus
+			// MA -> ADDRESS BUS
+			// 1 -> IOT_ACTIVE
 			// IF IOT_CLEAR_AC:
-			//	0 -> AC, MB
+			//	0 -> OB
 			// ELSE:
 			//  AC -> MB
 			// STEP_SRV_IO_WAIT -> NEXT
-			case STEP_SRV_IOT_CLEAR_AC:
-				// Set the bus to 0
+			case STEP_SRV_IOT_READ_PHASE:
+			
+				// Put MA on the address bus
+				select_pc_ma = ADDR_SELECT_MA;
 				
-				latch_mb = 1;
+				// IOT active, read phase
+				iot_active = 1;
+				
+				latch_ob = 1;
+				latch_wrtbk = 1;
 				if (iot_clear_ac) {
+					// Set the bus to 0
 					bus_output_select = BUS_SELECT_ALU;
 					alu_op_select = ALU_CLEAR;
-					latch_ac = 1;
 				} else {
+					// Set the bus to AC
 					bus_output_select = BUS_SELECT_AC;
 				}
 				
-				next_step = STEP_SRV_IOCP_WAIT;
+				next_step = STEP_SRV_IOT_WRITE_PHASE;
 				break;
 				
-			// Wait for the IOCP to stop transmitting an ACK status code
-			// Once this happens, it indicates that the IOCP is ready for another request
-			// If the IOCP is not present, halt the machine
-			// IF IOCP_STATUS = IO_COPROC_NOT_PRESENT
-			//  STEP_SRV_REFETCH -> NEXT
-			// ELSE:
-			//  IF IOCP_STATUS >= 8:
-			//   STEP_SRV_IOCP_WAIT -> NEXT
-			//  ELSE:
-			//   GOTO STEP_SRV_IOCP_READY
-			case STEP_SRV_IOCP_WAIT:
+			// Indicate that a writeback is happening and latch external into MB 
+			// MA -> ADDRESS BUS
+			// 1 -> IOT_ACTIVE
+			// 1 -> IOT_WRTBK_PULSE
+			// EXTERNAL -> MB
+			case STEP_SRV_IOT_WRITE_PHASE:
+			
+				// Put MA on the address bus
+				select_pc_ma = ADDR_SELECT_MA;
 				
-				// Halt if not present
-				if (iocp_status == IO_COPROC_NOT_PRESENT) {
-					next_step = STEP_SRV_REFETCH;
-					break;
-				}
+				// IOT active, write phase
+				iot_active = 1;
+				iot_wrtbk_pulse = 1;
 				
-				// Do we see an ack?
-				if (iocp_status >= 8) {
-					next_step = STEP_SRV_IOCP_WAIT;
-					break;
-				}
+				// Sample external into MB
+				bus_output_select = BUS_SELECT_EXTERNAL;
+				latch_mb = 1;
+			
+				next_step = STEP_SRV_IOT_LATCH_AC;
+				break;
 				
-				// Goto STEP_SRV_IOCP_READY
+			// Perform a logical OR of OB and MB, place in AC
+			case STEP_SRV_IOT_LATCH_AC:
 				
-			// Present the IOCP to the processor and await an acknowledgement code
-			// AC will be placed on the the data bus, while MA in full will be placed on the address bus
-			// IF IOCP_STATUS >= 8:
-			//  1 -> IOCP_ACK
-			//  IOCP_WRITE -> OB
-			//  [TODO IOCP ACK CODES]
-			// ELSE:
-			//  AC -> COPROC_DATA
-			//  MA -> COPROC_ADDR
-			//  1 -> IOCP_REQ
-			//  STEP_SRV_IOCP_READY -> NEXT
-			case STEP_SRV_IOCP_READY:
+				// Put ALU on the bus
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
 				
-				if (iocp_status >= 8) {
-					// Handle the acknowledgement
-					bus_output_select = BUS_SELECT_EXTERNAL;
-					iocp_ack = 1;
+				// Latch AC
+				latch_ac;
+				
+				next_step = STEP_SRV_SKIP_IOT;
+				break;
+				
+			// Increment the program counter if FLAG_IOT_SKIP != 0
+			// IF FLAG_IOT_SKIP:
+			//  PC + 1 -> PC
+			// STEP_SRV_FETCH_IGDV -> NEXT
+			case STEP_SRV_SKIP_IOT:
+				if (flag_iot_skip) {
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					latch_pc = 1;
 					constant_value = 1;
-					latch_ob = 1;
-					
-					switch (iocp_status) {
-						default:
-						case IO_COPROC_ACK:
-							next_step = STEP_SRV_FETCH;
-							break;
-							
-							
-						case IO_COPROC_ACK_WRITE:
-							next_decode_mode = DECODE_MODE_INSTRUCTION;
-							next_step = STEP_ISR_IOT_WRITE;
-							break;
-							
-						case IO_COPROC_ACK_SKIP:
-							next_step = STEP_SRV_SKIP;
-							break;
-							
-						case IO_COPROC_ACK_WSKIP:
-							next_decode_mode = DECODE_MODE_INSTRUCTION;
-							next_step = STEP_ISR_IOT_WSKIP;
-							break;
-							
-							
-					}
-					
-					
-					
-				} else {
-					// Tell the IOCP we have an IOT ready for it
-					iocp_req = 1;
-					
-					// Put AC on the data bus
-					bus_output_select = BUS_SELECT_AC;
-					
-					// Put MA on the address bus
-					extended_addressing_enable = 0;
-					select_pc_ma = ADDR_SELECT_MA;
-					
-					next_step = STEP_SRV_IOCP_READY;
 				}
 				
-				
+				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 			
 	
@@ -2201,10 +2196,12 @@ function decode(input) {
 				switch (step) {
 					case STEP_ISR_EXECUTE_BEGIN:
 						
-						// We don't really have anything that needs to be done here
-						// Just redirect to the IOT logic in service
+						// Place MA on the address bus so all the device address decoders and begin
+						// MA -> ADDRESS BUS
+						// STEP_SRV_IOT_READ_PHASE -> NEXT
+						select_pc_ma = ADDR_SELECT_MA;
 						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_IOT_CLEAR_AC;
+						next_step = STEP_SRV_IOT_READ_PHASE;
 
 						
 						break;
@@ -2421,25 +2418,32 @@ function decode(input) {
 							(write_core << BUS_LATCH_CORE);
 							
 	let alu_control = 	(alu_op_select << ALU_OP_SELECT) | 
-							(alu_link_select << ALU_LINK_SELECT) | 
-							(alu_select_shifter << ALU_SELECT_SHIFTER) | 
-							(alu_select_ones << ALU_SELECT_ONES) | 
-							(latch_ob << ALU_LATCH_OB);
+						(alu_link_select << ALU_LINK_SELECT) | 
+						(alu_select_shifter << ALU_SELECT_SHIFTER) | 
+						(alu_select_ones << ALU_SELECT_ONES) | 
+						(latch_ob << ALU_LATCH_OB);
 	
-	let bus_control = bus_output_select | (select_pc_ma << 3) | (halt_indicator << 4) | (extended_addressing_enable << 5) | (bank_zero_enable << 6) | (constant_value << 7);
+	let bus_control = 	bus_output_select | 
+						(select_pc_ma << 3) | 
+						(halt_indicator << 4) | 
+						(extended_addressing_enable << 5) | 
+						(bank_zero_enable << 6) | 
+						(constant_value << 7);
 	
-	let misc_config =	(iocp_req << IOCP_REQ) |
-						(iocp_ack << IOCP_ACK) |
-						(coproc_trans_ctrl << IOCP_TRANS_CTRL) |
+	let misc_config =	(latch_wrtbk << BUS_LATCH_WRTBK) |
+						(clear_all_flags << CLEAR_ALL_FLAGS) |
+						(iot_active << IOT_ACTIVE) |
+						(iot_wrtbk_pulse << IOT_WRTBK_PULSE) |
+						(device_req_grant << DEVICE_REQ_GRANT) |
 						(ir_fetch_indicate << IR_FETCH_INDICATE);
 	
 	return [
 			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
 			latch_settings & 0377, 							// ROM 1
-			bus_control & 0377, 								// ROM 2
+			bus_control & 0377, 							// ROM 2
 			misc_config & 0377,								// ROM 3
 			alu_control & 0377,								// ROM 4
-			];
+	];
 }
 
 /*
