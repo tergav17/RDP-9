@@ -124,7 +124,7 @@ cpu_state.r_core[0123] = 0321;
  * 
  * Final part of micro-instruction execution
  */
-function latch(cpu) {
+function latch(cpu, devices) {
 	
 	// Set the front panel register
 	// On the real system, this will be done 60 times a second
@@ -213,6 +213,9 @@ function latch(cpu) {
 		cpu.r_reg_link = bus(cpu.s_next_link);
 	}
 	
+	// Latch all of the I/O registers too
+	io_latch(cpu, devices);
+	
 	// We have successfully completed execution, latch in the next state
 	cpu.r_state = cpu.s_ctrl;
 	
@@ -224,7 +227,7 @@ function latch(cpu) {
  *
  * Nothing in this function should change the "true" state of the processor
  */
-function propagate(cpu) {
+function propagate(cpu, devices) {
 	
 	// Step 0: Set all of the buses to floating
 	// We want to make sure that they don't get asserted twice
@@ -232,6 +235,7 @@ function propagate(cpu) {
 	cpu.s_addr_bus = -1;
 	cpu.s_alu_arith_out = -1;
 	cpu.s_alu_shift_out = -1;
+	cpu.s_device_bus = -1;
 	
 	// Step 1: Get the microstate that the CPU will execute in the next cycle
 	let decode_mode = getbit(cpu.r_state[0], 6, 2);
@@ -493,16 +497,21 @@ function propagate(cpu) {
 			break;
 			
 		case BUS_SELECT_EXTERNAL:
-
-			// Otherwise put the coprocessor output register on the bus
-			if (iocp_ack) {
-				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_coproc_write);
-			}
+			// Do nothing, we will handle this later down the line
 			break;
 	
 		default:
 			console.log("WARNING: Bad data bus select");
 			break;
+	}
+	
+	if (data_bus_select == BUS_SELECT_EXTERNAL) {
+		io_propagate(cpu, devices);
+		cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_device_bus);
+	} else {
+		// Put the data bus on the device bus
+		cpu.s_device_bus = assert(cpu.s_device_bus, cpu.s_data_bus);
+		io_propagate(cpu, devices);
 	}
 	
 	// Get the ALU operation bus

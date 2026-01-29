@@ -70,10 +70,8 @@ function simStep() {
  * Execute a single clock cycle. Update CPU and IO state but do not redraw
  */ 
 function simTick() {
-	latch(cpu_state);
-	io_latch(cpu_state, device_states);
-	propagate(cpu_state);
-	io_propagate(cpu_state, device_states);
+	latch(cpu_state, device_states);
+	propagate(cpu_state, device_states);
 }
 
 // event farm!!!! :)
