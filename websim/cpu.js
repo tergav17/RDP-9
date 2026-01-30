@@ -629,8 +629,9 @@ const STEP_SRV_SKIP = 35;			// Unconditional skip
 const STEP_SRV_SKIP_IOT = 36;		// Skip based on IOT condition
 
 const STEP_SRV_IOT_READ_PHASE = 48;	// First phase of the IOT that allows a device to read AC
-const STEP_SRV_IOT_WRITE_PHASE = 49;// Second phase of the IOT that allows for a device to return a value
-const STEP_SRV_IOT_LATCH_AC = 50;	// Latch the result of the IOT into AC
+const STEP_SRV_IOT_NULL_PHASE = 49;
+const STEP_SRV_IOT_WRITE_PHASE = 50;// Second phase of the IOT that allows for a device to return a value
+const STEP_SRV_IOT_LATCH_AC = 51;	// Latch the result of the IOT into AC
 
 
 // --- INSTRUCTION MODE STEPS
@@ -751,7 +752,7 @@ function decode(input) {
 	//			I[7] = DMA request
 	//			I[8] = Data channel request
 	//			I[9] = IOT skip request
-	//			I[10] = 
+	//			I[10] = IOT wait request
 	//	If Step >= 32:
 	//		If Step < 48:
 	//			I[7] = Zero flag
@@ -821,9 +822,10 @@ function decode(input) {
 	//
 	// O[3][0] = Latch WRTBK
 	// O[3][1] = Clear all flags
-	// O[3][2] = IOT active
-	// O[3][3] = IOT writeback pulse
+	// O[3][2] = IOT read pulse
+	// O[3][3] = IOT write pulse
 	// O[3][4] = Device request grant
+	// O[3][5] = JMP I detect
 	// O[3][7] = Instruction fetch cycle
 	//
 	// O[4][0:2] = ALU operation select
