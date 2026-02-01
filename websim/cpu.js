@@ -595,9 +595,11 @@ const FP_XCT = 9;
 // IOT stuff
 const BUS_LATCH_WRTBK = 0;
 const CLEAR_ALL_FLAGS = 1;
-const IOT_ACTIVE = 2;
-const IOT_WRTBK_PULSE = 3;
+const IOT_READ_PULSE = 2;
+const IOT_WRITE_PULSE = 3;
 const DEVICE_REQ_GRANT = 4;
+const JMP_I_DETECT = 5;
+const INTERRUPT_DETECT = 6;
 
 
 // MISC stuff
@@ -627,10 +629,10 @@ const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 const STEP_SRV_SKIP = 35;			// Unconditional skip
 const STEP_SRV_SKIP_IOT = 36;		// Skip based on IOT condition
+const STEP_SRV_IOT_WRITE_PHASE = 37;// Second phase of the IOT that allows for a device to return a value, loop until not wait
 
 const STEP_SRV_IOT_READ_PHASE = 48;	// First phase of the IOT that allows a device to read AC
-const STEP_SRV_IOT_NULL_PHASE = 49;
-const STEP_SRV_IOT_WRITE_PHASE = 50;// Second phase of the IOT that allows for a device to return a value
+const STEP_SRV_IOT_NULL_PHASE = 49;	// Null phase to allow reading devices to latch
 const STEP_SRV_IOT_LATCH_AC = 51;	// Latch the result of the IOT into AC
 
 
@@ -744,7 +746,7 @@ function decode(input) {
 	// I[11:12] = Decode Mode
 	// If Decode Mode == 0 (Service Mode)
 	// 	I[0:5] = Current step
-	//	I[6] = I/O subsystem request
+	//	I[6] = 
 	//	If Step < 32:
 	//		If Step < 16:
 	//			I[7:10] = Front panel status
@@ -826,6 +828,7 @@ function decode(input) {
 	// O[3][3] = IOT write pulse
 	// O[3][4] = Device request grant
 	// O[3][5] = JMP I detect
+	// O[3][6] = Interrupt detect
 	// O[3][7] = Instruction fetch cycle
 	//
 	// O[4][0:2] = ALU operation select
@@ -864,9 +867,11 @@ function decode(input) {
 	// IOT stuff
 	let latch_wrtbk = 0;
 	let clear_all_flags = 0;
-	let iot_active = 0;
-	let iot_wrtbk_pulse = 0;
+	let iot_read_pulse = 0;
+	let iot_write_pulse = 0;
 	let device_req_grant = 0;
+	let jmp_i_detect = 0;
+	let interrupt_detect = 0;
 
 	// Debug stuff
 	let halt_indicator = 0;
@@ -883,10 +888,24 @@ function decode(input) {
 		// Misc step decoding
 		let step = getbit(input, 0, 6);
 		let irq_pending = getbit(input, 6, 1);
+		
+		// Front panel domain
 		let front_panel_state = getbit(input, 7, 4);
+		
+		
+		// Device status domain
+		let dma_request = getbit(input, 7, 1);
+		let data_chan_request = getbit(input, 8, 1);
+		let flag_iot_skip = getbit(input, 9, 1);
+		let flag_iot_wait = getbit(input, 10, 1);
+		
+		// Flag / request domain
 		let flag_zero = getbit(input, 7, 1);
 		let flag_skip = getbit(input, 8, 1);
-		let flag_iot_skip = getbit(input, 9, 1);
+		let transfer_req = getbit(input, 9, 1);
+		let interrupt_req = getbit(input, 10, 1);
+		
+		// EAE/IOT bit decoding
 		let eae_or_ac_sc = getbit(input, 7, 1);
 		let eae_or_ac_mq = getbit(input, 8, 1);
 		let eae_comp_mq = getbit(input, 9, 1);
@@ -1313,7 +1332,7 @@ function decode(input) {
 			// Otherwise place O
 			// Also keep MA on the address bus
 			// MA -> ADDRESS BUS
-			// 1 -> IOT_ACTIVE
+			// 1 -> IOT_READ_PULSE
 			// IF IOT_CLEAR_AC:
 			//	0 -> OB
 			// ELSE:
@@ -1325,7 +1344,7 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_MA;
 				
 				// IOT active, read phase
-				iot_active = 1;
+				iot_read_pulse = 1;
 				
 				latch_ob = 1;
 				latch_wrtbk = 1;
@@ -1338,13 +1357,19 @@ function decode(input) {
 					bus_output_select = BUS_SELECT_AC;
 				}
 				
+				next_step = STEP_SRV_IOT_NULL_PHASE;
+				break;
+				
+			// Null phase
+			case STEP_SRV_IOT_NULL_PHASE:
+				
 				next_step = STEP_SRV_IOT_WRITE_PHASE;
 				break;
 				
 			// Indicate that a writeback is happening and latch external into MB 
 			// MA -> ADDRESS BUS
-			// 1 -> IOT_ACTIVE
-			// 1 -> IOT_WRTBK_PULSE
+			// 1 -> IOT_READ_PULSE
+			// 1 -> IOT_WRITE_PULSE
 			// EXTERNAL -> MB
 			case STEP_SRV_IOT_WRITE_PHASE:
 			
@@ -1352,8 +1377,8 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_MA;
 				
 				// IOT active, write phase
-				iot_active = 1;
-				iot_wrtbk_pulse = 1;
+				iot_read_pulse = 1;
+				iot_write_pulse = 1;
 				
 				// Sample external into MB
 				bus_output_select = BUS_SELECT_EXTERNAL;
@@ -2434,9 +2459,11 @@ function decode(input) {
 	
 	let misc_config =	(latch_wrtbk << BUS_LATCH_WRTBK) |
 						(clear_all_flags << CLEAR_ALL_FLAGS) |
-						(iot_active << IOT_ACTIVE) |
-						(iot_wrtbk_pulse << IOT_WRTBK_PULSE) |
+						(iot_read_pulse << IOT_READ_PULSE) |
+						(iot_write_pulse << IOT_WRITE_PULSE) |
 						(device_req_grant << DEVICE_REQ_GRANT) |
+						(jmp_i_detect << JMP_I_DETECT) |
+						(interrupt_detect << INTERRUPT_DETECT) |
 						(ir_fetch_indicate << IR_FETCH_INDICATE);
 	
 	return [
