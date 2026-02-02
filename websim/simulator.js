@@ -53,7 +53,7 @@ function simHalt() {
  */
 function simReset() {
 	cpu_state.r_state = [0, 0, 0, 0, 0];
-	propagate(cpu_state);
+	propagate(cpu_state, device_states);
 	
 	updateFlow(false);
 }
@@ -70,6 +70,7 @@ function simStep() {
  * Execute a single clock cycle. Update CPU and IO state but do not redraw
  */ 
 function simTick() {
+	device_tick(device_states)
 	latch(cpu_state, device_states);
 	propagate(cpu_state, device_states);
 }
@@ -218,7 +219,7 @@ function mouseDown(e) {
 	}
 	*/
 	
-	propagate(cpu_state);
+	propagate(cpu_state, device_states);
 	updateFlow(false);
 	
 }

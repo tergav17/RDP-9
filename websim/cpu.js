@@ -37,13 +37,16 @@ cpu_state = {
 	r_reg_sign: 0,			// OB = Sign flag
 	r_reg_skip: 0,			// OPR skip condition on last OB
 	r_reg_maai: 0,			// MA auto index
-	r_reg_iskp: 0,			// IOT skip
+	r_reg_iskp: 0,			// IOT skip flag
+	r_reg_iwat: 0,			// IOT wait flag
 	
 	// Front panel signals
 	s_halt_indicator: 0,
 	
 	// IO stuff
 	s_iot_extrn: 0,
+	s_iot_skip: 0,
+	s_iot_wait: 0,
 	
 	// Switch Registers
 	s_switch_data: 0,
@@ -187,6 +190,7 @@ function latch(cpu, devices) {
 	// MB register
 	if (getbit(latch_select, BUS_LATCH_MB, 1)) {
 		cpu.r_reg_mb = bus(cpu.s_data_bus);
+		cpu.r_reg_iskp = cpu.s_iot_skip;
 	}
 	
 	// Write to core
@@ -260,7 +264,9 @@ function propagate(cpu, devices) {
 				if (step < 16) {
 					microcode_input |= cpu.r_front_panel << 7;
 				} else {
-					microcode_input |= cpu.s_coproc_status << 7;
+					console.log(cpu.r_reg_iskp);
+					microcode_input |= cpu.r_reg_iskp << 9;
+					microcode_input |= cpu.r_reg_iwat << 10;
 				}
 			}
 			break;
@@ -624,15 +630,16 @@ const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no switches to be depressed on the front panel
 const STEP_SRV_FETCH_IGDV = 11;		// Fetch the next instruction, ignore devices
 
+const STEP_SRV_SKIP_IOT = 16;		// Skip based on IOT condition
+
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 const STEP_SRV_SKIP = 35;			// Unconditional skip
-const STEP_SRV_SKIP_IOT = 36;		// Skip based on IOT condition
-const STEP_SRV_IOT_WRITE_PHASE = 37;// Second phase of the IOT that allows for a device to return a value, loop until not wait
+const STEP_SRV_IOT_WRITE_PHASE = 36;// Second phase of the IOT that allows for a device to return a value, loop until not wait
 
 const STEP_SRV_IOT_READ_PHASE = 48;	// First phase of the IOT that allows a device to read AC
-const STEP_SRV_IOT_NULL_PHASE = 49;	// Null phase to allow reading devices to latch
+const STEP_SRV_IOT_NULL_PHASE = 49;	// Null phase to allow reading devices to latch and signals to propagate
 const STEP_SRV_IOT_LATCH_AC = 51;	// Latch the result of the IOT into AC
 
 
@@ -1336,14 +1343,14 @@ function decode(input) {
 			// IF IOT_CLEAR_AC:
 			//	0 -> OB
 			// ELSE:
-			//  AC -> MB
-			// STEP_SRV_IO_WAIT -> NEXT
+			//  AC -> OB
+			// STEP_SRV_IOT_NULL_PHASE -> NEXT
 			case STEP_SRV_IOT_READ_PHASE:
 			
 				// Put MA on the address bus
 				select_pc_ma = ADDR_SELECT_MA;
 				
-				// IOT active, read phase
+				// Read phase
 				iot_read_pulse = 1;
 				
 				latch_ob = 1;
@@ -1360,15 +1367,32 @@ function decode(input) {
 				next_step = STEP_SRV_IOT_NULL_PHASE;
 				break;
 				
-			// Null phase
+			// Null phase, allow reading devices to latch as well as giving time for wait signal to propagate
+			// MA -> ADDRESS BUS
+			// IF IOT_CLEAR_AC:
+			//	0 -> DATA BUS
+			// ELSE:
+			//  AC -> DATA BUS
+			// STEP_SRV_IOT_NULL_PHASE -> NEXT
 			case STEP_SRV_IOT_NULL_PHASE:
+				
+				// Put MA on the address bus
+				select_pc_ma = ADDR_SELECT_MA;
+				
+				if (iot_clear_ac) {
+					// Set the bus to 0
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_CLEAR;
+				} else {
+					// Set the bus to AC
+					bus_output_select = BUS_SELECT_AC;
+				}
 				
 				next_step = STEP_SRV_IOT_WRITE_PHASE;
 				break;
 				
 			// Indicate that a writeback is happening and latch external into MB 
 			// MA -> ADDRESS BUS
-			// 1 -> IOT_READ_PULSE
 			// 1 -> IOT_WRITE_PULSE
 			// EXTERNAL -> MB
 			case STEP_SRV_IOT_WRITE_PHASE:
@@ -1376,8 +1400,7 @@ function decode(input) {
 				// Put MA on the address bus
 				select_pc_ma = ADDR_SELECT_MA;
 				
-				// IOT active, write phase
-				iot_read_pulse = 1;
+				// Write phase
 				iot_write_pulse = 1;
 				
 				// Sample external into MB
@@ -1395,7 +1418,7 @@ function decode(input) {
 				alu_op_select = ALU_OR;
 				
 				// Latch AC
-				latch_ac;
+				latch_ac = 1;
 				
 				next_step = STEP_SRV_SKIP_IOT;
 				break;
@@ -2511,4 +2534,4 @@ function getbit(input, bit, count) {
 }
 
 // Initalize CPU
-propagate(cpu_state);
+propagate(cpu_state, device_states);

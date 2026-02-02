@@ -21,7 +21,7 @@ const play_bell = document.getElementById("play-bell");
 const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
 
-ppt_state = {
+var ppt_state = {
 	
 	// Paper tape data
 	pptr_data: [],
@@ -43,7 +43,7 @@ ppt_state = {
 	
 };
 
-tty_state = {
+var tty_state = {
 	
 	// Printer ready flag
 	r_printer_flag: 1,
@@ -52,13 +52,18 @@ tty_state = {
 	printer_delay: 0
 }
 
-device_states = {
+var device_states = {
 	
 	// Paper tape state
 	ppt: ppt_state,
 	
 	// Teleprinter state
-	tty: tty_state
+	tty: tty_state,
+	
+	
+	// Last read / write pulse state
+	last_read_state: 0,
+	last_write_state: 0
 };
 
 const IOT_ISR_DEVICE_FIELD = 6;
@@ -73,6 +78,52 @@ const TTY_PRINT_DEVICE_ID = 4;
  * At this point, any signals will be treated as canonical and flags will be updated
  */
 function io_latch(cpu, devices) {
+
+	// Unpack all IOT related commands
+	let iot_cmd = cpu.r_state[3];
+	let iot_read_pulse = getbit(iot_cmd, IOT_READ_PULSE, 1);
+	let iot_write_pulse = getbit(iot_cmd, IOT_WRITE_PULSE, 1);
+	let device_req_grant = getbit(iot_cmd, DEVICE_REQ_GRANT, 1);
+	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
+	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
+	
+	let data = cpu.s_device_bus;
+	let addr = cpu.s_addr_bus;
+	
+	let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
+	let subdevice = getbit(addr, IOT_ISR_SUBDEVICE_FIELD, 2);
+	let pulse = getbit(addr, IOT_ISR_PULSE_FIELD, 3);
+	
+	switch (device) {
+		
+		case PPTR_DEVICE_ID:
+			let ppt = devices.ppt;
+			
+			// Reset flag
+			if (pulse & 002) {
+				if (iot_write_pulse) {
+					ppt.r_pptr_flag = 0;
+				}
+			}
+			
+			// Reset flag and set next write-in mode
+			if (pulse & 004) {
+				if (iot_write_pulse) {
+					ppt.r_pptr_flag = 0;
+					if (subdevice & 02) {
+						ppt.mode = PPTR_MODE_BINARY;
+					} else {
+						ppt.mode = PPTR_MODE_ALPHA;
+					}
+					ppt.r_pptr_buffer = 0;
+				}
+			}
+			
+			break;
+		
+		default:
+			break;
+	}
 	
 }
 
@@ -82,6 +133,67 @@ function io_latch(cpu, devices) {
  */
 function io_propagate(cpu, devices) {
 	
+	// Unpack all IOT related commands
+	let iot_cmd = cpu.r_state[3];
+	let iot_read_pulse = getbit(iot_cmd, IOT_READ_PULSE, 1);
+	let iot_write_pulse = getbit(iot_cmd, IOT_WRITE_PULSE, 1);
+	let device_req_grant = getbit(iot_cmd, DEVICE_REQ_GRANT, 1);
+	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
+	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
+	
+	let data = cpu.s_device_bus;
+	let addr = cpu.s_addr_bus;
+	
+	// IOT addressing
+	let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
+	let subdevice = getbit(addr, IOT_ISR_SUBDEVICE_FIELD, 2);
+	let pulse = getbit(addr, IOT_ISR_PULSE_FIELD, 3);
+	
+	// Writeback external value?
+	let extrn = 0;
+	
+	// Skip?
+	let skip = 0;
+	
+	// Check for rising edge
+	let read_rising = (!devices.last_read_state && iot_read_pulse) ? 1 : 0;
+	let write_rising = (!devices.last_write_state && iot_write_pulse) ? 1 : 0;
+	
+	// Handle activites
+	switch (device) {
+		
+		// Paper tape reader
+		case PPTR_DEVICE_ID: 
+			let ppt = devices.ppt;
+		
+			// Assert skip flag if needed
+			if (pulse & 001) {
+				if (ppt.r_pptr_flag && iot_write_pulse) {
+					skip = 1;
+				}
+			}
+			
+			// Assert 
+			if (pulse & 002) {
+				if (iot_write_pulse) {
+					cpu.s_device_bus = assert(cpu.s_device_bus, ppt.r_pptr_buffer);
+				}
+			}
+		
+			break;
+		
+		default:
+			if (read_rising) {
+				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
+			}
+			break;
+	}
+	
+	cpu.s_iot_extrn = extrn;
+	cpu.s_device_bus = data;
+	cpu.s_iot_skip = skip;
+	devices.last_read_state = iot_read_pulse;
+	devices.last_write_state = iot_write_pulse;
 }
 
 
