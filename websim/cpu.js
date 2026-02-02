@@ -264,7 +264,7 @@ function propagate(cpu, devices) {
 				if (step < 16) {
 					microcode_input |= cpu.r_front_panel << 7;
 				} else {
-					console.log(cpu.r_reg_iskp);
+					//console.log(cpu.r_reg_iskp);
 					microcode_input |= cpu.r_reg_iskp << 9;
 					microcode_input |= cpu.r_reg_iwat << 10;
 				}

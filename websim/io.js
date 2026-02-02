@@ -20,6 +20,7 @@ const play_bell = document.getElementById("play-bell");
 
 const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
+const PPTR_MODE_NULL = 2;
 
 var ppt_state = {
 	
@@ -33,7 +34,7 @@ var ppt_state = {
 	r_pptr_flag: 1,
 	
 	// Paper tape reader mode
-	pptr_mode: PPTR_MODE_ALPHA,
+	pptr_mode: PPTR_MODE_NULL,
 	
 	// Paper tape reader delay
 	pptr_delay: 0,
@@ -47,6 +48,9 @@ var tty_state = {
 	
 	// Printer ready flag
 	r_printer_flag: 1,
+	
+	// Printer buffer
+	s_printer_buffer: 0,
 	
 	// Printer delay constant
 	printer_delay: 0
@@ -96,10 +100,10 @@ function io_latch(cpu, devices) {
 	
 	switch (device) {
 		
+		// Paper tape reader
 		case PPTR_DEVICE_ID:
 			let ppt = devices.ppt;
 			
-			// Reset flag
 			if (pulse & 002) {
 				if (iot_write_pulse) {
 					ppt.r_pptr_flag = 0;
@@ -111,11 +115,22 @@ function io_latch(cpu, devices) {
 				if (iot_write_pulse) {
 					ppt.r_pptr_flag = 0;
 					if (subdevice & 02) {
-						ppt.mode = PPTR_MODE_BINARY;
+						ppt.pptr_mode = PPTR_MODE_BINARY;
 					} else {
-						ppt.mode = PPTR_MODE_ALPHA;
+						ppt.pptr_mode = PPTR_MODE_ALPHA;
 					}
-					ppt.r_pptr_buffer = 0;
+				}
+			}
+			
+			break;
+			
+		// TTY printer
+		case TTY_PRINT_DEVICE_ID:
+			let tty = devices.tty;
+			
+			if (pulse & 002) {
+				if (iot_write_pulse) {
+					tty.r_printer_flag = 0;
 				}
 			}
 			
@@ -173,13 +188,31 @@ function io_propagate(cpu, devices) {
 				}
 			}
 			
-			// Assert 
+			// Assert pptr buffer
 			if (pulse & 002) {
 				if (iot_write_pulse) {
-					cpu.s_device_bus = assert(cpu.s_device_bus, ppt.r_pptr_buffer);
+					extrn = 1;
+					data = assert(data, ppt.r_pptr_buffer);
 				}
 			}
-		
+			break;
+			
+		// TTY printer
+		case TTY_PRINT_DEVICE_ID:
+			let tty = devices.tty;
+			
+			// Check printer ready flag
+			if (pulse & 001) {
+				if (tty.r_printer_flag && iot_write_pulse) {
+					skip = 1;
+				}
+			}
+			
+			if (pulse & 004 && read_rising) {
+				tty.printer_delay = 300;
+				uart_output(data & 0177);
+			}
+			
 			break;
 		
 		default:
@@ -218,7 +251,7 @@ function tty_tick(tty) {
 		tty.printer_delay--;
 		
 		if (tty.printer_delay == 0) {
-			tty.printer_flag = 1;
+			tty.r_printer_flag = 1;
 		}
 	}
 	
@@ -229,25 +262,25 @@ function ppt_tick(ppt) {
 	
 	// Below this is all stuff that can be delayed
 	if (ppt.pptr_delay > 0) {
-		ppt.delay--;
+		ppt.pptr_delay--;
 		return;
 	}
 	
-	// Try to read in a new value if the flag is low
-	if (!ppt.r_pptr_flag) {
-		if (ppt.pptr_mode == PPTR_MODE_ALPHA && ppt.pptr_pointer < ppt.pptr_data.length) {
-			ppt.r_pptr_buffer = ppt.pptr_data[ppt.pptr_pointer];
-			ppt.pptr_pointer++;
-			ppt.r_pptr_flag = 1;
-			ppt.pptr_delay = 10;
-		}
-		if (ppt.mode == PPTR_MODE_BINARY && ppt.pptr_pointer < (ppt.pptr_data.length + 2)) {
-			let i = ppt.pptr_pointer;
-			ppt.buffer = getbit(ppt.pptr_data[i+2], 0, 6) | (getbit(ppt.pptr_data[i+1], 0, 6) << 6) | (getbit(ppt.pptr_data[i], 0, 6) << 12);
-			ppt.pptr_pointer += 3;
-			ppt.r_pptr_flag = 1;
-			ppt.pptr_delay = 30;
-		}
+	// Try to read in a new value if the mode is correct
+	if (ppt.pptr_mode == PPTR_MODE_ALPHA && ppt.pptr_pointer < ppt.pptr_data.length) {
+		ppt.r_pptr_buffer = ppt.pptr_data[ppt.pptr_pointer];
+		ppt.pptr_pointer++;
+		ppt.r_pptr_flag = 1;
+		ppt.pptr_mode = PPTR_MODE_NULL;
+		ppt.pptr_delay = 10;
+	}
+	if (ppt.pptr_mode == PPTR_MODE_BINARY && ppt.pptr_pointer < (ppt.pptr_data.length + 2)) {
+		let i = ppt.pptr_pointer;
+		ppt.r_pptr_buffer = getbit(ppt.pptr_data[i+2], 0, 6) | (getbit(ppt.pptr_data[i+1], 0, 6) << 6) | (getbit(ppt.pptr_data[i], 0, 6) << 12);
+		ppt.pptr_pointer += 3;
+		ppt.r_pptr_flag = 1;
+		ppt.pptr_mode = PPTR_MODE_NULL;
+		ppt.pptr_delay = 30;
 	}
 }
 
@@ -268,8 +301,6 @@ function uart_input(ch) {
  * Ouputs a value to the UART
  */
 function uart_output(ch) {
-	
-	console.log("Got: " + ch);
 	
 	switch (ch) {
 		
@@ -374,7 +405,7 @@ mount_ppt.onclick = function() {
 
 // Rewind PPT in reader
 rewind_ppt.onclick = function() {
-	ppt_state.pointer = 0;
+	ppt_state.pptr_pointer = 0;
 }
 
 // Shove the .PPT into buffer when uploaded
@@ -386,11 +417,12 @@ upload_ppt.addEventListener('change', function(e) {
         let fileContent = new Uint8Array(await pptFile.arrayBuffer());
 
 		// Copy in ppt data and reset pointer
+		ppt_state.pptr_data = [];
 		for (let i = 0; i < fileContent.length; i++) {
-			ppt_state.data[i] = fileContent[i];
+			ppt_state.pptr_data[i] = fileContent[i];
 		}
-		ppt_state.pointer = 0;
-		alert("Loaded " + ppt_state.data.length + " bytes");
+		ppt_state.pptr_pointer = 0;
+		alert("Loaded " + ppt_state.pptr_data.length + " bytes");
 	})();
 });
 
