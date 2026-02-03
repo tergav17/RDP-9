@@ -39,6 +39,8 @@ cpu_state = {
 	r_reg_maai: 0,			// MA auto index
 	r_reg_iskp: 0,			// IOT skip flag
 	r_reg_iwat: 0,			// IOT wait flag
+	r_reg_rdma: 0,			// Device request DMA flag
+	r_reg_rchn: 0,			// Device request channel
 	
 	// Front panel signals
 	s_halt_indicator: 0,
@@ -47,6 +49,8 @@ cpu_state = {
 	s_iot_extrn: 0,
 	s_iot_skip: 0,
 	s_iot_wait: 0,
+	s_req_dma: 0,
+	s_req_chan: 0,
 	
 	// Switch Registers
 	s_switch_data: 0,
@@ -221,6 +225,11 @@ function latch(cpu, devices) {
 	
 	// Latch all of the I/O registers too
 	io_latch(cpu, devices);
+	
+	// Unconditional latches
+	cpu.r_reg_iwat = cpu.s_iot_wait;
+	cpu.r_reg_rdma = cpu.s_req_dma;
+	cpu.r_reg_rchn = cpu.s_req_chan;
 	
 	// We have successfully completed execution, latch in the next state
 	cpu.r_state = cpu.s_ctrl;

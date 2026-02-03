@@ -74,6 +74,7 @@ const IOT_ISR_DEVICE_FIELD = 6;
 const IOT_ISR_SUBDEVICE_FIELD = 4;
 const IOT_ISR_PULSE_FIELD = 0;
 
+const RTC_DEVICE_ID = 0;
 const PPTR_DEVICE_ID = 1;
 const TTY_PRINT_DEVICE_ID = 4;
 
@@ -104,21 +105,17 @@ function io_latch(cpu, devices) {
 		case PPTR_DEVICE_ID:
 			let ppt = devices.ppt;
 			
-			if (pulse & 002) {
-				if (iot_write_pulse) {
-					ppt.r_pptr_flag = 0;
-				}
+			if (pulse & 002 && iot_write_pulse) {
+				ppt.r_pptr_flag = 0;
 			}
 			
 			// Reset flag and set next write-in mode
-			if (pulse & 004) {
-				if (iot_write_pulse) {
-					ppt.r_pptr_flag = 0;
-					if (subdevice & 02) {
-						ppt.pptr_mode = PPTR_MODE_BINARY;
-					} else {
-						ppt.pptr_mode = PPTR_MODE_ALPHA;
-					}
+			if (pulse & 004 && iot_write_pulse) {
+				ppt.r_pptr_flag = 0;
+				if (subdevice & 002) {
+					ppt.pptr_mode = PPTR_MODE_BINARY;
+				} else {
+					ppt.pptr_mode = PPTR_MODE_ALPHA;
 				}
 			}
 			
@@ -182,18 +179,16 @@ function io_propagate(cpu, devices) {
 			let ppt = devices.ppt;
 		
 			// Assert skip flag if needed
-			if (pulse & 001) {
-				if (ppt.r_pptr_flag && iot_write_pulse) {
+			if (pulse & 001 && iot_write_pulse) {
+				if (ppt.r_pptr_flag) {
 					skip = 1;
 				}
 			}
 			
 			// Assert pptr buffer
-			if (pulse & 002) {
-				if (iot_write_pulse) {
-					extrn = 1;
-					data = assert(data, ppt.r_pptr_buffer);
-				}
+			if (pulse & 002 && iot_write_pulse) {
+				extrn = 1;
+				data = assert(data, ppt.r_pptr_buffer);
 			}
 			break;
 			
