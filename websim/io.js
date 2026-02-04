@@ -160,6 +160,7 @@ function io_propagate(cpu, devices) {
 	let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
 	let subdevice = getbit(addr, IOT_ISR_SUBDEVICE_FIELD, 2);
 	let pulse = getbit(addr, IOT_ISR_PULSE_FIELD, 3);
+	let zero = cpu.r_reg_zero;
 	
 	// Writeback external value?
 	let extrn = 0;

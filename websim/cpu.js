@@ -271,9 +271,12 @@ function propagate(cpu, devices) {
 				}
 			} else {
 				if (step < 16) {
+					// Put front panel
 					microcode_input |= cpu.r_front_panel << 7;
 				} else {
 					//console.log(cpu.r_reg_iskp);
+					microcode_input |= cpu.r_reg_rdma << 7;
+					microcode_input |= cpu.r_reg_rchn << 8; 
 					microcode_input |= cpu.r_reg_iskp << 9;
 					microcode_input |= cpu.r_reg_iwat << 10;
 				}
