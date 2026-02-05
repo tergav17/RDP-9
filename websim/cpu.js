@@ -532,8 +532,6 @@ function propagate(cpu, devices) {
 			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_wrtbk);
 		}
 	} else {
-		// Put the data bus on the device bus
-		cpu.s_device_bus = assert(cpu.s_device_bus, cpu.s_data_bus);
 		io_propagate(cpu, devices);
 	}
 	
