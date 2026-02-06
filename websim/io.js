@@ -22,6 +22,17 @@ const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
 const PPTR_MODE_NULL = 2;
 
+// System flag states
+var sysflag_state = {
+	
+	// Memory management enable
+	r_flag_memm = 0,
+	
+	// Interrupt enable
+	r_flag_pi = 0
+}
+
+// Paper tape reader / punch state
 var ppt_state = {
 	
 	// Paper tape data
@@ -44,6 +55,7 @@ var ppt_state = {
 	
 };
 
+// TTY printer / keyboard state
 var tty_state = {
 	
 	// Printer ready flag
