@@ -104,7 +104,7 @@ function io_latch(cpu, devices) {
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	
-	let data = cpu.s_data_bus;
+	let data = cpu.s_device_bus;
 	let addr = cpu.s_addr_bus;
 	
 	let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
