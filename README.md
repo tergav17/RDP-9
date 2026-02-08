@@ -21,10 +21,46 @@ Due to the complexity involved with the architecture of the DEC PDP-9, the syste
 
 The first subsystem is the processor itself. It has a full 18-bit datapath with 15-bit address bus, and is implemented entirely using TTL logic.
 
-The second subsystem is the I/O coprocessor. This is a Zilog Z80 based system which is controlled by the RDP-9 CPU using IOT instructions. It is also responsible
-CPU state keeping (extended mode, interrupts, etc...). The primary processor is capable of running without the I/O coprocessor using the front panel only, but
-the usage of external devices requires that the I/O coprocessor hardware be installed. This is done because the way the 18-bit DEC machines did I/O is rather esoteric
-and does not map well to interfacing with more "modern" hardware. By offloading the translation of I/O responibilities to a simpler system, much of the complexity of an
-already very complicated homebrew computing project is avoided. It should be noted that this approach is not uncommon for similar legacy minicomputer products created in the
-late 70s and early 80s.
+The second subsystem is the I/O bus. This is directly controlled by the processor itself and is capable of servicing the following operations:
 
+- Device interrupts
+- IOT transactions
+- Add-to-memory operations
+- Data channel transfers
+- DMA transfers
+
+
+### Device Interrupts
+
+Device interrupts simply tell the processor to begin an interrupt operation. When an interrupt is accepted, the I/O bus will be notified of the action
+and is responsible for turning off the "Program Interrupt" flag. If this does not happen, interrupts will continuously loop. 
+
+### IOT Transactions
+
+IOT transactions allow data to be transferred to or from the accumulator. IOTs also allow for skips to be requested. Every IOT is treated by the CPU
+as a Read-Modify-Write operation. By using the "EXTRN" signal, devices can notify the processor to read from the I/O bus instead of the writeback register.
+When the I/O bus is being sampled, the "IOT_SKIP" signal can be asserted to tell the processor to perform an addition increment of the program counter.
+
+A wait signal is sampled at the beginning of the IOT as well. This can be used to add cycles to the writeback phase of the IOT if the device needs it.
+
+#### Steps:
+
+1. IOT transaction begins. Device address is placed on the I/O address bus. No IOT signals are asserted
+
+2. AC (or 0 if that flag is set) is placed on the I/O data bus. Signal "IOT_READ_PULSE" is asserted to inform the device that there is data to read. "IOT_WAIT" should be asserted here if needed.
+
+3. I/O data bus remains unchanged. Signal "IOT_READ_PULSE" is reset. This allows the device to latch the data and "IOT_WAIT" is propagate to the CPU.
+
+4. I/O data bus goes high impedance. Signal "IOT_WRITE_PULSE" is asserted to inform the device that data can be put on the bus. "IOT_SKIP" should be asserted if needed. This step will repeat until one clock cycle after "IOT_WAIT" is reset.
+
+5. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
+
+6. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
+
+### Device Requests
+
+The final three transaction types (Add-to-memory, data-channels, and DMA transfers all share the "device request" pathway.
+
+#### Steps:
+
+1. Device request is recieved by processor, fetch is cancelled 
