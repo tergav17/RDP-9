@@ -63,4 +63,20 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 #### Steps:
 
-1. Device request is recieved by processor, fetch is cancelled 
+1. Device request is recieved by processor, fetch is cancelled. Signal "DEV_REQ_GRANT" asserted
+
+2. I/O data bus goes high impedance. Signal "REQ_ADDR_PHASE" and "REQ_WRITE_PULSE" asserted. Value written to MA. If DMA is selected, skip to step 8
+
+3. Core is read at MA and written to MB. "REQ_ADDR_PHASE" held
+
+4. Value in MB incremented and written back to core at MA and OB. "REQ_ADDR_PHASE" held
+
+5. Value in MA incremented. "REQ_ADDR_PHASE" reset. If add to memory selected, skip to step ?
+
+6. Core is read at MA and written to MB
+
+7. Value in MB incremented and written back to core at MA and MA
+
+8. Core is read at MA and written to WRTBK
+
+9. I/O data bus goes high imedance.
