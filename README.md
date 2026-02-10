@@ -47,13 +47,13 @@ A wait signal is sampled at the beginning of the IOT as well. This can be used t
 
 1. IOT transaction begins. Device address is placed on the I/O address bus. No IOT signals are asserted
 
-2. AC (or 0 if that flag is set) is placed on the I/O data bus. Signal "IOT_READ_PULSE" is asserted to inform the device that there is data to read. "IOT_WAIT" should be asserted here if needed.
+2. AC (or 0 if the flag is set) is written to the WRTBK register.
 
-3. I/O data bus remains unchanged. Signal "IOT_READ_PULSE" is reset. This allows the device to latch the data and "IOT_WAIT" is propagate to the CPU.
+3. Signal "IOT_PULSE" is asserted.
 
-4. I/O data bus goes high impedance. Signal "IOT_WRITE_PULSE" is asserted to inform the device that data can be put on the bus. "IOT_SKIP" should be asserted if needed. This step will repeat until one clock cycle after "IOT_WAIT" is reset.
+4. Signal "IOT_PULSE" remains asserted. External input is sampled into MB. Signal "EXTRN" must be asserted to take value from device bus.
 
-5. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
+5. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data. IF "IOT_WAIT" is asserted, do step 4 in place.
 
 6. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
 
@@ -63,20 +63,18 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 #### Steps:
 
-1. Device request is recieved by processor, fetch is cancelled. Signal "DEV_REQ_GRANT" asserted
+1. Signal "REQ_ADDR_PHASE" and "DEV_REQ_PULSE" asserted and held. External value written to MA. Signal "EXTRN" must be asserted to take value from device bus. If DMA is selected, skip to step 8
 
-2. I/O data bus goes high impedance. Signal "REQ_ADDR_PHASE" and "REQ_WRITE_PULSE" asserted. Value written to MA. If DMA is selected, skip to step 8
+2. Core is read at MA and written to MB. "REQ_ADDR_PHASE" held
 
-3. Core is read at MA and written to MB. "REQ_ADDR_PHASE" held
+3. Value in MB incremented and written back to core at MA and OB. "REQ_ADDR_PHASE" held
 
-4. Value in MB incremented and written back to core at MA and OB. "REQ_ADDR_PHASE" held
+4. Value in MA incremented. "REQ_ADDR_PHASE" reset. If add to memory selected, skip to step ?
 
-5. Value in MA incremented. "REQ_ADDR_PHASE" reset. If add to memory selected, skip to step ?
+5. Core is read at MA and written to MB
 
-6. Core is read at MA and written to MB
+6. Value in MB incremented and written back to core at MA and MA
 
-7. Value in MB incremented and written back to core at MA and MA
+7. Core is read at MA and written to WRTBK
 
-8. Core is read at MA and written to WRTBK
-
-9. I/O data bus goes high imedance.
+8. I/O data bus goes high imedance.
