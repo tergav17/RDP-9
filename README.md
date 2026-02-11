@@ -8,12 +8,13 @@ This project aims to build an ISA-compatible clone of the DEC PDP-9 system using
 - No FPGAs, PALs, GALs, microcontrollers, etc in the main processor path. The only exception to this is using standard 27C style ROM chips to hold the microcode.
 - Usage of a period correct microcontroller or microprocessor for the PPT / disk / drum / tape subsystem. Using another simpler processor to control complex devices like disks was done frequently on other minicomputer designs, so I’ll be doing it here too.
 
-My end goal is to build a system that is capable of running most of the interesting software of the period. This includes ADSS, DOS-15, and UNIX V0. To do this, the system will need:
+My end goal is to build a system that is capable of running most of the interesting software of the period. This includes DECsys, ADSS, DOS-15, and UNIX V0. To do this, the system will need:
 
 - Full compatibility with the PDP-9 instruction set. This includes EAE instructions and extended memory
 - The ability to hook up to a real or emulated paper tape punch / reader.
 - The ability to hook up to a real or emulated ASR-33 teletype or similar serial terminal
-- Floppy drive and IDE hard drive support using the DECtape and RB09 interface respectively
+- 8" floppy drive interface in place of DECtape. Software will require patching but it's better than trying to emulate DECtape
+- IDE hard drive support using RB09/RF09 interface 
 
 ## Theory of Operation
 
@@ -53,7 +54,7 @@ A wait signal is sampled at the beginning of the IOT as well. This can be used t
 
 4. Signal "IOT_PULSE" remains asserted. External input is sampled into MB. Signal "EXTRN" must be asserted to take value from device bus.
 
-5. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data. IF "IOT_WAIT" is asserted, do step 4 in place.
+5. IF "IOT_WAIT" is asserted, do step 4 in place. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
 
 6. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
 
@@ -63,13 +64,13 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 #### Steps:
 
-1. Signal "REQ_ADDR_PHASE" and "DEV_REQ_PULSE" asserted and held. External value written to MA. Signal "EXTRN" must be asserted to take value from device bus. If DMA is selected, skip to step 8
+1. Signal "REQ_ADDR_PHASE" and "DEV_REQ_PULSE" asserted and held. External value written to MA. If DMA is selected, skip to step 7
 
 2. Core is read at MA and written to MB. "REQ_ADDR_PHASE" held
 
 3. Value in MB incremented and written back to core at MA and OB. "REQ_ADDR_PHASE" held
 
-4. Value in MA incremented. "REQ_ADDR_PHASE" reset. If add to memory selected, skip to step ?
+4. Value in MA incremented. "REQ_ADDR_PHASE" reset. "INCREMENT_ZERO" can be sampled here. If add to memory selected, skip to step 9
 
 5. Core is read at MA and written to MB
 
@@ -77,4 +78,6 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 7. Core is read at MA and written to WRTBK
 
-8. I/O data bus goes high imedance.
+8. External value written to core at MA. "DEV_REQ_PULSE" reset. Jump to fetch without device request logi 
+
+9. Reset "DEV_REQ_PULSE". Jump to fetch without device request logi 

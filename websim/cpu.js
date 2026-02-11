@@ -267,7 +267,8 @@ function propagate(cpu, devices) {
 					microcode_input |= cpu.r_reg_skip << 8;
 				} else {
 					// Put lower instruction
-					microcode_input |= getbit(cpu.r_reg_ir, 0, 4) << 7;
+					microcode_input |= getbit(cpu.r_reg_ir, 0, 3) << 7;
+					microcode_input |= getbit(cpu.r_reg_ir, 12. 1) << 10;
 				}
 			} else {
 				if (step < 16) {
@@ -284,7 +285,9 @@ function propagate(cpu, devices) {
 			break;
 		
 		case DECODE_MODE_INSTRUCTION:
-			microcode_input |= (cpu.r_state[0] & 007) | (getbit(cpu.r_reg_ir, 12, 6) << 3);
+			microcode_input |= cpu.r_state[0] & 007
+			microcode_input |= getbit(cpu.r_reg_ir, 3, 1) << 3;
+			microcode_input |= getbit(cpu.r_reg_ir, 13, 5) << 4;
 			microcode_input |= 0 << 9; // TODO: Extend mode
 			microcode_input |= cpu.r_reg_maai << 10;
 			break;
@@ -780,11 +783,12 @@ function decode(input) {
 	//			I[9] = Transfer request
 	//			I[10] = Interrupt request
 	//		Else:
-	//			I[7:10] = IR['17:'14]
+	//			I[7:9] = IR['17:'15]
+	//			I[10] = IR['5]
 	//			
 	// If Decode Mode == 1 (Instruction Mode)
 	//	I[0:2] = Current step
-	//	I[3] = IR['5]
+	//	I[3] = IR['14]
 	//	I[4] = Indirection
 	//	I[5:8] = Instruction
 	//	I[9] = Extended mode
@@ -842,9 +846,9 @@ function decode(input) {
 	//
 	// O[3][0] = Latch WRTBK
 	// O[3][1] = Clear all flags
-	// O[3][2] = IOT read pulse
-	// O[3][3] = IOT write pulse
-	// O[3][4] = Device request grant
+	// O[3][2] = IOT pulse
+	// O[3][3] = Device request grant
+	// O[3][4] = Request address phase
 	// O[3][5] = JMP I detect
 	// O[3][6] = Interrupt detect
 	// O[3][7] = Instruction fetch cycle
