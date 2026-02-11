@@ -142,7 +142,7 @@ function latch(cpu, devices) {
 	if (getbit(latch_select, BUS_LATCH_IR, 1)) {
 		
 		// Breakpoint stuff
-		if (getbit(cpu.r_state[3], IR_FETCH_INDICATE, 1)) {
+		if (cpu.r_state[5]) {
 			if (cpu.s_addr_bus == breakpoint_addr) {
 				cpu.front_panel_ctrl.halt_step = 100;
 				cpu_state.front_panel_state = 1;
@@ -615,16 +615,16 @@ const FP_XCT = 9;
 // IOT stuff
 const BUS_LATCH_WRTBK = 0;
 const CLEAR_ALL_FLAGS = 1;
-const IOT_READ_PULSE = 2;
-const IOT_WRITE_PULSE = 3;
-const DEVICE_REQ_GRANT = 4;
+const IOT_PULSE = 2;
+const DEV_REQ_GRANT = 3;
+const REQ_ADDR_PHASE = 4;
 const JMP_I_DETECT = 5;
 const INTERRUPT_DETECT = 6;
+const READ_IN_PULSE = 7;
 
 
 // MISC stuff
 const HALT_INDICATE = 4;
-const IR_FETCH_INDICATE = 7;
 
 // -- SERVICE MODE STEPS --
 
@@ -644,17 +644,16 @@ const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no switches to be depressed on the front panel
 const STEP_SRV_FETCH_IGDV = 11;		// Fetch the next instruction, ignore devices
 
-const STEP_SRV_SKIP_IOT = 16;		// Skip based on IOT condition
+const STEP_SRV_IOT_PHASE_ONE = 16;	// First phase of the IOT. Assert the IOT pulse
+const STEP_SRV_IOT_PHASE_TWO = 17;  // Second phase of the IOT. Keep asserting IOT pulse and sample external value into MB at the end
+const STEP_SRV_IOT_LATCH_AC = 18;	// Latch the result of the IOT into AC
+const STEP_SRV_IOT_SKIP = 19;		// Skip based on IOT condition
 
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 const STEP_SRV_SKIP = 35;			// Unconditional skip
 const STEP_SRV_IOT_WRITE_PHASE = 36;// Second phase of the IOT that allows for a device to return a value, loop until not wait
-
-const STEP_SRV_IOT_READ_PHASE = 48;	// First phase of the IOT that allows a device to read AC
-const STEP_SRV_IOT_NULL_PHASE = 49;	// Null phase to allow reading devices to latch and signals to propagate
-const STEP_SRV_IOT_LATCH_AC = 51;	// Latch the result of the IOT into AC
 
 
 // --- INSTRUCTION MODE STEPS
@@ -727,8 +726,6 @@ const OPCODE_EAE = 13;
 
 // IOT
 const OPCODE_IOT = 14;
-const STEP_ISR_IOT_WRITE = 1;
-const STEP_ISR_IOT_WSKIP = 2;
 
 
 // OPR
@@ -851,7 +848,7 @@ function decode(input) {
 	// O[3][4] = Request address phase
 	// O[3][5] = JMP I detect
 	// O[3][6] = Interrupt detect
-	// O[3][7] = Instruction fetch cycle
+	// O[3][7] = READ-IN pulse
 	//
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
@@ -862,6 +859,8 @@ function decode(input) {
 	// O[4][5] = Select shifter
 	// O[4][6] = Set 1-s compliment mode
 	// O[4][7] = Latch OB
+	//
+	// O[5] = Instruction fetch cycle
 	
 	let latch_ir = 0;
 	let latch_ma = 0;
@@ -889,9 +888,9 @@ function decode(input) {
 	// IOT stuff
 	let latch_wrtbk = 0;
 	let clear_all_flags = 0;
-	let iot_read_pulse = 0;
-	let iot_write_pulse = 0;
-	let device_req_grant = 0;
+	let iot_pulse = 0;
+	let dev_req_grant = 0;
+	let req_addr_phase = 0;
 	let jmp_i_detect = 0;
 	let interrupt_detect = 0;
 
@@ -1349,100 +1348,68 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH;
 				break;
 				
-			// Check if IR bit `14 (IOT instruction AC clear flag) is set
-			// If so, place AC in OB + WRTBK
-			// Otherwise place O
-			// Also keep MA on the address bus
+			// First phase of the IOT, not much to do here
 			// MA -> ADDRESS BUS
-			// 1 -> IOT_READ_PULSE
-			// IF IOT_CLEAR_AC:
-			//	0 -> OB
-			// ELSE:
-			//  AC -> OB
-			// STEP_SRV_IOT_NULL_PHASE -> NEXT
-			case STEP_SRV_IOT_READ_PHASE:
+			// 1 -> IOT_PULSE
+			// STEP_SRV_IOT_PHASE_TWO -> NEXT
+			case STEP_SRV_IOT_PHASE_ONE:
 			
 				// Put MA on the address bus
 				select_pc_ma = ADDR_SELECT_MA;
 				
-				// Read phase
-				iot_read_pulse = 1;
-				
-				latch_ob = 1;
-				latch_wrtbk = 1;
-				if (iot_clear_ac) {
-					// Set the bus to 0
-					bus_output_select = BUS_SELECT_ALU;
-					alu_op_select = ALU_CLEAR;
-				} else {
-					// Set the bus to AC
-					bus_output_select = BUS_SELECT_AC;
-				}
-				
-				next_step = STEP_SRV_IOT_NULL_PHASE;
+				// Set IOT pulse
+				iot_pulse = 1;
+
+				next_step = STEP_SRV_IOT_PHASE_TWO;
 				break;
 				
-			// Null phase, allow reading devices to latch as well as giving time for wait signal to propagate
-			// MA -> ADDRESS BUS
-			// IF IOT_CLEAR_AC:
-			//	0 -> DATA BUS
-			// ELSE:
-			//  AC -> DATA BUS
-			// STEP_SRV_IOT_NULL_PHASE -> NEXT
-			case STEP_SRV_IOT_NULL_PHASE:
-				
-				// Put MA on the address bus
-				select_pc_ma = ADDR_SELECT_MA;
-				
-				if (iot_clear_ac) {
-					// Set the bus to 0
-					bus_output_select = BUS_SELECT_ALU;
-					alu_op_select = ALU_CLEAR;
-				} else {
-					// Set the bus to AC
-					bus_output_select = BUS_SELECT_AC;
-				}
-				
-				next_step = STEP_SRV_IOT_WRITE_PHASE;
-				break;
-				
-			// Indicate that a writeback is happening and latch external into MB 
-			// MA -> ADDRESS BUS
-			// 1 -> IOT_WRITE_PULSE
-			// EXTERNAL -> MB
-			case STEP_SRV_IOT_WRITE_PHASE:
-			
-				// Put MA on the address bus
-				select_pc_ma = ADDR_SELECT_MA;
-				
-				// Write phase
-				iot_write_pulse = 1;
-				
-				// Sample external into MB
-				bus_output_select = BUS_SELECT_EXTERNAL;
-				latch_mb = 1;
-			
-				next_step = STEP_SRV_IOT_LATCH_AC;
-				break;
-				
+			// If the wait flag is set, just do phase two again
 			// Perform a logical OR of OB and MB, place in AC
+			// IF FLAG_IOT_WAIT:
+			//  GOTO STEP_SRV_IOT_PHASE_TWO
+			// OB OR MB -> AC
+			// STEP_SRV_SKIP_IOT -> NEXT
 			case STEP_SRV_IOT_LATCH_AC:
 				
-				// Put ALU on the bus
-				bus_output_select = BUS_SELECT_ALU;
-				alu_op_select = ALU_OR;
+				if (!flag_iot_wait) {
+					// Put ALU on the bus
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_OR;
+					
+					// Latch AC
+					latch_ac = 1;
+					
+					next_step = STEP_SRV_SKIP_IOT;
+					break;
+				}
 				
-				// Latch AC
-				latch_ac = 1;
+				// Fall to STEP_SRV_IOT_PHASE_TWO
 				
-				next_step = STEP_SRV_SKIP_IOT;
+			// Second phase of the IOT, same as phase one but we sample the external input
+			// MA -> ADDRESS BUS
+			// EXTERNAL -> MB
+			// 1 -> IOT_PULSE
+			// STEP_SRV_IOT_PHASE_TWO -> NEXT
+			case STEP_SRV_IOT_PHASE_TWO:
+			
+				// Put MA on the address bus
+				select_pc_ma = ADDR_SELECT_MA;
+				
+				// Set IOT pulse
+				iot_pulse = 1;
+				
+				// Sample external into MB
+				latch_mb = 1;
+				bus_output_select = BUS_SELECT_EXTERNAL;
+
+				next_step = STEP_SRV_IOT_LATCH_AC;
 				break;
 				
 			// Increment the program counter if FLAG_IOT_SKIP != 0
 			// IF FLAG_IOT_SKIP:
 			//  PC + 1 -> PC
 			// STEP_SRV_FETCH_IGDV -> NEXT
-			case STEP_SRV_SKIP_IOT:
+			case STEP_SRV_IOT_SKIP:
 				if (flag_iot_skip) {
 					bus_output_select = BUS_SELECT_CROSS;
 					select_pc_ma = ADDR_SELECT_PC;
@@ -1465,7 +1432,7 @@ function decode(input) {
 	} else if (decode_mode == DECODE_MODE_INSTRUCTION) {
 		// Decode an instruction
 		let step = getbit(input, 0, 3);
-		let ir_5 = getbit(input, 3, 1);
+		let ir_14 = getbit(input, 3, 1);
 		let indirect = getbit(input, 4, 1);
 		let opcode = getbit(input, 5, 4);
 		let extend_mode = getbit(input, 9, 1);
@@ -2259,52 +2226,32 @@ function decode(input) {
 			case OPCODE_IOT:
 				// IO transfer instruction
 				switch (step) {
+					// Check if IR bit `14 (IOT instruction AC clear flag) is set
+					// If so, place AC in OB + WRTBK
+					// Place MA on the address bus so all the device address decoders and begin
+					// MA -> ADDRESS BUS
+					// STEP_SRV_IOT_PHASE_ONE -> NEXT
 					case STEP_ISR_EXECUTE_BEGIN:
+					
+						// Latch OB and WRTBK
+						latch_ob = 1;
+						latch_wrtbk = 1;
+						if (ir_14) {
+							// Set the bus to 0
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_CLEAR;
+						} else {
+							// Set the bus to AC
+							bus_output_select = BUS_SELECT_AC;
+						}
 						
-						// Place MA on the address bus so all the device address decoders and begin
-						// MA -> ADDRESS BUS
-						// STEP_SRV_IOT_READ_PHASE -> NEXT
+						// We need MA on the address bus, the devices will start address decoding using it
 						select_pc_ma = ADDR_SELECT_MA;
-						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_IOT_READ_PHASE;
-
 						
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_IOT_PHASE_ONE;	
 						break;
 						
-					// Do an OR between OB and MB and put it in AC
-					// OB OR MB -> AC
-					// STEP_SRV_FETCH -> NEXT
-					case STEP_ISR_IOT_WRITE:
-
-						// Do an OR between OB and MB
-						bus_output_select = BUS_SELECT_ALU;
-						alu_op_select = ALU_OR;
-						
-						// Store in AC
-						latch_ac = 1;
-						
-						// We are done
-						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_FETCH;
-						break;
-						
-					// Do an OR between OB and MB and put it in AC
-					// We'll do a skip at the end of this one
-					// OB OR MB -> AC
-					// STEP_SRV_SKIP -> NEXT
-					case STEP_ISR_IOT_WSKIP:
-						
-						// Do an OR between OB and MB
-						bus_output_select = BUS_SELECT_ALU;
-						alu_op_select = ALU_OR;
-						
-						// Store in AC
-						latch_ac = 1;
-						
-						// We are done
-						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_SKIP;
-						break;
 						
 				}
 				break;
@@ -2473,20 +2420,14 @@ function decode(input) {
 	}
 	
 	// Return new control register
-	let latch_settings = 	(latch_ir << BUS_LATCH_IR) | 
-							(latch_ma << BUS_LATCH_MA) | 
-							(latch_pc << BUS_LATCH_PC) | 
-							(latch_ac << BUS_LATCH_AC) | 
-							(latch_step << BUS_LATCH_STEP) | 
-							(latch_mq << BUS_LATCH_MQ) | 
-							(latch_mb << BUS_LATCH_MB) | 
-							(write_core << BUS_LATCH_CORE);
-							
-	let alu_control = 	(alu_op_select << ALU_OP_SELECT) | 
-						(alu_link_select << ALU_LINK_SELECT) | 
-						(alu_select_shifter << ALU_SELECT_SHIFTER) | 
-						(alu_select_ones << ALU_SELECT_ONES) | 
-						(latch_ob << ALU_LATCH_OB);
+	let latch_control = (latch_ir << BUS_LATCH_IR) | 
+						(latch_ma << BUS_LATCH_MA) | 
+						(latch_pc << BUS_LATCH_PC) | 
+						(latch_ac << BUS_LATCH_AC) | 
+						(latch_step << BUS_LATCH_STEP) | 
+						(latch_mq << BUS_LATCH_MQ) | 
+						(latch_mb << BUS_LATCH_MB) | 
+						(write_core << BUS_LATCH_CORE);
 	
 	let bus_control = 	bus_output_select | 
 						(select_pc_ma << 3) | 
@@ -2495,21 +2436,27 @@ function decode(input) {
 						(bank_zero_enable << 6) | 
 						(constant_value << 7);
 	
-	let misc_config =	(latch_wrtbk << BUS_LATCH_WRTBK) |
+	let dev_control =	(latch_wrtbk << BUS_LATCH_WRTBK) |
 						(clear_all_flags << CLEAR_ALL_FLAGS) |
-						(iot_read_pulse << IOT_READ_PULSE) |
-						(iot_write_pulse << IOT_WRITE_PULSE) |
-						(device_req_grant << DEVICE_REQ_GRANT) |
+						(iot_pulse << IOT_PULSE) |
+						(dev_req_grant << DEV_REQ_GRANT) |
+						(req_addr_phase << REQ_ADDR_PHASE) |
 						(jmp_i_detect << JMP_I_DETECT) |
-						(interrupt_detect << INTERRUPT_DETECT) |
-						(ir_fetch_indicate << IR_FETCH_INDICATE);
+						(interrupt_detect << INTERRUPT_DETECT);
+						
+	let alu_control = 	(alu_op_select << ALU_OP_SELECT) | 
+						(alu_link_select << ALU_LINK_SELECT) | 
+						(alu_select_shifter << ALU_SELECT_SHIFTER) | 
+						(alu_select_ones << ALU_SELECT_ONES) | 
+						(latch_ob << ALU_LATCH_OB);
 	
 	return [
-			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0
-			latch_settings & 0377, 							// ROM 1
-			bus_control & 0377, 							// ROM 2
-			misc_config & 0377,								// ROM 3
-			alu_control & 0377,								// ROM 4
+			(next_state | (next_decode_mode << 6)) & 0377, 	// ROM 0 (State management)
+			latch_control & 0377, 							// ROM 1 (Primary latches)
+			bus_control & 0377, 							// ROM 2 (Bus control)
+			dev_control & 0377,								// ROM 3 (Device control)
+			alu_control & 0377,								// ROM 4 (ALU control)
+			ir_fetch_indicate,								// IR fetch indicate
 	];
 }
 

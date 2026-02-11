@@ -46,17 +46,15 @@ A wait signal is sampled at the beginning of the IOT as well. This can be used t
 
 #### Steps:
 
-1. IOT transaction begins. Device address is placed on the I/O address bus. No IOT signals are asserted
+1. IOT transaction begins. Device address is placed on the I/O address bus. AC (or 0 if the flag is set) is written to the WRTBK register.
 
-2. AC (or 0 if the flag is set) is written to the WRTBK register.
+2. Signal "IOT_PULSE" is asserted.
 
-3. Signal "IOT_PULSE" is asserted.
+3. Signal "IOT_PULSE" remains asserted. External input is sampled into MB. Signal "EXTRN" must be asserted to take value from device bus.
 
-4. Signal "IOT_PULSE" remains asserted. External input is sampled into MB. Signal "EXTRN" must be asserted to take value from device bus.
+4. IF "IOT_WAIT" is asserted, do step 4 in place. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
 
-5. IF "IOT_WAIT" is asserted, do step 4 in place. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
-
-6. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
+5. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
 
 ### Device Requests
 
@@ -64,7 +62,7 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 #### Steps:
 
-1. Signal "REQ_ADDR_PHASE" and "DEV_REQ_PULSE" asserted and held. External value written to MA. If DMA is selected, skip to step 7
+1. Signal "REQ_ADDR_PHASE" and "DEV_REQ_GRANT" asserted and held. External value written to MA. If DMA is selected, skip to step 7
 
 2. Core is read at MA and written to MB. "REQ_ADDR_PHASE" held
 
@@ -78,6 +76,6 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 7. Core is read at MA and written to WRTBK
 
-8. External value written to core at MA. "DEV_REQ_PULSE" reset. Jump to fetch without device request logi 
+8. External value written to core at MA. "DEV_REQ_GRANT" reset. Jump to fetch without device request logi 
 
-9. Reset "DEV_REQ_PULSE". Jump to fetch without device request logi 
+9. Reset "DEV_REQ_GRANT". Jump to fetch without device request logi 
