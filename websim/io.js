@@ -26,11 +26,11 @@ const PPTR_MODE_NULL = 2;
 var sysflag_state = {
 	
 	// Memory management enable
-	r_flag_memm = 0,
+	r_flag_memm: 0,
 	
 	// Interrupt enable
-	r_flag_pi = 0
-}
+	r_flag_pi: 0
+};
 
 // Paper tape reader / punch state
 var ppt_state = {
@@ -77,9 +77,8 @@ var device_states = {
 	tty: tty_state,
 	
 	
-	// Last read / write pulse state
-	last_read_state: 0,
-	last_write_state: 0
+	// Last iot pulse state
+	last_iot_pulse_state: 0
 };
 
 const IOT_ISR_DEVICE_FIELD = 6;
@@ -96,15 +95,15 @@ const TTY_PRINT_DEVICE_ID = 4;
  */
 function io_latch(cpu, devices) {
 
-	// Unpack all IOT related commands
+		// Unpack all IOT related commands
 	let iot_cmd = cpu.r_state[3];
-	let iot_read_pulse = getbit(iot_cmd, IOT_READ_PULSE, 1);
-	let iot_write_pulse = getbit(iot_cmd, IOT_WRITE_PULSE, 1);
-	let device_req_grant = getbit(iot_cmd, DEVICE_REQ_GRANT, 1);
+	let iot_pulse = getbit(iot_cmd, IOT_PULSE, 1);
+	let dev_req_grant = getbit(iot_cmd, DEV_REQ_GRANT, 1);
+	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	
-	let data = cpu.s_device_bus;
+	let data = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
 	
 	let device = getbit(addr, IOT_ISR_DEVICE_FIELD, 6);
@@ -115,14 +114,19 @@ function io_latch(cpu, devices) {
 		
 		// Paper tape reader
 		case PPTR_DEVICE_ID:
+		
+			// Ignore if not an IOT
+			if (!iot_pulse)
+				break;
+		
 			let ppt = devices.ppt;
 			
-			if (pulse & 002 && iot_write_pulse) {
+			if (pulse & 002) {
 				ppt.r_pptr_flag = 0;
 			}
 			
 			// Reset flag and set next write-in mode
-			if (pulse & 004 && iot_write_pulse) {
+			if (pulse & 004) {
 				ppt.r_pptr_flag = 0;
 				if (subdevice & 002) {
 					ppt.pptr_mode = PPTR_MODE_BINARY;
@@ -135,12 +139,15 @@ function io_latch(cpu, devices) {
 			
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
+			
+			// Ignore if not an IOT
+			if (!iot_pulse)
+				break;
+		
 			let tty = devices.tty;
 			
 			if (pulse & 002) {
-				if (iot_write_pulse) {
-					tty.r_printer_flag = 0;
-				}
+				tty.r_printer_flag = 0;
 			}
 			
 			break;
@@ -159,13 +166,13 @@ function io_propagate(cpu, devices) {
 	
 	// Unpack all IOT related commands
 	let iot_cmd = cpu.r_state[3];
-	let iot_read_pulse = getbit(iot_cmd, IOT_READ_PULSE, 1);
-	let iot_write_pulse = getbit(iot_cmd, IOT_WRITE_PULSE, 1);
-	let device_req_grant = getbit(iot_cmd, DEVICE_REQ_GRANT, 1);
+	let iot_pulse = getbit(iot_cmd, IOT_PULSE, 1);
+	let dev_req_grant = getbit(iot_cmd, DEV_REQ_GRANT, 1);
+	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	
-	let data = cpu.s_device_bus;
+	let data = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
 	
 	// IOT addressing
@@ -181,42 +188,51 @@ function io_propagate(cpu, devices) {
 	let skip = 0;
 	
 	// Check for rising edge
-	let read_rising = (!devices.last_read_state && iot_read_pulse) ? 1 : 0;
-	let write_rising = (!devices.last_write_state && iot_write_pulse) ? 1 : 0;
+	let iot_rising = (!devices.last_iot_pulse_state && iot_pulse) ? 1 : 0;
 	
 	// Handle activites
 	switch (device) {
 		
 		// Paper tape reader
 		case PPTR_DEVICE_ID: 
+		
+			// Ignore if not an IOT
+			if (!iot_pulse)
+				break;
+		
 			let ppt = devices.ppt;
 		
 			// Assert skip flag if needed
-			if (pulse & 001 && iot_write_pulse) {
+			if (pulse & 001) {
 				if (ppt.r_pptr_flag) {
 					skip = 1;
 				}
 			}
 			
 			// Assert pptr buffer
-			if (pulse & 002 && iot_write_pulse) {
+			if (pulse & 002) {
 				extrn = 1;
-				data = assert(data, ppt.r_pptr_buffer);
+				cpu.s_device_bus = assert(cpu.s_device_bus, ppt.r_pptr_buffer);
 			}
 			break;
 			
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
+		
+			// Ignore if not an IOT
+			if (!iot_pulse)
+				break;
+		
 			let tty = devices.tty;
 			
 			// Check printer ready flag
 			if (pulse & 001) {
-				if (tty.r_printer_flag && iot_write_pulse) {
+				if (tty.r_printer_flag) {
 					skip = 1;
 				}
 			}
 			
-			if (pulse & 004 && read_rising) {
+			if (pulse & 004) {
 				tty.printer_delay = 300;
 				uart_output(data & 0177);
 			}
@@ -224,17 +240,15 @@ function io_propagate(cpu, devices) {
 			break;
 		
 		default:
-			if (read_rising) {
+			if (iot_rising)  {
 				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
 			}
 			break;
 	}
 	
 	cpu.s_iot_extrn = extrn;
-	cpu.s_device_bus = data;
 	cpu.s_iot_skip = skip;
-	devices.last_read_state = iot_read_pulse;
-	devices.last_write_state = iot_write_pulse;
+	devices.last_iot_pulse_state = iot_pulse;
 }
 
 

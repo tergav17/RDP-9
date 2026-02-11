@@ -268,7 +268,7 @@ function propagate(cpu, devices) {
 				} else {
 					// Put lower instruction
 					microcode_input |= getbit(cpu.r_reg_ir, 0, 3) << 7;
-					microcode_input |= getbit(cpu.r_reg_ir, 12. 1) << 10;
+					microcode_input |= getbit(cpu.r_reg_ir, 12, 1) << 10;
 				}
 			} else {
 				if (step < 16) {
@@ -474,6 +474,9 @@ function propagate(cpu, devices) {
 		cpu.s_addr_bus &= 017777;
 	}
 	
+	// Propagate IO
+	io_propagate(cpu, devices);
+	
 	// Get the data bus
 	let data_bus_select = getbit(cpu.r_state[2], 0, 3)
 	let constant_value = getbit(cpu.r_state[2], 7, 1);
@@ -519,24 +522,16 @@ function propagate(cpu, devices) {
 			break;
 			
 		case BUS_SELECT_EXTERNAL:
-			// Do nothing, we will handle this later down the line
+			if (cpu.s_iot_extrn) {
+				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_device_bus);
+			} else {
+				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_wrtbk);
+			}
 			break;
 	
 		default:
 			console.log("WARNING: Bad data bus select");
 			break;
-	}
-	
-	if (data_bus_select == BUS_SELECT_EXTERNAL) {
-		io_propagate(cpu, devices);
-		if (cpu.s_iot_extrn) {
-			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.s_device_bus);
-		} else {
-			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_wrtbk);
-		}
-	} else {
-		assert(cpu.s_device_bus, cpu.s_data_bus);
-		io_propagate(cpu, devices);
 	}
 	
 	// Get the ALU operation bus
@@ -1368,7 +1363,7 @@ function decode(input) {
 			// IF FLAG_IOT_WAIT:
 			//  GOTO STEP_SRV_IOT_PHASE_TWO
 			// OB OR MB -> AC
-			// STEP_SRV_SKIP_IOT -> NEXT
+			// STEP_SRV_IOT_SKIP -> NEXT
 			case STEP_SRV_IOT_LATCH_AC:
 				
 				if (!flag_iot_wait) {
@@ -1379,7 +1374,7 @@ function decode(input) {
 					// Latch AC
 					latch_ac = 1;
 					
-					next_step = STEP_SRV_SKIP_IOT;
+					next_step = STEP_SRV_IOT_SKIP;
 					break;
 				}
 				
