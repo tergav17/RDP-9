@@ -1360,11 +1360,15 @@ function decode(input) {
 				
 			// If the wait flag is set, just do phase two again
 			// Perform a logical OR of OB and MB, place in AC
+			// MA -> ADDRESS BUS
 			// IF FLAG_IOT_WAIT:
 			//  GOTO STEP_SRV_IOT_PHASE_TWO
 			// OB OR MB -> AC
 			// STEP_SRV_IOT_SKIP -> NEXT
 			case STEP_SRV_IOT_LATCH_AC:
+			
+				// Put MA on the address bus
+				select_pc_ma = ADDR_SELECT_MA;
 				
 				if (!flag_iot_wait) {
 					// Put ALU on the bus

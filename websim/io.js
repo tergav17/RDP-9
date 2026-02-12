@@ -114,41 +114,11 @@ function io_latch(cpu, devices) {
 		
 		// Paper tape reader
 		case PPTR_DEVICE_ID:
-		
-			// Ignore if not an IOT
-			if (!iot_pulse)
-				break;
-		
-			let ppt = devices.ppt;
-			
-			if (pulse & 002) {
-				ppt.r_pptr_flag = 0;
-			}
-			
-			// Reset flag and set next write-in mode
-			if (pulse & 004) {
-				ppt.r_pptr_flag = 0;
-				if (subdevice & 002) {
-					ppt.pptr_mode = PPTR_MODE_BINARY;
-				} else {
-					ppt.pptr_mode = PPTR_MODE_ALPHA;
-				}
-			}
 			
 			break;
 			
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
-			
-			// Ignore if not an IOT
-			if (!iot_pulse)
-				break;
-		
-			let tty = devices.tty;
-			
-			if (pulse & 002) {
-				tty.r_printer_flag = 0;
-			}
 			
 			break;
 		
@@ -172,7 +142,7 @@ function io_propagate(cpu, devices) {
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	
-	let data = cpu.r_reg_wrtbk;
+	let data_in = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
 	
 	// IOT addressing
@@ -187,61 +157,72 @@ function io_propagate(cpu, devices) {
 	// Skip?
 	let skip = 0;
 	
-	// Check for rising edge
+	// Check for rising and falling edge
 	let iot_rising = (!devices.last_iot_pulse_state && iot_pulse) ? 1 : 0;
+	let iot_falling = (devices.last_iot_pulse_state && !iot_pulse) ? 1 : 0;
 	
 	// Handle activites
 	switch (device) {
 		
 		// Paper tape reader
 		case PPTR_DEVICE_ID: 
-		
-			// Ignore if not an IOT
-			if (!iot_pulse)
-				break;
-		
+
 			let ppt = devices.ppt;
 		
 			// Assert skip flag if needed
-			if (pulse & 001) {
+			if (pulse & 001 && iot_pulse) {
 				if (ppt.r_pptr_flag) {
 					skip = 1;
 				}
 			}
 			
+			// Reset flag
+			if (pulse & 002 && iot_falling) {
+				ppt.r_pptr_flag = 0;
+			}
+			
 			// Assert pptr buffer
-			if (pulse & 002) {
+			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
 				cpu.s_device_bus = assert(cpu.s_device_bus, ppt.r_pptr_buffer);
+			}
+			
+			// Reset flag and set next write-in mode
+			if (pulse & 004 && iot_falling) {
+				ppt.r_pptr_flag = 0;
+				if (subdevice & 002) {
+					ppt.pptr_mode = PPTR_MODE_BINARY;
+				} else {
+					ppt.pptr_mode = PPTR_MODE_ALPHA;
+				}
 			}
 			break;
 			
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
 		
-			// Ignore if not an IOT
-			if (!iot_pulse)
-				break;
-		
 			let tty = devices.tty;
 			
 			// Check printer ready flag
-			if (pulse & 001) {
+			if (pulse & 001 && iot_pulse) {
 				if (tty.r_printer_flag) {
 					skip = 1;
 				}
 			}
 			
-			if (pulse & 004) {
-				tty.printer_delay = 300;
-				uart_output(data & 0177);
+			if (pulse & 002 && iot_falling) {
+				tty.r_printer_flag = 0;
 			}
 			
+			if (pulse & 004 && iot_falling) {
+				tty.printer_delay = 300;
+				uart_output(data_in & 0177);
+			}
 			break;
 		
 		default:
 			if (iot_rising)  {
-				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data); 
+				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data_in); 
 			}
 			break;
 	}
