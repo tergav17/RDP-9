@@ -628,7 +628,7 @@ const STEP_SRV_RESET_ENTRY = 0;
 const STEP_SRV_RESET_AC_CLEAR = 1;
 
 // Instruction management steps
-const STEP_SRV_FETCH = 2;			// Fetch the next instruction
+const STEP_SRV_FETCH_IGDV = 2;		// Fetch the next instruction, ignore devices
 const STEP_SRV_PC_NEXT = 3;			// Increment the program counter unconditionally
 const STEP_SRV_PC_NEXT_IGFP = 4;	// Increment PC, ignore all front panel operations
 const STEP_SRV_HALT = 5;			// Halt state, wait for something to happen
@@ -637,18 +637,31 @@ const STEP_SRV_SHOW_CORE = 7;		// Place CORE[MA] into MB for debugging purposes
 const STEP_SRV_MA_NEXT = 8;			// Increment MA and then show it
 const STEP_SRV_XCT_NULL = 9;		// Null state to wait for IR to propagate
 const STEP_SRV_AWAIT_NOFP = 10;		// Awaits for no switches to be depressed on the front panel
-const STEP_SRV_FETCH_IGDV = 11;		// Fetch the next instruction, ignore devices
 
+
+// IOT steps
 const STEP_SRV_IOT_PHASE_ONE = 16;	// First phase of the IOT. Assert the IOT pulse
 const STEP_SRV_IOT_PHASE_TWO = 17;  // Second phase of the IOT. Keep asserting IOT pulse and sample external value into MB at the end
 const STEP_SRV_IOT_LATCH_AC = 18;	// Latch the result of the IOT into AC
 const STEP_SRV_IOT_SKIP = 19;		// Skip based on IOT condition
 
+// DRQ steps
+const STEP_SRV_DRQ_COUNT_READ = 20;	// Place CORE[MA] into MB, OB. Hold "REQ_ADDR_PHASE"
+const STEP_SRV_DRQ_COUNT_INC = 21;	// Place (OB OR MB) + 1 into CORE[MA], OB. Hold "REQ_ADDR_PHASE"
+const STEP_SRV_DRQ_MA_INC = 22;		// Increment MA. Hold "REQ_ADDR_PHASE". Check if add to memory is selected and jump to fetch if so.
+const STEP_SRV_DRQ_PTR_READ = 23;	// Place CORE[MA] into MB, OB
+const STEP_SRV_DRQ_PTR_INC = 24;	// Place (OB OR MB) + 1 into CORE[MA] and MA
+const STEP_SRV_DRQ_DATA_READ = 25;	// Place CORE[MA] into WRTBK
+const STEP_SRV_DRQ_DATA_WRITE = 26;	// Place EXTERNAL into CORE[MA] and MB.
+
+// Various skips
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
 const STEP_SRV_SKIP_NOT_ZERO = 33;	// Increment the program count if OB != 0
 const STEP_SRV_SKIP_OPR = 34;		// Skip based on operate condition
 const STEP_SRV_SKIP = 35;			// Unconditional skip
-const STEP_SRV_IOT_WRITE_PHASE = 36;// Second phase of the IOT that allows for a device to return a value, loop until not wait
+
+// "Standard" fetch
+const STEP_SRV_FETCH = 36;			// Fetch the next instruction. Alternatively, handle DRQ and IRQ starts
 
 
 // --- INSTRUCTION MODE STEPS
@@ -918,7 +931,7 @@ function decode(input) {
 		// Flag / request domain
 		let flag_zero = getbit(input, 7, 1);
 		let flag_skip = getbit(input, 8, 1);
-		let transfer_req = getbit(input, 9, 1);
+		let device_req = getbit(input, 9, 1);
 		let interrupt_req = getbit(input, 10, 1);
 		
 		// EAE/IOT bit decoding
@@ -966,27 +979,50 @@ function decode(input) {
 			// Start an instruction execution cycle
 			// The instruction should be fetched from memory
 			// We should also check for interrupts and device requires
-			// 0 -> EXTEND_ENABLE
-			// CORE[PC] -> IR, MA, OB, MB
-			// STEP_SRV_PC_NEXT -> NEXT
+			// IF DEVICE_REQ:
+			//  1 -> DEV_REQ_GRANT
+			//  1 -> REQ_ADDR_PHASE
+			//  EXTERNAL -> MA
+			//  STEP_SRV_DRQ_COUNT_READ -> NEXT
+			// ELSE:
+			//  0 -> EXTEND_ENABLE
+			//  CORE[PC] -> IR, MA, OB, MB
+			//  STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
 				
-				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
-				extended_addressing_enable = 0;
-				bus_output_select = BUS_SELECT_CORE;
-				select_pc_ma = ADDR_SELECT_PC;
-				
-				// Latch IR, MA, OB, MB
-				latch_ir = 1;
-				latch_ma = 1;
-				latch_ob = 1;
-				latch_mb = 1;
-				
-				// Debug: indicate IR fetch
-				ir_fetch_indicate = 1;
-				
-				next_step = STEP_SRV_PC_NEXT;
-				break;
+				if (device_req) {
+					
+					// Raise device request and address phase signals
+					req_addr_phase = 1;
+					dev_req_grant = 1;
+					
+					// Read external value into MA
+					bus_output_select = BUS_SELECT_EXTERNAL;
+					latch_ma = 1;
+					
+					next_step = STEP_SRV_DRQ_COUNT_READ;
+					break;
+					
+				} else {
+					// Fetch the instruction from memory
+					// Read from core, put it in IR, MA, and MB
+					extended_addressing_enable = 0;
+					bus_output_select = BUS_SELECT_CORE;
+					select_pc_ma = ADDR_SELECT_PC;
+					
+					// Latch IR, MA, OB, MB
+					latch_ir = 1;
+					latch_ma = 1;
+					latch_ob = 1;
+					latch_mb = 1;
+					
+					// Debug: indicate IR fetch
+					ir_fetch_indicate = 1;
+					
+					next_step = STEP_SRV_PC_NEXT;
+					break;
+					
+				}
 				
 			// Start an instruction execution cycle
 			// The instruction should be fetched from memory
@@ -996,7 +1032,8 @@ function decode(input) {
 			// STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH_IGDV:
 				
-				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
+				// Fetch the instruction from memory
+				// Read from core, put it in IR, MA, and MB
 				extended_addressing_enable = 0;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
@@ -1419,7 +1456,78 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 			
-	
+			// Core is read at MA and written to MB
+			// "REQ_ADDR_PHASE" held
+			// If DMA is select, read into WRTBK instead
+			// 1 -> EXTEND_ENABLE
+			// 1 -> DEV_REQ_GRANT
+			// 1 -> REQ_ADDR_PHASE
+			// IF DMA_REQUEST:
+			//  CORE[MA] -> WRTBK, MB
+			// ELSE
+			//  CORE[MA] -> MB, OB
+			case STEP_SRV_DRQ_COUNT_READ:
+			
+				// Raise device request and address phase signals
+				req_addr_phase = 1;
+				dev_req_grant = 1;
+				
+				// Prepare to read from CORE[MA]
+				extended_addressing_enable = 1;
+				select_pc_ma = ADDR_SELECT_MA;
+				bus_output_select = BUS_SELECT_CORE;
+				
+				if (dma_request) {
+					latch_wrtbk = 1;
+					latch_mb = 1;
+					next_step = STEP_SRV_DRQ_DATA_WRITE;
+				} else {
+					latch_ob = 1;
+					latch_mb = 1;
+					next_step = STEP_SRV_DRQ_COUNT_INC;
+				}
+				break;
+				
+			// Value in MB, OB incremented and written back to core at MA and OB
+			// "REQ_ADDR_PHASE" held
+			// 1 -> EXTEND_ENABLE
+			// 1 -> DEV_REQ_GRANT
+			// 1 -> REQ_ADDR_PHASE
+			// (OB OR MB) + 1 -> CORE[MA], MA, OB, MB
+			// STEP_SRV_DRQ_MA_INC -> NEXT
+			case STEP_SRV_DRQ_COUNT_INC:
+				
+				// Raise device request and address phase signals
+				req_addr_phase = 1;
+				dev_req_grant = 1;
+				
+				// Setup ALU to increment
+				bus_output_select = BUS_SELECT_ALU
+				alu_op_select = ALU_OR;
+				alu_select_ones = 1;
+				
+				// Prepare to to CORE[MA], MA, OB, MB
+				extended_addressing_enable = 1;
+				select_pc_ma = ADDR_SELECT_MA;
+				write_core = 1;
+				latch_mb = 1;
+				latch_ob = 1;
+				latch_ma = 1;
+				
+				next = STEP_SRV_DRQ_MA_INC;
+				break;
+				
+			// Value in MA incremented
+			// If add to memory selected, Jump to fetch without device request logic
+			// "INCREMENT_ZERO" can be sampled at the end of this cycle
+			// 1 -> DEV_REQ_GRANT
+			case STEP_SRV_DRQ_MA_INC:
+			
+				// Raise device request and address phase signals
+				req_addr_phase = 1;
+				dev_req_grant = 1;
+			
+				break;
 				
 			default:
 				break;

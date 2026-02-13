@@ -266,9 +266,9 @@ function drawFlow(cpu) {
 	// Draw debug information
 	x = 10; y = 10;
 	let ucode = "["
-	for (let i = 0; i < cpu.s_ctrl.length; i++) {
+	for (let i = 0; i < cpu.s_ctrl.length - 1; i++) {
 		ucode += toByte(cpu.s_ctrl[i]);
-		if (i != cpu.s_ctrl.length - 1) {
+		if (i != cpu.s_ctrl.length - 2) {
 			ucode += ", "
 		} else {
 			ucode += "]"
