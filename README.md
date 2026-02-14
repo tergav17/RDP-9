@@ -68,7 +68,7 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 3. Value in MB, OB incremented and written back to core at MA and OB. "REQ_ADDR_PHASE" held
 
-4. Value in MA incremented. If add to memory selected, Jump to fetch without device request logic. "INCREMENT_ZERO" can be sampled at the end of this cycle.
+4. Value in MA incremented.If add to memory selected, Jump to fetch without device request logic. "INCREMENT_ZERO_PUSLE" will be generated if needed. "REQ_ADDR_PHASE" held
 
 5. Core is read at MA and written to MB, OB.
 

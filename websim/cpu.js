@@ -1514,19 +1514,33 @@ function decode(input) {
 				latch_ob = 1;
 				latch_ma = 1;
 				
-				next = STEP_SRV_DRQ_MA_INC;
+				next_step = STEP_SRV_DRQ_MA_INC;
 				break;
 				
 			// Value in MA incremented
 			// If add to memory selected, Jump to fetch without device request logic
-			// "INCREMENT_ZERO" can be sampled at the end of this cycle
+			// "INCREMENT_ZERO_PUSLE" will be generated if needed
 			// 1 -> DEV_REQ_GRANT
+			// 1 -> REQ_ADDR_PHASE
+			// MA + 1 -> MA
+			// IF DATA_CHAN_REQUEST:
+			//  STEP_SRV_DRQ_PTR_READ -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH_IGDV -> NEXT
 			case STEP_SRV_DRQ_MA_INC:
 			
 				// Raise device request and address phase signals
 				req_addr_phase = 1;
 				dev_req_grant = 1;
-			
+				
+				// Set the constant value to generate INCREMENT_ZERO_PUSLE and increment MA
+				constant_value = 1;
+				
+				if (data_chan_request) {
+					next_step = STEP_SRV_DRQ_PTR_READ;
+				} else {
+					next_step = STEP_SRV_FETCH_IGDV;
+				}
 				break;
 				
 			default:
