@@ -1459,7 +1459,6 @@ function decode(input) {
 			// Core is read at MA and written to MB
 			// "REQ_ADDR_PHASE" held
 			// If DMA is select, read into WRTBK instead
-			// 1 -> EXTEND_ENABLE
 			// 1 -> DEV_REQ_GRANT
 			// 1 -> REQ_ADDR_PHASE
 			// IF DMA_REQUEST:
@@ -1473,7 +1472,6 @@ function decode(input) {
 				dev_req_grant = 1;
 				
 				// Prepare to read from CORE[MA]
-				extended_addressing_enable = 1;
 				select_pc_ma = ADDR_SELECT_MA;
 				bus_output_select = BUS_SELECT_CORE;
 				
@@ -1502,7 +1500,7 @@ function decode(input) {
 				dev_req_grant = 1;
 				
 				// Setup ALU to increment
-				bus_output_select = BUS_SELECT_ALU
+				bus_output_select = BUS_SELECT_ALU;
 				alu_op_select = ALU_OR;
 				alu_select_ones = 1;
 				
@@ -1536,11 +1534,98 @@ function decode(input) {
 				// Set the constant value to generate INCREMENT_ZERO_PUSLE and increment MA
 				constant_value = 1;
 				
+				// Increment and read into MA
+				latch_ma = 1;
+				bus_output_select = BUS_SELECT_CROSS;
+				select_pc_ma = ADDR_SELECT_MA;
+				
+				// Get next step
 				if (data_chan_request) {
 					next_step = STEP_SRV_DRQ_PTR_READ;
 				} else {
 					next_step = STEP_SRV_FETCH_IGDV;
 				}
+				break;
+				
+			// Core is read at MA and written to MB, OB.
+			// 1 -> DEV_REQ_GRANT
+			// CORE[MA] -> OB, MB
+			// STEP_SRV_DRQ_PTR_INC -> NEXT
+			case STEP_SRV_DRQ_PTR_READ:
+			
+				// Raise device request grant
+				dev_req_grant = 1;
+			
+				// Setup core read
+				bus_output_select = BUS_SELECT_CORE;
+				select_pc_ma = ADDR_SELECT_MA;
+				
+				// Latch OB, MB
+				latch_ob = 1;
+				latch_mb = 1;
+			
+				next_step = STEP_SRV_DRQ_PTR_INC;
+				break;
+				
+			// Value in MB, OB incremented and written back to core at MA and MA
+			// 1 -> DEV_REQ_GRANT
+			// 1 -> EXTEND_ENABLE
+			// (OB OR MB) + 1 -> CORE[MA], MA
+			// STEP_SRV_DRQ_DATA_READ -> NEXT
+			case STEP_SRV_DRQ_PTR_INC:
+			
+				// Raise device request grant
+				dev_req_grant = 1;
+			
+				// Setup ALU to increment
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
+				alu_select_ones = 1;
+				
+				// Write MA and CORE[MA]
+				extended_addressing_enable = 1;
+				latch_ma = 1;
+				write_core = 1;
+			
+				next_step = STEP_SRV_DRQ_DATA_READ;
+				break;
+				
+			// Core is read at MA and written to WRTBK
+			// 1 -> DEV_REQ_GRANT
+			// CORE[MA] -> WRTBK
+			// STEP_SRV_DRQ_DATA_WRITE -> NEXT
+			case STEP_SRV_DRQ_DATA_READ:
+			
+				// Raise device request grant
+				dev_req_grant = 1;
+
+				// Setup core read
+				bus_output_select = BUS_SELECT_CORE;
+				select_pc_ma = ADDR_SELECT_MA;
+				
+				// Write to writeback
+				latch_wrtbk = 1;
+				
+				next_step = STEP_SRV_DRQ_DATA_WRITE;
+				break;
+				
+			// External value written to core at MA. "DEV_REQ_GRANT" reset
+			// 1 -> DEV_REQ_GRANT
+			// EXTERNAL -> CORE[MA]
+			// STEP_SRV_FETCH_IGDV -> NEXT
+			case STEP_SRV_DRQ_DATA_WRITE:
+			
+				// Raise device request grant
+				dev_req_grant = 1;
+			
+				// Read from external
+				bus_output_select = BUS_SELECT_EXTERNAL;
+			
+				// Setup core write
+				select_pc_ma = ADDR_SELECT_MA;
+				write_core = 1;
+			
+				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 				
 			default:
