@@ -32,6 +32,35 @@ var sysflag_state = {
 	r_flag_pi: 0
 };
 
+// Device request 
+var drq_state = {
+	
+	// Selected device
+	r_selected_dev: 0,
+	
+	// Device request status
+	r_drq: 0,
+	
+	// Selected operation
+	r_req_dma: 0,
+	r_req_dev_chan: 0,
+	
+	// Device endpoints
+	devices: []
+	
+};
+
+// Populate available DRQs
+for (let i = 0; i < 4; i++) {
+	
+	// Set default values
+	drq_state.devices[i].s_drq_grant = 0;
+	drq_state.devices[i].s_drq = 0;
+	drq_state.devices[i].s_request_dma = 0;
+	drq_state.devices[i].s_request_dev_chan = 0;
+	
+}
+
 // Paper tape reader / punch state
 var ppt_state = {
 	
@@ -70,12 +99,17 @@ var tty_state = {
 
 var device_states = {
 	
+	// System flag states
+	sysflag: sysflag_state,
+	
+	// Device request chain
+	drq: drq_state,
+	
 	// Paper tape state
 	ppt: ppt_state,
 	
 	// Teleprinter state
 	tty: tty_state,
-	
 	
 	// Last iot pulse state
 	last_iot_pulse_state: 0
