@@ -16,7 +16,7 @@ const upload_ppt = document.getElementById("upload-ppt");
 
 const play_bell = document.getElementById("play-bell");
 
-/* --- IO COPROCESSOR EMULATION --- */
+/* --- IO SUBSYSTEM EMULATION --- */
 
 const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
@@ -51,13 +51,13 @@ var drq_state = {
 };
 
 // Populate available DRQs
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 8; i++) {
 	
 	// Set default values
 	drq_state.devices[i].s_drq_grant = 0;
 	drq_state.devices[i].s_drq = 0;
-	drq_state.devices[i].s_request_dma = 0;
-	drq_state.devices[i].s_request_dev_chan = 0;
+	drq_state.devices[i].s_req_dma = 0;
+	drq_state.devices[i].s_req_dev_chan = 0;
 	
 }
 
@@ -158,6 +158,34 @@ function io_latch(cpu, devices) {
 		
 		default:
 			break;
+	}
+	
+	// Update DRQ priority logic (if allowed)
+	let drq_grant = getbit(iot_cmd, DEV_REQ_GRANT, 1);
+	let drq = devices.drq_state;
+	if (!drq_grant) {
+		// If a DRQ is not happening, update the priorities
+		let i = 0;
+		for (i = 0; i < 8; i++) {
+			if (drq.devices[i].s_drq)
+				break;
+		}
+		
+		// Is one of the devices requesting an action?
+		if (i < 8) {
+			// Set DRQ value
+			r_selected_dev = i;
+			drq.r_drq = 1;
+			drq.r_req_dma = drq.s_req_dma;
+			drq.r_req_dev_chan = drq.s_req_dev_chan;
+			
+		} else {
+			// Reset DRQ
+			drq.r_drq = 0;
+			drq.r_req_dma = 0;
+			drq.r_req_dev_chan = 0;
+			
+		}
 	}
 	
 }
