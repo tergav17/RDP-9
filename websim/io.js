@@ -18,10 +18,6 @@ const play_bell = document.getElementById("play-bell");
 
 /* --- IO SUBSYSTEM EMULATION --- */
 
-const PPTR_MODE_ALPHA = 0;
-const PPTR_MODE_BINARY = 1;
-const PPTR_MODE_NULL = 2;
-
 // System flag states
 var sysflag_state = {
 	
@@ -61,6 +57,25 @@ for (let i = 0; i < 8; i++) {
 	
 }
 
+const RTC_DEVICE_ID = 0;
+const RTC_DRQ_PRIORITY = 0;
+
+// Real time clock
+var rtc_state = {
+	
+	// Real time clock enable
+	r_rtc_enable: 0,
+	
+	// Real time clock flag
+	r_rtc_flag: 0
+	
+};
+
+const PPTR_DEVICE_ID = 1;
+const PPTR_MODE_ALPHA = 0;
+const PPTR_MODE_BINARY = 1;
+const PPTR_MODE_NULL = 2;
+
 // Paper tape reader / punch state
 var ppt_state = {
 	
@@ -84,6 +99,8 @@ var ppt_state = {
 	
 };
 
+const TTY_PRINT_DEVICE_ID = 4;
+
 // TTY printer / keyboard state
 var tty_state = {
 	
@@ -105,6 +122,9 @@ var device_states = {
 	// Device request chain
 	drq: drq_state,
 	
+	// Real time clock
+	rtc: rtc_state,
+	
 	// Paper tape state
 	ppt: ppt_state,
 	
@@ -119,9 +139,7 @@ const IOT_ISR_DEVICE_FIELD = 6;
 const IOT_ISR_SUBDEVICE_FIELD = 4;
 const IOT_ISR_PULSE_FIELD = 0;
 
-const RTC_DEVICE_ID = 0;
-const PPTR_DEVICE_ID = 1;
-const TTY_PRINT_DEVICE_ID = 4;
+
 
 /*
  * Latching phase of I/O device update
@@ -225,6 +243,26 @@ function io_propagate(cpu, devices) {
 	
 	// Handle activites
 	switch (device) {
+		
+		// Real time clock
+		case RTC_DEVICE_ID:
+		
+			let rtc = devices.rtc;
+			
+			// Skip if flag is set
+			if (pulse & 001 && iot_pulse) {
+				if (rtc.r_rtc_flag) {
+					skip = 1;
+				}
+			}
+			
+			// Set clock enable
+			if (pulse & 004 && iot_falling) {
+				rtc.r_rtc_enable = subdevice & 002 ? 1 : 0;
+				rtc.r_rtc_flag = 0;
+			}
+		
+			break;
 		
 		// Paper tape reader
 		case PPTR_DEVICE_ID: 
