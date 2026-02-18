@@ -278,9 +278,11 @@ function io_propagate(cpu, devices) {
 	switch (device) {
 		
 		// Real time clock
+		// Also include interrupt stuff
 		case RTC_DEVICE_ID:
 		
 			let rtc = devices.rtc;
+			let sysflag = devices.sysflag;
 			
 			// Skip if flag is set
 			if (pulse & 001 && iot_pulse) {
@@ -288,6 +290,13 @@ function io_propagate(cpu, devices) {
 				if (rtc.r_rtc_flag) {
 					skip = 1;
 				}
+			}
+			
+			// Set interrupts
+			if (pulse & 002 && iot_falling) {
+				sysflag.r_flag_pi = subdevice & 002 ? 1 : 0;
+				
+				console.log("PIE is now " + sysflag.r_flag_pi);
 			}
 			
 			// Set clock enable

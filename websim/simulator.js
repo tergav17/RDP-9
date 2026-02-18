@@ -76,7 +76,7 @@ function simTick() {
 }
 
 // event farm!!!! :)
-var clockCyclesPerTick = 1000;
+var clockCyclesPerTick = 5000;
 var last_front_panel_state = 0;
 function updateClock() {
 	
@@ -349,7 +349,7 @@ function drawFlow(cpu) {
 	x = 454; y = 90;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("PIE", x - 2 , y - 10);
-	drawRegister(x, y, 0, 1);
+	drawRegister(x, y, device_states.sysflag.r_flag_pi, 1);
 	
 	// Run signal
 	x = 478; y = 90;
