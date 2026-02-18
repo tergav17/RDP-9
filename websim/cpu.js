@@ -39,8 +39,6 @@ cpu_state = {
 	r_reg_maai: 0,			// MA auto index
 	r_reg_iskp: 0,			// IOT skip flag
 	r_reg_iwat: 0,			// IOT wait flag
-	r_reg_rdma: 0,			// Device request DMA flag
-	r_reg_rchn: 0,			// Device request channel
 	
 	// Front panel signals
 	s_halt_indicator: 0,
@@ -49,8 +47,6 @@ cpu_state = {
 	s_iot_extrn: 0,
 	s_iot_skip: 0,
 	s_iot_wait: 0,
-	s_req_dma: 0,
-	s_req_chan: 0,
 	
 	// Switch Registers
 	s_switch_data: 0,
@@ -98,6 +94,13 @@ cpu_state.r_core[3] = 0700112;	// RRB			Clear AC, read buffer, clear flag
 cpu_state.r_core[4] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
 cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word 
 cpu_state.r_core[010] = 0000021; // Pointer location
+
+
+// Clock DRQ test
+/*
+cpu_state.r_core[0] = 0700044;	// CLON
+cpu_state.r_core[1] = 0600001;	// JMP 0001
+*/
 
 //cpu_state.r_core[040] = 0000001;
 
@@ -228,8 +231,6 @@ function latch(cpu, devices) {
 	
 	// Unconditional latches
 	cpu.r_reg_iwat = cpu.s_iot_wait;
-	cpu.r_reg_rdma = cpu.s_req_dma;
-	cpu.r_reg_rchn = cpu.s_req_chan;
 	
 	// We have successfully completed execution, latch in the next state
 	cpu.r_state = cpu.s_ctrl;
@@ -265,6 +266,7 @@ function propagate(cpu, devices) {
 					// Put flags
 					microcode_input |= cpu.r_reg_zero << 7;
 					microcode_input |= cpu.r_reg_skip << 8;
+					microcode_input |= devices.drq.r_drq << 9;
 				} else {
 					// Put lower instruction
 					microcode_input |= getbit(cpu.r_reg_ir, 0, 3) << 7;
@@ -276,8 +278,8 @@ function propagate(cpu, devices) {
 					microcode_input |= cpu.r_front_panel << 7;
 				} else {
 					//console.log(cpu.r_reg_iskp);
-					microcode_input |= cpu.r_reg_rdma << 7;
-					microcode_input |= cpu.r_reg_rchn << 8; 
+					microcode_input |= devices.drq.r_req_dma << 7;
+					microcode_input |= devices.drq.r_req_dev_chan << 8; 
 					microcode_input |= cpu.r_reg_iskp << 9;
 					microcode_input |= cpu.r_reg_iwat << 10;
 				}
@@ -785,7 +787,7 @@ function decode(input) {
 	//		If Step < 48:
 	//			I[7] = Zero flag
 	//			I[8] = OPR skip flag
-	//			I[9] = Transfer request
+	//			I[9] = Device request
 	//			I[10] = Interrupt request
 	//		Else:
 	//			I[7:9] = IR['17:'15]
@@ -999,6 +1001,8 @@ function decode(input) {
 					// Read external value into MA
 					bus_output_select = BUS_SELECT_EXTERNAL;
 					latch_ma = 1;
+					
+					
 					
 					next_step = STEP_SRV_DRQ_COUNT_READ;
 					break;

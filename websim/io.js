@@ -50,18 +50,23 @@ var drq_state = {
 for (let i = 0; i < 8; i++) {
 	
 	// Set default values
+	drq_state.devices[i] = {};
 	drq_state.devices[i].s_drq_grant = 0;
-	drq_state.devices[i].s_drq = 0;
-	drq_state.devices[i].s_req_dma = 0;
-	drq_state.devices[i].s_req_dev_chan = 0;
+	drq_state.devices[i].r_drq = 0;
+	drq_state.devices[i].r_req_dma = 0;
+	drq_state.devices[i].r_req_dev_chan = 0;
 	
 }
 
 const RTC_DEVICE_ID = 0;
 const RTC_DRQ_PRIORITY = 0;
+const RTC_TICK_TIME = 1000;
 
 // Real time clock
 var rtc_state = {
+	
+	// RTC timer
+	rtc_timer: 0,
 	
 	// Real time clock enable
 	r_rtc_enable: 0,
@@ -131,8 +136,9 @@ var device_states = {
 	// Teleprinter state
 	tty: tty_state,
 	
-	// Last iot pulse state
-	last_iot_pulse_state: 0
+	// Last pulse states
+	last_iot_pulse_state: 0,
+	last_drq_pulse_state: 0
 };
 
 const IOT_ISR_DEVICE_FIELD = 6;
@@ -180,12 +186,12 @@ function io_latch(cpu, devices) {
 	
 	// Update DRQ priority logic (if allowed)
 	let drq_grant = getbit(iot_cmd, DEV_REQ_GRANT, 1);
-	let drq = devices.drq_state;
+	let drq = devices.drq;
 	if (!drq_grant) {
 		// If a DRQ is not happening, update the priorities
 		let i = 0;
 		for (i = 0; i < 8; i++) {
-			if (drq.devices[i].s_drq)
+			if (drq.devices[i].r_drq)
 				break;
 		}
 		
@@ -194,8 +200,8 @@ function io_latch(cpu, devices) {
 			// Set DRQ value
 			r_selected_dev = i;
 			drq.r_drq = 1;
-			drq.r_req_dma = drq.s_req_dma;
-			drq.r_req_dev_chan = drq.s_req_dev_chan;
+			drq.r_req_dma = drq.r_req_dma;
+			drq.r_req_dev_chan = drq.r_req_dev_chan;
 			
 		} else {
 			// Reset DRQ
@@ -221,6 +227,7 @@ function io_propagate(cpu, devices) {
 	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
+	let increment_zero_pulse = (getbit(cpu.r_state[2], 7, 1) && cpu.r_reg_zero) ? 1 : 0;
 	
 	let data_in = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
@@ -240,6 +247,32 @@ function io_propagate(cpu, devices) {
 	// Check for rising and falling edge
 	let iot_rising = (!devices.last_iot_pulse_state && iot_pulse) ? 1 : 0;
 	let iot_falling = (devices.last_iot_pulse_state && !iot_pulse) ? 1 : 0;
+	let drq_rising = (!devices.last_drq_pulse_state && dev_req_grant) ? 1 : 0;
+	let drq_falling = (devices.last_drq_pulse_state && !dev_req_grant) ? 1 : 0;
+	
+	// Propagate DRQ signals
+	let drq = devices.drq;
+	for (let i = 0; i < 8; i++) {
+		drq.devices[i].s_drq_grant = (dev_req_grant && r_selected_dev == i) ? 1 : 0;
+	}
+	
+	// RTC DRQ handler
+	if (drq.devices[RTC_DRQ_PRIORITY].s_drq_grant) {
+		// Async register reset
+		drq.devices[RTC_DRQ_PRIORITY].r_drq = 0;
+		
+		// Set add-to-memory address
+		cpu.s_device_bus = assert(cpu.s_device_bus, 00007);
+		
+		// Set extrn
+		extrn = 1;
+		
+		// Check increment zero pulse
+		if (increment_zero_pulse) {
+			console.log("Increment zero pulse");
+			devices.rtc.r_rtc_flag = 1;
+		}
+	}
 	
 	// Handle activites
 	switch (device) {
@@ -251,6 +284,7 @@ function io_propagate(cpu, devices) {
 			
 			// Skip if flag is set
 			if (pulse & 001 && iot_pulse) {
+				//console.log("Skip? " + rtc.r_rtc_flag);
 				if (rtc.r_rtc_flag) {
 					skip = 1;
 				}
@@ -260,6 +294,8 @@ function io_propagate(cpu, devices) {
 			if (pulse & 004 && iot_falling) {
 				rtc.r_rtc_enable = subdevice & 002 ? 1 : 0;
 				rtc.r_rtc_flag = 0;
+				
+				console.log("RTC is now " + rtc.r_rtc_enable);
 			}
 		
 			break;
@@ -330,6 +366,7 @@ function io_propagate(cpu, devices) {
 	cpu.s_iot_extrn = extrn;
 	cpu.s_iot_skip = skip;
 	devices.last_iot_pulse_state = iot_pulse;
+	devices.last_drq_pulse_state = dev_req_grant;
 }
 
 
@@ -340,11 +377,32 @@ function io_propagate(cpu, devices) {
  */
 function device_tick(devices) {
 	
+	// Tick the real time clock
+	rtc_tick(devices.rtc, devices.drq);
+	
 	// Tick the teleprinter subsystem
 	tty_tick(devices.tty);
 	
 	// Tick the paper tape subsystem
 	ppt_tick(devices.ppt);
+}
+
+function rtc_tick(rtc, drq) {
+	
+	// Check timer
+	if (rtc.rtc_timer > RTC_TICK_TIME) {
+		
+		// If the RTC is enabled, set the DRQ flag
+		if (rtc.r_rtc_enable) {
+			drq.devices[RTC_DRQ_PRIORITY].r_drq = 1;
+		}
+		rtc.rtc_timer = 0;
+	
+	} else {
+		
+		rtc.rtc_timer++;
+	}
+	
 }
 
 function tty_tick(tty) {

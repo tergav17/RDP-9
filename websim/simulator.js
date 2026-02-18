@@ -275,9 +275,9 @@ function drawFlow(cpu) {
 		}
 	}
 	let ustate = "["
-	for (let i = 0; i < cpu.r_state.length; i++) {
+	for (let i = 0; i < cpu.r_state.length - 1; i++) {
 		ustate += toByte(cpu.r_state[i]);
-		if (i != cpu.r_state.length - 1) {
+		if (i != cpu.r_state.length - 2) {
 			ustate += ", "
 		} else {
 			ustate += "]"
