@@ -121,6 +121,9 @@ var tty_state = {
 
 var device_states = {
 	
+	// Interrupt signal
+	r_interrupt_req: 0,
+	
 	// System flag states
 	sysflag: sysflag_state,
 	
@@ -370,6 +373,20 @@ function io_propagate(cpu, devices) {
 				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data_in); 
 			}
 			break;
+	}
+	
+	// Do async reset of PIE if an interrupt is detected
+	if (interrupt_detect) {
+		devices.sysflag.r_flag_pi = 0;
+	}
+	
+	// Create interrupt request signal
+	devices.r_interrupt_req = 0;
+	if (devices.sysflag.r_flag_pi) {
+		devices.r_interrupt_req |= devices.rtc.r_rtc_flag;
+	}
+	if (devices.r_interrupt_req) {
+		console.log("IRQ!");
 	}
 	
 	cpu.s_iot_extrn = extrn;

@@ -267,6 +267,7 @@ function propagate(cpu, devices) {
 					microcode_input |= cpu.r_reg_zero << 7;
 					microcode_input |= cpu.r_reg_skip << 8;
 					microcode_input |= devices.drq.r_drq << 9;
+					microcode_input |= devices.r_interrupt_req << 10;
 				} else {
 					// Put lower instruction
 					microcode_input |= getbit(cpu.r_reg_ir, 0, 3) << 7;
@@ -665,6 +666,11 @@ const STEP_SRV_SKIP = 35;			// Unconditional skip
 // "Standard" fetch
 const STEP_SRV_FETCH = 36;			// Fetch the next instruction. Alternatively, handle DRQ and IRQ starts
 
+// Interrupt steps
+const STEP_SRV_IRQ_SAVE_PC = 37;	// PC is stored in MB, OB
+const STEP_SRV_IRQ_WRITE_PC = 38;	// The logical OR of MB and OB is place in CORE[MA]
+const STEP_SRV_IRQ_MA_PC_INC = 39;	// MA + 1 is placed in the PC. Extend is enabled to ensure that bank 0 is selected
+
 
 // --- INSTRUCTION MODE STEPS
 
@@ -955,7 +961,7 @@ function decode(input) {
 				
 			// Clear out the all of the registers
 			// 1 -> EXTEND_ENABLE
-			// 0 -> PC, AC, MQ, STEP
+			// 0 -> PC, AC, MQ, MA, STEP
 			// STEP_SRV_REFETCH -> NEXT
 			case STEP_SRV_RESET_AC_CLEAR:
 				
@@ -966,10 +972,11 @@ function decode(input) {
 				// We enable extension so the entire PC / MA gets reset
 				extended_addressing_enable = 1;
 				
-				// Perform a write on AC, PC, MQ, STEP
+				// Perform a write on AC, PC, MQ, MA, STEP
 				latch_pc = 1;
 				latch_ac = 1;
 				latch_mq = 1;
+				latch_ma = 1;
 				latch_step = 1;
 				
 				// TODO: Reset all of the flags
@@ -984,8 +991,14 @@ function decode(input) {
 			// IF DEVICE_REQ:
 			//  1 -> DEV_REQ_GRANT
 			//  1 -> REQ_ADDR_PHASE
+			//  1 -> EXTEND_ENABLE
 			//  EXTERNAL -> MA
 			//  STEP_SRV_DRQ_COUNT_READ -> NEXT
+			// ELSE IF INTERRUPT_REQ:
+			//  1 -> INTERRUPT_DETECT
+			//  1 -> EXTEND_ENABLE
+			//  0 -> MA
+			//  STEP_SRV_IRQ_SAVE_PC -> NEXT
 			// ELSE:
 			//  0 -> EXTEND_ENABLE
 			//  CORE[PC] -> IR, MA, OB, MB
@@ -999,12 +1012,29 @@ function decode(input) {
 					dev_req_grant = 1;
 					
 					// Read external value into MA
+					extended_addressing_enable = 1;
 					bus_output_select = BUS_SELECT_EXTERNAL;
 					latch_ma = 1;
-					
-					
+				
 					
 					next_step = STEP_SRV_DRQ_COUNT_READ;
+					break;
+					
+				} else if (interrupt_req) {
+					
+					// Raise interrupt detect pulse
+					interrupt_detect = 1;
+					
+					// Put zero on the bus
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_CLEAR;
+					
+					// Place it in MA
+					extended_addressing_enable = 1;
+					latch_ma = 1;
+					
+					console.log("Entering into IRQ path");
+					next_step = STEP_SRV_IRQ_SAVE_PC;
 					break;
 					
 				} else {
@@ -1632,6 +1662,57 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 				
+			// Store the PC in MB, OB for later use
+			// PC -> MB, OB
+			// STEP_SRV_IRQ_WRITE_PC -> NEXT
+			case STEP_SRV_IRQ_SAVE_PC:
+			
+				// Put the contents of PC onto the bus
+				bus_output_select = BUS_SELECT_CROSS;
+				select_pc_ma = ADDR_SELECT_PC;
+				
+				// Store on MB, OB
+				latch_mb = 1;
+				latch_ob = 1;
+				
+				next_step = STEP_SRV_IRQ_WRITE_PC;
+				break;
+				
+			// Store the contents of MB, OB into core
+			// (OB OR MB) -> CORE[MA]
+			// STEP_SRV_IRQ_MA_PC_INC -> NEXT
+			case STEP_SRV_IRQ_WRITE_PC:
+			
+			// Put the ALU onto the bus
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
+				
+				// Write to core
+				select_pc_ma = ADDR_SELECT_MA;
+				write_core = 1;
+				latch_mb = 1;
+			
+				next_step = STEP_SRV_IRQ_MA_PC_INC;
+				break;
+				
+			// Put MA + 1 into PC
+			// 1 -> EXTEND_ENABLE
+			// MA + 1 -> PC
+			// STEP_SRV_FETCH -> NEXT 
+			case STEP_SRV_IRQ_MA_PC_INC:
+			
+				// Put MA + 1 onto the bus
+				bus_output_select = BUS_SELECT_CROSS;
+				select_pc_ma = ADDR_SELECT_MA;
+				constant_value = 1;
+				
+				// Latch into PC
+				extended_addressing_enable = 1;
+				latch_pc = 1;
+			
+				next_step = STEP_SRV_FETCH_IGDV;
+				break;
+				
 			default:
 				break;
 				
@@ -1800,7 +1881,7 @@ function decode(input) {
 						next_step = STEP_ISR_CAL_PC_MB;
 						break;
 						
-					// Store to program counter in MB, OB
+					// Store the program counter in MB, OB
 					// PC -> MB, OB
 					// STEP_ISR_CAL_PC_STORE -> NEXT
 					case STEP_ISR_CAL_PC_MB:

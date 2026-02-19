@@ -36,6 +36,16 @@ The second subsystem is the I/O bus. This is directly controlled by the processo
 Device interrupts simply tell the processor to begin an interrupt operation. When an interrupt is accepted, the I/O bus will be notified of the action
 and is responsible for turning off the "Program Interrupt" flag. If this does not happen, interrupts will continuously loop. 
 
+#### Steps:
+
+1. Interrupt is accepted. MA is completely zeroed and the "INTERRUPT_DETECT" pulse is asserted for this clock cycle.
+
+2. PC is stored in MB, OB
+
+3. The logical OR of MB and OB is place in CORE at MA. The crossbar will add the LINK and MEMM flags
+
+4. MA + 1 is placed in the PC. Extend is enabled to ensure that bank 0 is selected. The next fetch will ignore device requests
+
 ### IOT Transactions
 
 IOT transactions allow data to be transferred to or from the accumulator. IOTs also allow for skips to be requested. Every IOT is treated by the CPU
