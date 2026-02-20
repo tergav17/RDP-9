@@ -26,7 +26,9 @@ var sysflag_state = {
 	
 	// Interrupt enable
 	r_flag_pi: 0
-};
+	
+	// Restore pending
+	r_flag_rest_pending: 0
 
 // Device request 
 var drq_state = {
