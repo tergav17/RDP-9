@@ -139,7 +139,15 @@ function latch(cpu, devices) {
 	
 	// Update main registers
 	let latch_select = cpu.r_state[1];
-	let extended_addressing_latch = getbit(cpu.r_state[2], 5, 1);
+	let address_register_mode = getbit(cpu.r_state[2], 5, 2);
+	let extended_mode = 0;
+	
+	if (address_register_mode == ADDR_REG_MODE_EXT_ON) {
+		extended_mode = 1;
+	} else if (address_register_mode == ADDR_REG_MODE_EXT_FLAG) {
+		extended_mode = 0;
+		// TODO USE EXTEND FLAG HERE
+	}
 	
 	// IR register
 	if (getbit(latch_select, BUS_LATCH_IR, 1)) {
@@ -158,7 +166,7 @@ function latch(cpu, devices) {
 	
 	// MA register
 	if (getbit(latch_select, BUS_LATCH_MA, 1)) {
-		if (extended_addressing_latch) {
+		if (extended_mode) {
 			cpu.r_reg_ma = getbit(bus(cpu.s_data_bus), 0, 15);
 		} else {
 			cpu.r_reg_ma = cpu.r_reg_pc & 060000;
@@ -171,7 +179,7 @@ function latch(cpu, devices) {
 	
 	// PC register
 	if (getbit(latch_select, BUS_LATCH_PC, 1)) {
-		if (extended_addressing_latch) {
+		if (extended_mode) {
 			cpu.r_reg_pc = getbit(bus(cpu.s_data_bus), 0, 15);
 		} else {
 			cpu.r_reg_pc &= 060000;
@@ -463,7 +471,8 @@ function propagate(cpu, devices) {
 	
 	// Step 3: Propagate registers onto their proper buses
 	
-	let page_zero_addressing = getbit(cpu.r_state[2], 6, 1);
+	let address_register_mode = getbit(cpu.r_state[2], 5, 2);
+	let page_zero_addressing = (address_register_mode == ADDR_REG_MODE_FORCE_ZERO) ? 1 : 0;
 	
 	// Get the address bus
 	let pc_ma_switch = getbit(cpu.r_state[2], 3, 1);
@@ -571,7 +580,13 @@ const BUS_LATCH_CORE = 7;
 const ADDR_SELECT_PC = 0;
 const ADDR_SELECT_MA = 1;
 
-// ALU Stuff
+// Address register modes
+const ADDR_REG_MODE_EXT_FLAG = 0;
+const ADDR_REG_MODE_EXT_ON = 1;
+const ADDR_REG_MODE_EXT_OFF = 2;
+const ADDR_REG_MODE_FORCE_ZERO = 3;
+
+// ALU stuff
 const ALU_OP_SELECT = 0;
 const ALU_LINK_SELECT = 3;
 const ALU_SELECT_SHIFTER = 5;
@@ -804,7 +819,7 @@ function decode(input) {
 	//	I[3] = IR['14]
 	//	I[4] = Indirection
 	//	I[5:8] = Instruction
-	//	I[9] = Extended mode
+	//	I[9] = 
 	//	I[10] =  MA auto index
 	// If Decode Mode == 2 (Operate Mode)
 	//	I[0] = Current step
@@ -851,8 +866,7 @@ function decode(input) {
 	//	7: External
 	// O[2][3] = Select PC / MA address
 	// O[2][4] = Halt indicator
-	// O[2][5] = Enable extended address latching
-	// O[2][6] = Force page zero address
+	// O[2][5:6] = Address register mode
 	// O[2][7] = Constant generation
 	//	0: ALU | 0 / ADDR + 0
 	//	1: ALU | 020 / ADDR + 1
@@ -898,8 +912,8 @@ function decode(input) {
 	let select_pc_ma = ADDR_SELECT_PC;
 	let constant_value = 0;
 	
-	let extended_addressing_enable = 0;
-	let bank_zero_enable = 0;
+	// Default extended addressing mode
+	let address_register_mode = ADDR_REG_MODE_EXT_FLAG;
 	
 	// IOT stuff
 	let latch_wrtbk = 0;
@@ -960,7 +974,7 @@ function decode(input) {
 				break;
 				
 			// Clear out the all of the registers
-			// 1 -> EXTEND_ENABLE
+			// EXT_ON -> ADDR_REG_MODE
 			// 0 -> PC, AC, MQ, MA, STEP
 			// STEP_SRV_REFETCH -> NEXT
 			case STEP_SRV_RESET_AC_CLEAR:
@@ -970,7 +984,7 @@ function decode(input) {
 				alu_op_select = ALU_CLEAR;
 				
 				// We enable extension so the entire PC / MA gets reset
-				extended_addressing_enable = 1;
+				address_register_mode = ADDR_REG_MODE_EXT_ON;
 				
 				// Perform a write on AC, PC, MQ, MA, STEP
 				latch_pc = 1;
@@ -991,16 +1005,16 @@ function decode(input) {
 			// IF DEVICE_REQ:
 			//  1 -> DEV_REQ_GRANT
 			//  1 -> REQ_ADDR_PHASE
-			//  1 -> EXTEND_ENABLE
+			//  EXT_ON -> ADDR_REG_MODE
 			//  EXTERNAL -> MA
 			//  STEP_SRV_DRQ_COUNT_READ -> NEXT
 			// ELSE IF INTERRUPT_REQ:
 			//  1 -> INTERRUPT_DETECT
-			//  1 -> EXTEND_ENABLE
+			//  EXT_ON -> ADDR_REG_MODE
 			//  0 -> MA
 			//  STEP_SRV_IRQ_SAVE_PC -> NEXT
 			// ELSE:
-			//  0 -> EXTEND_ENABLE
+			//  EXT_OFF -> ADDR_REG_MODE
 			//  CORE[PC] -> IR, MA, OB, MB
 			//  STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH:
@@ -1012,7 +1026,7 @@ function decode(input) {
 					dev_req_grant = 1;
 					
 					// Read external value into MA
-					extended_addressing_enable = 1;
+					address_register_mode = ADDR_REG_MODE_EXT_ON;
 					bus_output_select = BUS_SELECT_EXTERNAL;
 					latch_ma = 1;
 				
@@ -1030,7 +1044,7 @@ function decode(input) {
 					alu_op_select = ALU_CLEAR;
 					
 					// Place it in MA
-					extended_addressing_enable = 1;
+					address_register_mode = ADDR_REG_MODE_EXT_ON;
 					latch_ma = 1;
 					
 					console.log("Entering into IRQ path");
@@ -1040,7 +1054,7 @@ function decode(input) {
 				} else {
 					// Fetch the instruction from memory
 					// Read from core, put it in IR, MA, and MB
-					extended_addressing_enable = 0;
+					address_register_mode = ADDR_REG_MODE_EXT_OFF;
 					bus_output_select = BUS_SELECT_CORE;
 					select_pc_ma = ADDR_SELECT_PC;
 					
@@ -1061,14 +1075,14 @@ function decode(input) {
 			// Start an instruction execution cycle
 			// The instruction should be fetched from memory
 			// No device requests will be sampled here
-			// 0 -> EXTEND_ENABLE
+			// EXT_OFF -> ADDR_REG_MODE
 			// CORE[PC] -> IR, MA, OB, MB
 			// STEP_SRV_PC_NEXT -> NEXT
 			case STEP_SRV_FETCH_IGDV:
 				
 				// Fetch the instruction from memory
 				// Read from core, put it in IR, MA, and MB
-				extended_addressing_enable = 0;
+				address_register_mode = ADDR_REG_MODE_EXT_OFF;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
 				
@@ -1148,17 +1162,17 @@ function decode(input) {
 				
 			// The halt state, await for a front panel switch to be depressed
 			// IF FP_HALT_STEP:
-			//  0 -> EXTEND_ENABLE
+			//  EXT_OFF -> ADDR_REG_MODE
 			//  CORE[PC] -> IR, MA, OB, MB
 			//  STEP_SRV_PC_NEXT_IGFP -> NEXT
 			// ELSE IF FP_CONT:
 			//  STEP_SRV_FETCH -> NEXT
 			// ELSE IF FP_GOTO:
-			//  1 -> EXTEND_ENABLE
+			//  EXT_ON -> ADDR_REG_MODE
 			//  SW -> PC
 			//  STEP_SRV_REFETCH -> NEXT
 			// ELSE IF FP_EXAM:
-			//  1 -> EXTEND_ENABLE
+			//  EXT_ON -> ADDR_REG_MODE
 			//  SW -> MA
 			//  STEP_SRV_SHOW_CORE -> NEXT
 			// ELSE IF FP_EXAM_NEXT:
@@ -1186,7 +1200,7 @@ function decode(input) {
 					case FP_HALT_STEP:
 						// We are doing a single step, re-read in the instruction
 						// Read from core, put it in IR, MA, and MB
-						extended_addressing_enable = 0;
+						address_register_mode = ADDR_REG_MODE_EXT_OFF;
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_PC;
 						
@@ -1206,7 +1220,7 @@ function decode(input) {
 					
 					case FP_GOTO:
 						// Update the program counter using the switch register
-						extended_addressing_enable = 1;
+						address_register_mode = ADDR_REG_MODE_EXT_ON;
 						bus_output_select = BUS_SELECT_SWR;
 						
 						// Latch PC
@@ -1218,7 +1232,7 @@ function decode(input) {
 						
 					case FP_EXAM:
 						// Update the memory address using the switch register
-						extended_addressing_enable = 1;
+						address_register_mode = ADDR_REG_MODE_EXT_ON;
 						bus_output_select = BUS_SELECT_SWR;
 						
 						// Latch MA
@@ -1281,13 +1295,13 @@ function decode(input) {
 				
 			// Perform a refetch to update register values
 			// When completed, return to the halt loop
-			// 0 -> EXTEND_ENABLE
+			// EXT_OFF -> ADDR_REG_MODE
 			// CORE[PC] -> IR, MA, OB, MB
 			// STEP_SRV_AWAIT_NOFP -> NEXT
 			case STEP_SRV_REFETCH:
 			
 				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
-				extended_addressing_enable = 0;
+				address_register_mode = ADDR_REG_MODE_EXT_OFF;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
 				
@@ -1522,7 +1536,7 @@ function decode(input) {
 				
 			// Value in MB, OB incremented and written back to core at MA and OB
 			// "REQ_ADDR_PHASE" held
-			// 1 -> EXTEND_ENABLE
+			// EXT_ON -> ADDR_REG_MODE
 			// 1 -> DEV_REQ_GRANT
 			// 1 -> REQ_ADDR_PHASE
 			// (OB OR MB) + 1 -> CORE[MA], MA, OB, MB
@@ -1539,7 +1553,7 @@ function decode(input) {
 				alu_select_ones = 1;
 				
 				// Prepare to to CORE[MA], MA, OB, MB
-				extended_addressing_enable = 1;
+				address_register_mode = ADDR_REG_MODE_EXT_ON;
 				select_pc_ma = ADDR_SELECT_MA;
 				write_core = 1;
 				latch_mb = 1;
@@ -1603,7 +1617,7 @@ function decode(input) {
 				
 			// Value in MB, OB incremented and written back to core at MA and MA
 			// 1 -> DEV_REQ_GRANT
-			// 1 -> EXTEND_ENABLE
+			// EXT_ON -> ADDR_REG_MODE
 			// (OB OR MB) + 1 -> CORE[MA], MA
 			// STEP_SRV_DRQ_DATA_READ -> NEXT
 			case STEP_SRV_DRQ_PTR_INC:
@@ -1617,7 +1631,7 @@ function decode(input) {
 				alu_select_ones = 1;
 				
 				// Write MA and CORE[MA]
-				extended_addressing_enable = 1;
+				address_register_mode = ADDR_REG_MODE_EXT_ON;
 				latch_ma = 1;
 				write_core = 1;
 			
@@ -1696,7 +1710,7 @@ function decode(input) {
 				break;
 				
 			// Put MA + 1 into PC
-			// 1 -> EXTEND_ENABLE
+			// EXT_ON -> ADDR_REG_MODE
 			// MA + 1 -> PC
 			// STEP_SRV_FETCH -> NEXT 
 			case STEP_SRV_IRQ_MA_PC_INC:
@@ -1707,7 +1721,7 @@ function decode(input) {
 				constant_value = 1;
 				
 				// Latch into PC
-				extended_addressing_enable = 1;
+				address_register_mode = ADDR_REG_MODE_EXT_ON;
 				latch_pc = 1;
 			
 				next_step = STEP_SRV_FETCH_IGDV;
@@ -1726,7 +1740,7 @@ function decode(input) {
 		let ir_14 = getbit(input, 3, 1);
 		let indirect = getbit(input, 4, 1);
 		let opcode = getbit(input, 5, 4);
-		let extend_mode = getbit(input, 9, 1);
+		let __blank__ = getbit(input, 9, 1);
 		let flag_maai = getbit(input, 10, 1);
 		
 		//console.log("Opcode: " + opcode + ", Step: " + step);
@@ -1743,11 +1757,10 @@ function decode(input) {
 				// Otherwise it goes into OB, MB
 				// IF INDIR:
 				//  IF FLAG_MAAI:
-				//   1 -> ZERO_PAGE
+				//   FORCE_ZERO -> ADDR_REG_MODE
 				//	 CORE[MA] -> OB, MB
 				//	 STEP_ISR_INDEX_INC -> NEXT
 				//  ELSE:
-				//   EXTEND_MODE -> EXTEND_ENABLE
 				//   CORE[MA] -> MA, MB
 				//	 STEP_ISR_INDIR_COMPLETE -> NEXT
 				// ELSE:
@@ -1759,7 +1772,7 @@ function decode(input) {
 							// Fetch contents of memory from indirect indirect
 							// Make sure we get it from the zero page
 							bus_output_select = BUS_SELECT_CORE;
-							bank_zero_enable = 1;
+							address_register_mode = ADDR_REG_MODE_FORCE_ZERO;
 							select_pc_ma = ADDR_SELECT_MA;
 							
 							// Place it in OB and MB
@@ -1774,9 +1787,6 @@ function decode(input) {
 							// Fetch contents of memory from indirect address
 							bus_output_select = BUS_SELECT_CORE;
 							select_pc_ma = ADDR_SELECT_MA;
-							
-							// If we are in extend mode, use the full address of what we just incremented
-							extended_addressing_enable = extend_mode;
 							
 							// Place it in MA and MB
 							latch_ma = 1;
@@ -1794,7 +1804,6 @@ function decode(input) {
 				// Step 2: Increment the value fetched in step 1, and store it in CORE[MA] / MA
 				// Only do something if we are using the autoincrement functionality
 				// IF INDIR AND FLAG_MAAI:
-				//  EXTEND_MODE -> EXTEND_ENABLE
 				//  (OB OR MB) + 1 -> CORE[MA], MA
 				//  NEXT -> STEP_ISR_INDIR_FETCH
 				// ELSE:
@@ -1805,9 +1814,6 @@ function decode(input) {
 						bus_output_select = BUS_SELECT_ALU;
 						alu_op_select = ALU_OR;
 						alu_select_ones = 1;
-						
-						// If we are in extend mode, use the full address of what we just incremented
-						extended_addressing_enable = extend_mode;
 						
 						// Place the result of the ALU in core and MA
 						select_pc_ma = ADDR_SELECT_MA;
@@ -1834,7 +1840,6 @@ function decode(input) {
 				switch (step) {
 					
 					// Load in 020 to MA and prepare to save PC
-					// EXTEND_MODE -> EXTEND_ENABLE
 					// 020 -> MA
 					// IF INDIRECT:
 					//  STEP_ISR_CAL_INDIR -> NEXT
@@ -1845,9 +1850,6 @@ function decode(input) {
 						bus_output_select = BUS_SELECT_ALU;
 						alu_op_select = ALU_CLEAR;
 						constant_value = 1;
-						
-						// Are we extended?
-						extended_addressing_enable = extend_mode;
 						
 						// Store MA
 						latch_ma = 1;
@@ -1862,16 +1864,12 @@ function decode(input) {
 						break;
 						
 					// Perform indirection on MA
-					// EXTEND_MODE -> EXTEND_ENABLE
 					// CORE[MA] -> MA, MB
 					// STEP_ISR_CAL_PC_MB -> NEXT
 					case STEP_ISR_CAL_INDIR:
 						// Fetch contents of memory from indirect address
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
-						
-						// If we are in extend mode, use the full address of what we just incremented
-						extended_addressing_enable = extend_mode;
 						
 						// Place it in MA and MB
 						latch_ma = 1;
@@ -1915,7 +1913,6 @@ function decode(input) {
 						break;
 						
 					// Put MA + 1 into PC
-					// 1 -> EXTEND_ENABLE
 					// MA + 1 -> PC
 					// STEP_SRV_FETCH -> NEXT 
 					case STEP_ISR_CAL_MA_PC:
@@ -1925,7 +1922,6 @@ function decode(input) {
 						constant_value = 1;
 						
 						// Latch into PC
-						extended_addressing_enable = 1;
 						latch_pc = 1;
 						
 						// We are done
@@ -2026,7 +2022,6 @@ function decode(input) {
 						break;
 						
 					// Put MA + 1 into PC
-					// 1 -> EXTEND_ENABLE
 					// MA + 1 -> PC
 					// STEP_SRV_FETCH -> NEXT 
 					case STEP_ISR_JMS_MA_PC:
@@ -2036,7 +2031,6 @@ function decode(input) {
 						constant_value = 1;
 						
 						// Latch into PC
-						extended_addressing_enable = 1;
 						latch_pc = 1;
 						
 						// We are done
@@ -2238,13 +2232,13 @@ function decode(input) {
 				switch (step) {
 					
 					// Fetch using MA instead of PC
-					// 0 -> EXTEND_ENABLE
+					// EXT_OFF -> ADDR_REG_MODE
 					// CORE[PC] -> IR, MA
 					// STEP_ISR_XCT_NULL -> NEXT
 					case STEP_ISR_INDIR_COMPLETE:
 						
 						// Read from core, put it in IR, MA, and MB
-						extended_addressing_enable = 0;
+						address_register_mode = ADDR_REG_MODE_EXT_OFF;
 						bus_output_select = BUS_SELECT_CORE;
 						select_pc_ma = ADDR_SELECT_MA;
 						
@@ -2426,7 +2420,7 @@ function decode(input) {
 				// Skip if AC different
 				switch (step) {
 					// Store MA into PC
-					// 1 -> EXTEND_ENABLE
+					// EXT_ON -> ADDR_REG_MODE
 					// MA -> PC
 					// STEP_SRV_FETCH -> NEXT
 					case STEP_ISR_INDIR_COMPLETE:
@@ -2436,7 +2430,7 @@ function decode(input) {
 						select_pc_ma = ADDR_SELECT_MA;
 						
 						// Latch PC
-						extended_addressing_enable = 1;
+						address_register_mode = ADDR_REG_MODE_EXT_ON;
 						latch_pc = 1;
 						
 						// We are done
@@ -2723,8 +2717,7 @@ function decode(input) {
 	let bus_control = 	bus_output_select | 
 						(select_pc_ma << 3) | 
 						(halt_indicator << 4) | 
-						(extended_addressing_enable << 5) | 
-						(bank_zero_enable << 6) | 
+						(address_register_mode << 5) | 
 						(constant_value << 7);
 	
 	let dev_control =	(latch_wrtbk << BUS_LATCH_WRTBK) |

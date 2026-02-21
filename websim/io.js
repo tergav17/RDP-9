@@ -25,10 +25,11 @@ var sysflag_state = {
 	r_flag_memm: 0,
 	
 	// Interrupt enable
-	r_flag_pi: 0
+	r_flag_pi: 0,
 	
 	// Restore pending
 	r_flag_rest_pending: 0
+};
 
 // Device request 
 var drq_state = {
@@ -58,7 +59,7 @@ for (let i = 0; i < 8; i++) {
 	drq_state.devices[i].r_req_dma = 0;
 	drq_state.devices[i].r_req_dev_chan = 0;
 	
-}
+};
 
 const RTC_DEVICE_ID = 0;
 const RTC_DRQ_PRIORITY = 0;
@@ -119,7 +120,7 @@ var tty_state = {
 	
 	// Printer delay constant
 	printer_delay: 0
-}
+};
 
 var device_states = {
 	
