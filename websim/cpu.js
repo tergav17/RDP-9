@@ -145,8 +145,7 @@ function latch(cpu, devices) {
 	if (address_register_mode == ADDR_REG_MODE_EXT_ON) {
 		extended_mode = 1;
 	} else if (address_register_mode == ADDR_REG_MODE_EXT_FLAG) {
-		extended_mode = 0;
-		// TODO USE EXTEND FLAG HERE
+		extended_mode = devices.sysflag.r_flag_memm;
 	}
 	
 	// IR register
@@ -299,7 +298,7 @@ function propagate(cpu, devices) {
 			microcode_input |= cpu.r_state[0] & 007
 			microcode_input |= getbit(cpu.r_reg_ir, 3, 1) << 3;
 			microcode_input |= getbit(cpu.r_reg_ir, 13, 5) << 4;
-			microcode_input |= 0 << 9; // TODO: Extend mode
+			microcode_input |= devices.sysflag.r_flag_rest_pending << 9; 
 			microcode_input |= cpu.r_reg_maai << 10;
 			break;
 			
@@ -714,7 +713,7 @@ const STEP_ISR_JMS_PC_STORE = 3;	// Store the program counter
 const STEP_ISR_JMS_MA_PC = 4;		// Store the MA + 1 into PC
 
 // DZM
-const OPCODE_DZM = 3;				// Initial step; Store 0 into CORE[MA]
+const OPCODE_DZM = 3;				// Initial step: Store 0 into CORE[MA]
 
 // LAC		
 const OPCODE_LAC = 4;				// Initial step: Store CORE[MA] into AC
@@ -734,22 +733,27 @@ const OPCODE_TAD = 7;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_TAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_TAD_LATCH = 4;		// Latch the result of the TAD into AC
 
+// XCT
 const OPCODE_XCT = 8;				// Initial step: Perform a fetch using MA instead of PC
 const STEP_ISR_XCT_NULL = 3;		// Null cycle before returning to instruction execution
 
+// ISZ
 const OPCODE_ISZ = 9;				// Initial step: Store CORE[MA] into OB, MB
 const STEP_ISR_ISZ_INC = 3;			// Increment value in OB, MB, store in OB and CORE[MA]
 const STEP_ISR_ISZ_NULL = 4;		// Null cycle before checking the value
 
+// AND
 const OPCODE_AND = 10;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_AND_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_AND_LATCH = 4;		// Latch the result of the AND into AC
 
+// SAD
 const OPCODE_SAD = 11;				// Initial step: Store CORE[MA] into MB
 const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
 
+// JMP
 const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
 
 // EAE
@@ -1740,7 +1744,7 @@ function decode(input) {
 		let ir_14 = getbit(input, 3, 1);
 		let indirect = getbit(input, 4, 1);
 		let opcode = getbit(input, 5, 4);
-		let __blank__ = getbit(input, 9, 1);
+		let rest_pending = getbit(input, 9, 1);
 		let flag_maai = getbit(input, 10, 1);
 		
 		//console.log("Opcode: " + opcode + ", Step: " + step);
@@ -1761,8 +1765,13 @@ function decode(input) {
 				//	 CORE[MA] -> OB, MB
 				//	 STEP_ISR_INDEX_INC -> NEXT
 				//  ELSE:
-				//   CORE[MA] -> MA, MB
-				//	 STEP_ISR_INDIR_COMPLETE -> NEXT
+				//   CORE[MA] -> MA, OB, MB
+				//	 IF OPCODE == JMP:
+				//    1 -> JMP_I_DETECT
+				//   IF OPCODE == JMP AND REST_PENDING:
+				//    STEP_ISR_JMP_RESTORE -> NEXT
+				//   ELSE:
+				//	  STEP_ISR_INDIR_COMPLETE -> NEXT
 				// ELSE:
 				//  GOTO STEP_ISR_INDEX_INC
 				case STEP_ISR_EXECUTE_BEGIN:
@@ -1788,8 +1797,9 @@ function decode(input) {
 							bus_output_select = BUS_SELECT_CORE;
 							select_pc_ma = ADDR_SELECT_MA;
 							
-							// Place it in MA and MB
+							// Place it in MA, OB, and MB
 							latch_ma = 1;
+							latch_ob = 1;
 							latch_mb = 1;
 							
 							// We have completed the indirection
@@ -1804,8 +1814,13 @@ function decode(input) {
 				// Step 2: Increment the value fetched in step 1, and store it in CORE[MA] / MA
 				// Only do something if we are using the autoincrement functionality
 				// IF INDIR AND FLAG_MAAI:
-				//  (OB OR MB) + 1 -> CORE[MA], MA
-				//  NEXT -> STEP_ISR_INDIR_FETCH
+				//  (OB OR MB) + 1 -> CORE[MA], MA, OB, MB
+				//	IF OPCODE == JMP:
+				//   1 -> JMP_I_DETECT
+				//  IF OPCODE == JMP AND REST_PENDING:
+				//   STEP_ISR_JMP_RESTORE -> NEXT
+				//  ELSE:
+				//   NEXT -> STEP_ISR_INDIR_FETCH
 				// ELSE:
 				//  GOTO STEP_ISR_INDIR_FETCH
 				case STEP_ISR_INDEX_INC:
@@ -1815,10 +1830,12 @@ function decode(input) {
 						alu_op_select = ALU_OR;
 						alu_select_ones = 1;
 						
-						// Place the result of the ALU in core and MA
+						// Place the result of the ALU in core, MA, OB, and MB
 						select_pc_ma = ADDR_SELECT_MA;
 						write_core = 1;
 						latch_ma = 1;
+						latch_ob = 1;
+						latch_mb = 1;
 						
 						// We are done, execute the instruction in the next step
 						next_step = STEP_ISR_INDIR_COMPLETE;
