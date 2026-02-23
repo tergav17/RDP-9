@@ -140,11 +140,11 @@ function latch(cpu, devices) {
 	// Update main registers
 	let latch_select = cpu.r_state[1];
 	let address_register_mode = getbit(cpu.r_state[2], 5, 2);
-	let extended_mode = 0;
 	
+	let extended_mode = 0;
 	if (address_register_mode == ADDR_REG_MODE_EXT_ON) {
 		extended_mode = 1;
-	} else if (address_register_mode == ADDR_REG_MODE_EXT_FLAG) {
+	} else if (address_register_mode == ADDR_REG_MODE_EXT_FLAG || address_register_mode == ADDR_REG_MODE_FORCE_ZERO) {
 		extended_mode = devices.sysflag.r_flag_memm;
 	}
 	
@@ -580,9 +580,9 @@ const ADDR_SELECT_PC = 0;
 const ADDR_SELECT_MA = 1;
 
 // Address register modes
-const ADDR_REG_MODE_EXT_FLAG = 0;
+const ADDR_REG_MODE_EXT_OFF = 0;
 const ADDR_REG_MODE_EXT_ON = 1;
-const ADDR_REG_MODE_EXT_OFF = 2;
+const ADDR_REG_MODE_EXT_FLAG = 2;
 const ADDR_REG_MODE_FORCE_ZERO = 3;
 
 // ALU stuff
@@ -755,6 +755,7 @@ const STEP_ISR_SAD_NULL = 5;
 
 // JMP
 const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
+const STEP_ISR_JMP_RESTORE = 3;		// Perform a restore, Bit 18 of OB is moved into the link register
 
 // EAE
 const OPCODE_EAE = 13;
@@ -1802,8 +1803,18 @@ function decode(input) {
 							latch_ob = 1;
 							latch_mb = 1;
 							
+							// Jump detection
+							if (opcode == OPCODE_JMP) {
+								jmp_i_detect = 1;
+							}
+							
 							// We have completed the indirection
-							next_step = STEP_ISR_INDIR_COMPLETE;
+							// Do we need to restore?
+							if (opcode == OPCODE_JMP && rest_pending) {
+								next_step = STEP_ISR_JMP_RESTORE;
+							} else {
+								next_step = STEP_ISR_INDIR_COMPLETE;
+							}
 							break;
 						}
 					} else {
@@ -1832,13 +1843,24 @@ function decode(input) {
 						
 						// Place the result of the ALU in core, MA, OB, and MB
 						select_pc_ma = ADDR_SELECT_MA;
+						address_register_mode = ADDR_REG_MODE_FORCE_ZERO;
 						write_core = 1;
 						latch_ma = 1;
 						latch_ob = 1;
 						latch_mb = 1;
 						
+						// Jump detection
+						if (opcode == OPCODE_JMP) {
+							jmp_i_detect = 1;
+						}
+						
 						// We are done, execute the instruction in the next step
-						next_step = STEP_ISR_INDIR_COMPLETE;
+						// Do we need to restore?
+						if (opcode == OPCODE_JMP && rest_pending) {
+							next_step = STEP_ISR_JMP_RESTORE;
+						} else {
+							next_step = STEP_ISR_INDIR_COMPLETE;
+						}
 						break;
 					} else {
 						// Fall to STEP_ISR_INDIR_COMPLETE
@@ -2454,6 +2476,25 @@ function decode(input) {
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
 						break;
+						
+						
+					// Restore link register
+					// OB[17] -> L
+					// STEP_ISR_INDIR_COMPLETE -> NEXT
+					case STEP_ISR_JMP_RESTORE:
+					
+						// Setup ALU mode
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_SHIFT_RAL;
+						alu_link_select = ALU_LINK_SHIFT;
+						
+						// Latch OB to "lock in" the new value of L
+						latch_ob = 1;
+					
+						// Now we can do the actual jump
+						next_step = STEP_ISR_INDIR_COMPLETE;
+						break;
+					
 				}
 				break;
 				

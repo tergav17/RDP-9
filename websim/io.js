@@ -18,6 +18,8 @@ const play_bell = document.getElementById("play-bell");
 
 /* --- IO SUBSYSTEM EMULATION --- */
 
+const API_DEVICE_ID = 033;
+
 // System flag states
 var sysflag_state = {
 	
@@ -283,12 +285,31 @@ function io_propagate(cpu, devices) {
 	// Handle activites
 	switch (device) {
 		
+		// API stuff
+		// We don't actually API installed, but we still need to handle DBR
+		case API_DEVICE_ID:
+		
+			sysflag = devices.sysflag;
+			
+			// Always skip for our configuration
+			if (pulse & 001 && iot_pulse) {
+				skip = 1;
+			}
+			
+			// DBR
+			if (pulse & 004 && subdevice & 002 && iot_pulse) {
+				// Async set of restore
+				sysflag.r_flag_rest_pending = 1;
+			}
+			
+			break;
+		
 		// Real time clock
 		// Also include interrupt stuff
 		case RTC_DEVICE_ID:
 		
-			let rtc = devices.rtc;
-			let sysflag = devices.sysflag;
+			rtc = devices.rtc;
+			sysflag = devices.sysflag;
 			
 			// Skip if flag is set
 			if (pulse & 001 && iot_pulse) {
@@ -318,7 +339,7 @@ function io_propagate(cpu, devices) {
 		// Paper tape reader
 		case PPTR_DEVICE_ID: 
 
-			let ppt = devices.ppt;
+			ppt = devices.ppt;
 		
 			// Assert skip flag if needed
 			if (pulse & 001 && iot_pulse) {
@@ -352,7 +373,7 @@ function io_propagate(cpu, devices) {
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
 		
-			let tty = devices.tty;
+			tty = devices.tty;
 			
 			// Check printer ready flag
 			if (pulse & 001 && iot_pulse) {
@@ -381,6 +402,11 @@ function io_propagate(cpu, devices) {
 	// Do async reset of PIE if an interrupt is detected
 	if (interrupt_detect) {
 		devices.sysflag.r_flag_pi = 0;
+	}
+	
+	// Do ansync reset of restore if a JMP I is detected
+	if (jmp_i_detect) {
+		devices.sysflag.r_flag_rest_pending = 0;
 	}
 	
 	// Create interrupt request signal
