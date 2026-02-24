@@ -236,6 +236,7 @@ function io_propagate(cpu, devices) {
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	let increment_zero_pulse = (getbit(cpu.r_state[2], 7, 1) && cpu.r_reg_zero) ? 1 : 0;
+	let cpu_clear_all_flags = getbit(cpu.r_state[2], CLEAR_ALL_FLAGS, 1)
 	
 	let data_in = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
@@ -294,6 +295,11 @@ function io_propagate(cpu, devices) {
 			// Always skip for our configuration
 			if (pulse & 001 && iot_pulse) {
 				skip = 1;
+			}
+			
+			// Do we CAF?
+			if (pulse & 002 && iot_pulse) {
+				clear_all_flags(devices);
 			}
 			
 			// DBR
@@ -399,6 +405,11 @@ function io_propagate(cpu, devices) {
 			break;
 	}
 	
+	// Do we need to do a CPU CAF?
+	if (cpu_clear_all_flags) {
+		clear_all_flags(devices);
+	}
+	
 	// Do async reset of PIE if an interrupt is detected
 	if (interrupt_detect) {
 		devices.sysflag.r_flag_pi = 0;
@@ -426,6 +437,31 @@ function io_propagate(cpu, devices) {
 
 
 /* --- DEVICE STUFF --- */
+
+/*
+ * Clears all flags
+ */
+function clear_all_flags(devices) {
+	
+	// Clear system stuff
+	let sysflag = devices.sysflag;
+	sysflag.r_flag_memm = 0;
+	
+	// Clear RTC stuff
+	let rtc = devices.rtc;
+	drq.devices[RTC_DRQ_PRIORITY].r_drq = 0;
+	r_rtc_flag = 0;
+	
+	// Clear PPT stuff
+	let ppt = devices.ppt;
+	ppt.r_pptr_flag = 0;
+	ppt.pptr_mode = PPTR_MODE_NULL;
+	
+	// Clear TTY
+	let tty = devices.tty;
+	tty.r_printer_flag = 0;
+	
+}
 
 /*
  * Device tick, used for timing certain things

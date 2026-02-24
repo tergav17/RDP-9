@@ -998,6 +998,9 @@ function decode(input) {
 				latch_ma = 1;
 				latch_step = 1;
 				
+				// Set clear all flags here too
+				clear_all_flags = 1;
+				
 				// TODO: Reset all of the flags
 				next_step = STEP_SRV_REFETCH;
 				break;
