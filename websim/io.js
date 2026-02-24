@@ -109,6 +109,7 @@ var ppt_state = {
 	
 };
 
+const TTY_KEYBD_DEVICE_ID = 3;
 const TTY_PRINT_DEVICE_ID = 4;
 
 // TTY printer / keyboard state
@@ -375,6 +376,40 @@ function io_propagate(cpu, devices) {
 				}
 			}
 			break;
+		
+		case TTY_KEYBD_DEVICE_ID:
+			
+			sysflag = devices.sysflag;
+			ppt = devices.ppt;
+			tty = devices.tty;
+			rtc = devices.rtc;
+			
+			// IORS (it's in KEYBD for some reason?)
+			if (pulse & 004 && iot_pulse) {
+				iors = 	(sysflag.r_flag_pi << 17) || 
+						(ppt.r_pptr_flag << 16) ||
+						(0 << 15) ||
+						(0 << 14) ||
+						(tty.r_printer_flag << 13) ||
+						(0 << 12) ||
+						(rtc.r_rtc_flag << 11) ||
+						(rtc.r_rtc_enable << 10) ||
+						(0 << 9) ||
+						(0 << 8) ||
+						(0 << 7) ||
+						(0 << 6) ||
+						(0 << 5) ||
+						(0 << 4) ||
+						(0 << 3) ||
+						(0 << 2) ||
+						(0 << 1) ||
+						(0 << 0);
+				
+				cpu.s_device_bus = assert(cpu.s_device_bus, iors);
+				extrn = 1;
+			}
+			
+			break; 
 			
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
