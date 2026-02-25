@@ -29,6 +29,7 @@ The second subsystem is the I/O bus. This is directly controlled by the processo
 - Add-to-memory operations
 - Data channel transfers
 - DMA transfers
+- READ-IN operation
 
 
 ### Device Interrupts
@@ -87,3 +88,8 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 7. Core is read at MA and written to WRTBK
 
 8. External value written to core at MA. "DEV_REQ_GRANT" reset. Jump to fetch without device request logic
+
+### READ-IN Operation
+
+The read-in is used to transfer a set series of words into memory from one of the I/O devices. Only one I/O device can be READ-IN capiable at a time 
+(usually the paper tape reader), and must be placed first in the DRQ chain. 
