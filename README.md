@@ -91,5 +91,20 @@ The final three transaction types (Add-to-memory, data-channels, and DMA transfe
 
 ### READ-IN Operation
 
-The read-in is used to transfer a set series of words into memory from one of the I/O devices. Only one I/O device can be READ-IN capiable at a time 
-(usually the paper tape reader), and must be placed first in the DRQ chain. 
+The read-in is used to transfer a set series of words into memory from one of the I/O devices. Only one I/O device can be be allowed to respond to READ-IN
+at any one time. When a READ-IN transaction is active, the CPU will stall until the designated device signals that it is ready. The device will either signal
+the CPU to commence another READ-IN cycle, or to terminate the READ-IN after any given transfer.
+
+#### Steps:
+
+1. SWR is moved into PC
+
+2. "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
+
+3. "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
+
+4. "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move MA + 1 into MA
+
+5. Null phase, "READ_IN_PULSE" remains reset
+
+6. Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion
