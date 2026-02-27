@@ -664,8 +664,8 @@ const STEP_SRV_IOT_SKIP = 19;		// Skip based on IOT condition
 
 // READ-IN steps
 const STEP_SRV_RDIN_WAIT = 20;		// "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
-const STEP_SRV_RDIN_EXTRN = 21; 	// "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
-const STEP_SRV_RDIN_CHECK = 22; 	// "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move MA + 1 into MA
+const STEP_SRV_RDIN_READ = 21; 		// "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
+const STEP_SRV_RDIN_CHECK = 22; 	// "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move PC + 1 into PC
 const STEP_SRV_RDIN_NULL_ONE = 23; 	// Null phase, "READ_IN_PULSE" remains reset
 const STEP_SRV_RDIN_NULL_TWO = 24;	// Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion
 
@@ -1202,6 +1202,9 @@ function decode(input) {
 			// ELSE IF FP_XCT:
 			//  SW -> IR, MA, OB, MB
 			//  STEP_ISR_EXECUTE_BEGIN -> NEXT
+			// ELSE IF FP_READ_IN:
+			//	SW -> PC
+			//  STEP_SRV_RDIN_WAIT -> NEXT
 			//  
 			// ELSE:
 			//  STEP_SRV_HALT -> NEXT
@@ -1299,6 +1302,18 @@ function decode(input) {
 						
 						// Execute the instruction
 						next_step = STEP_SRV_XCT_NULL;
+						break;
+					
+					case FP_READ_IN:
+						// Place the switch register on the bus
+						bus_output_select = BUS_SELECT_SWR;
+						
+						// Latch into PC
+						address_register_mode = ADDR_REG_MODE_EXT_ON;
+						latch_pc = 1;
+					
+						// Start READ-IN process
+						next_step = STEP_SRV_RDIN_WAIT;
 						break;
 					
 					default:
@@ -1431,7 +1446,7 @@ function decode(input) {
 				break;
 				
 			// Increment the program counter, then fetch
-			//  PC + 1 -> PC
+			// PC + 1 -> PC
 			// STEP_SRV_FETCH -> NEXT
 			case STEP_SRV_SKIP:
 				bus_output_select = BUS_SELECT_CROSS;
@@ -1518,6 +1533,91 @@ function decode(input) {
 				
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
+				
+			// Waiting phase of READ-IN operation
+			// Loops until processor recieves IOT_SKIP or IOT_WAIT
+			// 1 -> READ_IN_PULSE
+			// IF FLAG_IOT_SKIP OR FLAG_IOT_WAIT:
+			//  STEP_SRV_RDIN_READ -> NEXT
+			// ELSE:
+			//  STEP_SRV_RDIN_WAIT -> NEXT
+			case STEP_SRV_RDIN_WAIT:
+			
+				// Set READ_IN pulse
+				read_in = 1;
+				
+				// Do we continue looping?
+				if (flag_iot_skip || flag_iot_wait) {
+					next_step = STEP_SRV_RDIN_READ;
+				} else {
+					next_step = STEP_SRV_RDIN_WAIT
+				}
+			
+				break;
+				
+			// Read phase, sample EXTRN into CORE[PC]
+			// Continue asserting "READ_IN_PULSE"
+			// 1 -> READ_IN_PULSE
+			// EXTRN -> CORE[PC]
+			// STEP_SRV_RDIN_CHECK -> NEXT
+			case STEP_SRV_RDIN_READ:
+			
+				// Set READ_IN pulse
+				read_in = 1;
+				
+				// Sample from I/O device
+				bus_output_select = BUS_SELECT_EXTERNAL;
+				
+				// Write to CORE[MA]
+				select_pc_ma = ADDR_SELECT_PC;
+				write_core = 1;
+			
+				next_step = STEP_SRV_RDIN_CHECK;
+				break;
+				
+			// Depending on the condition, either prepare to CONT or increment PC
+			// IF FLAG_IOT_WAIT:
+			//  PC + 1 -> PC
+			//  STEP_SRV_RDIN_NULL_ONE -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH_IGDV -> NEXT
+			case STEP_SRV_RDIN_CHECK:
+			
+				if (flag_iot_wait) {
+					// Set bus to crossbar with increment
+					bus_output_select = BUS_SELECT_CROSS;
+					constant_value = 1;
+					
+					// Latch the program counter, no extension
+					address_register_mode = ADDR_REG_MODE_EXT_OFF;
+					latch_pc = 1;
+					
+					// Move on to null phases
+					next_step = STEP_SRV_RDIN_NULL_ONE;
+				} else {
+					// Continue
+					next_step = STEP_SRV_FETCH_IGDV;
+				}
+			
+				break;
+				
+			// Null phase #1
+			// We need to give time for the device to finish resetting
+			// STEP_SRV_RDIN_NULL_TWO -> NEXT
+			case STEP_SRV_RDIN_NULL_ONE:
+				
+				// Not much to see here
+				next_step = STEP_SRV_RDIN_NULL_TWO;
+				break;
+				
+			// Null phase #2
+			// STEP_SRV_RDIN_WAIT -> NEXT
+			case STEP_SRV_RDIN_NULL_TWO:
+				
+				// Restart READ-IN
+				next_step = STEP_SRV_RDIN_WAIT;
+				break;
+				
 			
 			// Core is read at MA and written to MB
 			// "REQ_ADDR_PHASE" held

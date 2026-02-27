@@ -103,7 +103,7 @@ the CPU to commence another READ-IN cycle, or to terminate the READ-IN after any
 
 3. "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
 
-4. "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move MA + 1 into MA
+4. "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move PC + 1 into PC
 
 5. Null phase, "READ_IN_PULSE" remains reset
 
