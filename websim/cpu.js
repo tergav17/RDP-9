@@ -662,6 +662,13 @@ const STEP_SRV_IOT_PHASE_TWO = 17;  // Second phase of the IOT. Keep asserting I
 const STEP_SRV_IOT_LATCH_AC = 18;	// Latch the result of the IOT into AC
 const STEP_SRV_IOT_SKIP = 19;		// Skip based on IOT condition
 
+// READ-IN steps
+const STEP_SRV_RDIN_WAIT = 20;		// "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
+const STEP_SRV_RDIN_EXTRN = 21; 	// "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
+const STEP_SRV_RDIN_CHECK = 22; 	// "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move MA + 1 into MA
+const STEP_SRV_RDIN_NULL_ONE = 23; 	// Null phase, "READ_IN_PULSE" remains reset
+const STEP_SRV_RDIN_NULL_TWO = 24;	// Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion
+
 // DRQ steps
 const STEP_SRV_DRQ_COUNT_READ = 20;	// Place CORE[MA] into MB, OB. Hold "REQ_ADDR_PHASE"
 const STEP_SRV_DRQ_COUNT_INC = 21;	// Place (OB OR MB) + 1 into CORE[MA], OB. Hold "REQ_ADDR_PHASE"
