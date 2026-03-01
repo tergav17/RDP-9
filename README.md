@@ -101,10 +101,10 @@ the CPU to commence another READ-IN cycle, or to terminate the READ-IN after any
 
 2. "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
 
-3. "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
+3. "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC. Continue having the constant value asserted.
 
 4. "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move PC + 1 into PC
 
-5. Null phase, "READ_IN_PULSE" remains reset
+5. Null phase, "READ_IN_PULSE" remains reset.
 
 6. Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion

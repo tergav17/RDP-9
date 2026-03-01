@@ -65,7 +65,7 @@ for (let i = 0; i < 8; i++) {
 
 const RTC_DEVICE_ID = 0;
 const RTC_DRQ_PRIORITY = 0;
-const RTC_TICK_TIME = 1000;
+const RTC_TICK_TIME = 100;
 
 // Real time clock
 var rtc_state = {
@@ -85,6 +85,7 @@ const PPTR_DEVICE_ID = 1;
 const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
 const PPTR_MODE_NULL = 2;
+const PPTR_DELAY_CONST = 1000;
 
 // Paper tape reader / punch state
 var ppt_state = {
@@ -147,7 +148,8 @@ var device_states = {
 	
 	// Last pulse states
 	last_iot_pulse_state: 0,
-	last_drq_pulse_state: 0
+	last_drq_pulse_state: 0,
+	last_read_in_pulse_state: 0
 };
 
 const IOT_ISR_DEVICE_FIELD = 6;
@@ -169,6 +171,7 @@ function io_latch(cpu, devices) {
 	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
+	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
 	
 	let data = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
@@ -236,8 +239,11 @@ function io_propagate(cpu, devices) {
 	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
+	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
+	let read_in_clear_pulse = (read_in_pulse && getbit(cpu.r_state[2])) ? 1 : 0;
+	let cpu_clear_all_flags = getbit(iot_cmd, CLEAR_ALL_FLAGS, 1);
 	let increment_zero_pulse = (getbit(cpu.r_state[2], 7, 1) && cpu.r_reg_zero) ? 1 : 0;
-	let cpu_clear_all_flags = getbit(cpu.r_state[2], CLEAR_ALL_FLAGS, 1)
+	
 	
 	let data_in = cpu.r_reg_wrtbk;
 	let addr = cpu.s_addr_bus;
@@ -251,14 +257,17 @@ function io_propagate(cpu, devices) {
 	// Writeback external value?
 	let extrn = 0;
 	
-	// Skip?
+	// Skip or wait?
 	let skip = 0;
+	let wait = 0;
 	
 	// Check for rising and falling edge
 	let iot_rising = (!devices.last_iot_pulse_state && iot_pulse) ? 1 : 0;
 	let iot_falling = (devices.last_iot_pulse_state && !iot_pulse) ? 1 : 0;
 	let drq_rising = (!devices.last_drq_pulse_state && dev_req_grant) ? 1 : 0;
 	let drq_falling = (devices.last_drq_pulse_state && !dev_req_grant) ? 1 : 0;
+	let read_in_rising = (!devices.last_read_in_pulse_state && read_in_pulse) ? 1 : 0;
+	let read_in_falling = (devices.last_read_in_pulse_state && !read_in_pulse) ? 1 : 0;
 	
 	// Propagate DRQ signals
 	let drq = devices.drq;
@@ -281,6 +290,29 @@ function io_propagate(cpu, devices) {
 		if (increment_zero_pulse) {
 			console.log("Increment zero pulse");
 			devices.rtc.r_rtc_flag = 1;
+		}
+	}
+	
+	// READ-IN logic
+	if (read_in_pulse) {
+		ppt = devices.ppt;
+		
+		// Always put the PPTR buffer on the device bus
+		extrn = 1;
+		cpu.s_device_bus = assert(cpu.s_device_bus, ppt.r_pptr_buffer);
+		
+		// Set the reader mode to PPTR_MODE_BINARY to get a full word
+		if (read_in_rising) {
+			ppt.pptr_mode = PPTR_MODE_BINARY;
+		}
+		
+		// Reset the flag at the end of the pulse
+		if (read_in_clear_pulse) {
+			ppt.r_pptr_flag = 0;
+		}
+		
+		if (ppt.r_pptr_flag) {
+			skip = 1;
 		}
 	}
 	
@@ -466,8 +498,10 @@ function io_propagate(cpu, devices) {
 	
 	cpu.s_iot_extrn = extrn;
 	cpu.s_iot_skip = skip;
+	cpu.s_iot_wait = wait;
 	devices.last_iot_pulse_state = iot_pulse;
 	devices.last_drq_pulse_state = dev_req_grant;
+	devices.last_read_in_pulse_state = read_in_pulse;
 }
 
 
@@ -478,12 +512,15 @@ function io_propagate(cpu, devices) {
  */
 function clear_all_flags(devices) {
 	
+	console.log("CAF");
+	
 	// Clear system stuff
 	let sysflag = devices.sysflag;
 	sysflag.r_flag_memm = 0;
 	
 	// Clear RTC stuff
 	let rtc = devices.rtc;
+	let drq = devices.drq;
 	drq.devices[RTC_DRQ_PRIORITY].r_drq = 0;
 	r_rtc_flag = 0;
 	
@@ -559,7 +596,7 @@ function ppt_tick(ppt) {
 		ppt.pptr_pointer++;
 		ppt.r_pptr_flag = 1;
 		ppt.pptr_mode = PPTR_MODE_NULL;
-		ppt.pptr_delay = 10;
+		ppt.pptr_delay = PPTR_DELAY_CONST;
 	}
 	if (ppt.pptr_mode == PPTR_MODE_BINARY && ppt.pptr_pointer < (ppt.pptr_data.length + 2)) {
 		let i = ppt.pptr_pointer;
@@ -567,7 +604,7 @@ function ppt_tick(ppt) {
 		ppt.pptr_pointer += 3;
 		ppt.r_pptr_flag = 1;
 		ppt.pptr_mode = PPTR_MODE_NULL;
-		ppt.pptr_delay = 30;
+		ppt.pptr_delay = PPTR_DELAY_CONST * 3;
 	}
 }
 

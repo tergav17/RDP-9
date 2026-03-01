@@ -935,6 +935,7 @@ function decode(input) {
 	let req_addr_phase = 0;
 	let jmp_i_detect = 0;
 	let interrupt_detect = 0;
+	let read_in_pulse = 0;
 
 	// Debug stuff
 	let halt_indicator = 0;
@@ -1544,7 +1545,7 @@ function decode(input) {
 			case STEP_SRV_RDIN_WAIT:
 			
 				// Set READ_IN pulse
-				read_in = 1;
+				read_in_pulse = 1;
 				
 				// Do we continue looping?
 				if (flag_iot_skip || flag_iot_wait) {
@@ -1561,15 +1562,19 @@ function decode(input) {
 			// EXTRN -> CORE[PC]
 			// STEP_SRV_RDIN_CHECK -> NEXT
 			case STEP_SRV_RDIN_READ:
-			
+
 				// Set READ_IN pulse
-				read_in = 1;
+				read_in_pulse = 1;
+				
+				// Set the constant value to indicate that the flags should be reset
+				constant_value = 1;
 				
 				// Sample from I/O device
 				bus_output_select = BUS_SELECT_EXTERNAL;
 				
 				// Write to CORE[MA]
 				select_pc_ma = ADDR_SELECT_PC;
+				latch_mb = 1;
 				write_core = 1;
 			
 				next_step = STEP_SRV_RDIN_CHECK;
@@ -1582,11 +1587,14 @@ function decode(input) {
 			// ELSE:
 			//  STEP_SRV_FETCH_IGDV -> NEXT
 			case STEP_SRV_RDIN_CHECK:
+				
+				// Set the constant value to indicate that the flags should be reset
+				// and also for incrementing
+				constant_value = 1;
 			
 				if (flag_iot_wait) {
 					// Set bus to crossbar with increment
 					bus_output_select = BUS_SELECT_CROSS;
-					constant_value = 1;
 					
 					// Latch the program counter, no extension
 					address_register_mode = ADDR_REG_MODE_EXT_OFF;
@@ -2894,7 +2902,8 @@ function decode(input) {
 						(dev_req_grant << DEV_REQ_GRANT) |
 						(req_addr_phase << REQ_ADDR_PHASE) |
 						(jmp_i_detect << JMP_I_DETECT) |
-						(interrupt_detect << INTERRUPT_DETECT);
+						(interrupt_detect << INTERRUPT_DETECT) |
+						(read_in_pulse << READ_IN_PULSE);
 						
 	let alu_control = 	(alu_op_select << ALU_OP_SELECT) | 
 						(alu_link_select << ALU_LINK_SELECT) | 
