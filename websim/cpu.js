@@ -86,6 +86,7 @@ cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memor
 //cpu_state.r_core[3] = 0600001;	// JMP 001
 //cpu_state.r_core[4] = 0600000;	// JMP 000
 
+/*
 // Simple tape read in program
 cpu_state.r_core[0] = 0700144;	// RSB			Set reader to binary mode and clear buffer
 cpu_state.r_core[1] = 0700101;	// RSF			Check reader flag
@@ -94,7 +95,7 @@ cpu_state.r_core[3] = 0700112;	// RRB			Clear AC, read buffer, clear flag
 cpu_state.r_core[4] = 0060010;	// DEP I 0010	Increment pointer and deposit AC
 cpu_state.r_core[5] = 0600000;	// JMP 0000		Prepare to read another word 
 cpu_state.r_core[010] = 0000021; // Pointer location
-
+*/
 
 // Clock DRQ test
 /*
@@ -319,6 +320,7 @@ function propagate(cpu, devices) {
 	}
 	cpu.s_ucode_input = microcode_input;
 	cpu.s_ctrl = decode(microcode_input);
+	//console.log("Control word: " + cpu.s_ctrl[0].toString(2));
 	
 	cpu.s_halt_indicator = getbit(cpu.s_ctrl[2], HALT_INDICATE, 1);
 	
@@ -662,13 +664,6 @@ const STEP_SRV_IOT_PHASE_TWO = 17;  // Second phase of the IOT. Keep asserting I
 const STEP_SRV_IOT_LATCH_AC = 18;	// Latch the result of the IOT into AC
 const STEP_SRV_IOT_SKIP = 19;		// Skip based on IOT condition
 
-// READ-IN steps
-const STEP_SRV_RDIN_WAIT = 20;		// "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
-const STEP_SRV_RDIN_READ = 21; 		// "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
-const STEP_SRV_RDIN_CHECK = 22; 	// "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move PC + 1 into PC
-const STEP_SRV_RDIN_NULL_ONE = 23; 	// Null phase, "READ_IN_PULSE" remains reset
-const STEP_SRV_RDIN_NULL_TWO = 24;	// Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion
-
 // DRQ steps
 const STEP_SRV_DRQ_COUNT_READ = 20;	// Place CORE[MA] into MB, OB. Hold "REQ_ADDR_PHASE"
 const STEP_SRV_DRQ_COUNT_INC = 21;	// Place (OB OR MB) + 1 into CORE[MA], OB. Hold "REQ_ADDR_PHASE"
@@ -677,6 +672,13 @@ const STEP_SRV_DRQ_PTR_READ = 23;	// Place CORE[MA] into MB, OB
 const STEP_SRV_DRQ_PTR_INC = 24;	// Place (OB OR MB) + 1 into CORE[MA] and MA
 const STEP_SRV_DRQ_DATA_READ = 25;	// Place CORE[MA] into WRTBK
 const STEP_SRV_DRQ_DATA_WRITE = 26;	// Place EXTERNAL into CORE[MA] and MB.
+
+// READ-IN steps
+const STEP_SRV_RDIN_WAIT = 27;		// "READ_IN_PULSE" is asserted, step will loop till either "IOT_WAIT" or "IOT_SKIP" are asserted.
+const STEP_SRV_RDIN_READ = 28; 		// "READ_IN_PULSE" remains asserted. EXTRN is moved into core at PC.
+const STEP_SRV_RDIN_CHECK = 29; 	// "READ_IN_PULSE" reset. If "IOT_SKIP" is asserted, jump to CONT logic. Otherwise move PC + 1 into PC
+const STEP_SRV_RDIN_NULL_ONE = 30; 	// Null phase, "READ_IN_PULSE" remains reset
+const STEP_SRV_RDIN_NULL_TWO = 31;	// Null phase, "READ_IN_PULSE" remains reset. Jump to step 2 on completion
 
 // Various skips
 const STEP_SRV_SKIP_ZERO = 32;		// Increment the program count if OB = 0
@@ -1547,6 +1549,12 @@ function decode(input) {
 				// Set READ_IN pulse
 				read_in_pulse = 1;
 				
+				// Cycle MB
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
+				latch_mb = 1;
+				latch_ob = 1;
+				
 				// Do we continue looping?
 				if (flag_iot_skip || flag_iot_wait) {
 					next_step = STEP_SRV_RDIN_READ;
@@ -1575,6 +1583,7 @@ function decode(input) {
 				// Write to CORE[MA]
 				select_pc_ma = ADDR_SELECT_PC;
 				latch_mb = 1;
+				latch_ob = 1;
 				write_core = 1;
 			
 				next_step = STEP_SRV_RDIN_CHECK;
@@ -2942,6 +2951,7 @@ function assert(input, val) {
 function bus(input) {
 	if (input < 0) {
 		console.log("WARNING: Nothing on bus!");
+		console.log("Got: " + input);
 		var err = new Error();
 		console.log(err.stack);
 		return 0;

@@ -85,7 +85,7 @@ const PPTR_DEVICE_ID = 1;
 const PPTR_MODE_ALPHA = 0;
 const PPTR_MODE_BINARY = 1;
 const PPTR_MODE_NULL = 2;
-const PPTR_DELAY_CONST = 1000;
+const PPTR_DELAY_CONST = 100;
 
 // Paper tape reader / punch state
 var ppt_state = {
@@ -101,6 +101,12 @@ var ppt_state = {
 	
 	// Paper tape reader mode
 	pptr_mode: PPTR_MODE_NULL,
+	
+	// Paper tape reader counter
+	pptr_counter: 0,
+	
+	// Paper tape stop
+	pptr_stop: 0,
 	
 	// Paper tape reader delay
 	pptr_delay: 0,
@@ -240,7 +246,7 @@ function io_propagate(cpu, devices) {
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
-	let read_in_clear_pulse = (read_in_pulse && getbit(cpu.r_state[2])) ? 1 : 0;
+	let read_in_clear_pulse = (read_in_pulse && getbit(cpu.r_state[2], 7, 1)) ? 1 : 0;
 	let cpu_clear_all_flags = getbit(iot_cmd, CLEAR_ALL_FLAGS, 1);
 	let increment_zero_pulse = (getbit(cpu.r_state[2], 7, 1) && cpu.r_reg_zero) ? 1 : 0;
 	
@@ -277,6 +283,7 @@ function io_propagate(cpu, devices) {
 	
 	// RTC DRQ handler
 	if (drq.devices[RTC_DRQ_PRIORITY].s_drq_grant) {
+
 		// Async register reset
 		drq.devices[RTC_DRQ_PRIORITY].r_drq = 0;
 		
@@ -288,7 +295,6 @@ function io_propagate(cpu, devices) {
 		
 		// Check increment zero pulse
 		if (increment_zero_pulse) {
-			console.log("Increment zero pulse");
 			devices.rtc.r_rtc_flag = 1;
 		}
 	}
@@ -304,6 +310,7 @@ function io_propagate(cpu, devices) {
 		// Set the reader mode to PPTR_MODE_BINARY to get a full word
 		if (read_in_rising) {
 			ppt.pptr_mode = PPTR_MODE_BINARY;
+			ppt.pptr_counter = 0;
 		}
 		
 		// Reset the flag at the end of the pulse
@@ -312,7 +319,11 @@ function io_propagate(cpu, devices) {
 		}
 		
 		if (ppt.r_pptr_flag) {
-			skip = 1;
+			if (ppt.pptr_stop) {
+				skip = 1;
+			} else {
+				wait = 1;
+			}
 		}
 	}
 	
@@ -403,8 +414,10 @@ function io_propagate(cpu, devices) {
 				ppt.r_pptr_flag = 0;
 				if (subdevice & 002) {
 					ppt.pptr_mode = PPTR_MODE_BINARY;
+					ppt.pptr_counter = 0;
 				} else {
 					ppt.pptr_mode = PPTR_MODE_ALPHA;
+					ppt.pptr_counter = 0;
 				}
 			}
 			break;
@@ -528,6 +541,7 @@ function clear_all_flags(devices) {
 	let ppt = devices.ppt;
 	ppt.r_pptr_flag = 0;
 	ppt.pptr_mode = PPTR_MODE_NULL;
+	ppt.pptr_counter = 0;
 	
 	// Clear TTY
 	let tty = devices.tty;
@@ -590,21 +604,32 @@ function ppt_tick(ppt) {
 		return;
 	}
 	
-	// Try to read in a new value if the mode is correct
-	if (ppt.pptr_mode == PPTR_MODE_ALPHA && ppt.pptr_pointer < ppt.pptr_data.length) {
-		ppt.r_pptr_buffer = ppt.pptr_data[ppt.pptr_pointer];
+	// Read in a line from the paper tape
+	if (ppt.pptr_pointer < ppt.pptr_data.length && ppt.pptr_mode != PPTR_MODE_NULL) {
+		let data = ppt.pptr_data[ppt.pptr_pointer];
 		ppt.pptr_pointer++;
-		ppt.r_pptr_flag = 1;
-		ppt.pptr_mode = PPTR_MODE_NULL;
+		
+		if (ppt.pptr_mode == PPTR_MODE_ALPHA) {
+			// Alpha read mode
+			ppt.r_pptr_buffer = data;
+			ppt.r_pptr_flag = 1;
+			ppt.pptr_mode = PPTR_MODE_NULL;
+			
+		} else if (ppt.pptr_mode == PPTR_MODE_BINARY && getbit(data, 7, 1)) {
+			// Binary read mode
+			ppt.r_pptr_buffer = ppt.r_pptr_buffer << 6;
+			ppt.r_pptr_buffer |= getbit(data, 0, 6);
+			ppt.r_pptr_buffer &= 0777777;
+			ppt.pptr_counter++;
+			
+			if (ppt.pptr_counter == 3) {
+				ppt.r_pptr_flag = 1;
+				ppt.pptr_mode = PPTR_MODE_NULL;
+				ppt.pptr_stop = getbit(data, 6, 1);
+			}
+		}
+		
 		ppt.pptr_delay = PPTR_DELAY_CONST;
-	}
-	if (ppt.pptr_mode == PPTR_MODE_BINARY && ppt.pptr_pointer < (ppt.pptr_data.length + 2)) {
-		let i = ppt.pptr_pointer;
-		ppt.r_pptr_buffer = getbit(ppt.pptr_data[i+2], 0, 6) | (getbit(ppt.pptr_data[i+1], 0, 6) << 6) | (getbit(ppt.pptr_data[i], 0, 6) << 12);
-		ppt.pptr_pointer += 3;
-		ppt.r_pptr_flag = 1;
-		ppt.pptr_mode = PPTR_MODE_NULL;
-		ppt.pptr_delay = PPTR_DELAY_CONST * 3;
 	}
 }
 
