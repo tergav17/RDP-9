@@ -336,7 +336,7 @@ function propagate(cpu, devices) {
 	let arith_input_a = shift_input | (cpu.r_reg_link << 18);
 	let arith_input_b = cpu.r_reg_mb & 0777777;
 	
-	// Perform arithmatic operations
+	// Perform arithmetic operations
 	let arith_out = 0;
 	let arith_link_out = 0;
 	let arith_carry_out = 0;
@@ -767,7 +767,7 @@ const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
 const STEP_ISR_JMP_RESTORE = 3;		// Perform a restore, Bit 18 of OB is moved into the link register
 
 // EAE
-const OPCODE_EAE = 13;
+const OPCODE_EAE = 13;				// Initial step: Move AC into OB
 
 // IOT
 const OPCODE_IOT = 14;
@@ -2724,6 +2724,23 @@ function decode(input) {
 						
 						
 				}
+				break;
+				
+			case OPCODE_EAE:
+				// Extended arithmetic instruction
+				switch (step) {
+					// Shift bit 17 into the link register
+					case STEP_ISR_EXECUTE_BEGIN:
+					
+						// Move AC into OB
+						bus_output_select = BUS_SELECT_AC;
+						latch_ob = 1;
+					
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
+						break;
+				}
+				
 				break;
 				
 			default:
