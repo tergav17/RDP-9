@@ -125,11 +125,14 @@ var tty_state = {
 	// Printer ready flag
 	r_printer_flag: 1,
 	
-	// Printer buffer
-	s_printer_buffer: 0,
-	
 	// Printer delay constant
-	printer_delay: 0
+	printer_delay: 0,
+	
+	// Keyboard ready flag
+	r_keyboard_flag: 1,
+	
+	// Keyboard buffer
+	r_keyboard_buffer: 0
 };
 
 var device_states = {
@@ -429,12 +432,25 @@ function io_propagate(cpu, devices) {
 			tty = devices.tty;
 			rtc = devices.rtc;
 			
+			// Assert skip flag if needed
+			if (pulse & 001 && iot_pulse) {
+				if (tty.r_keyboard_flag) {
+					skip = 1;
+				}
+			}
+			
+			// Assert keyboard buffer
+			if (pulse & 002 && iot_pulse) {
+				extrn = 1;
+				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
+			}
+			
 			// IORS (it's in KEYBD for some reason?)
 			if (pulse & 004 && iot_pulse) {
 				iors = 	(sysflag.r_flag_pi << 17) || 
 						(ppt.r_pptr_flag << 16) ||
 						(0 << 15) ||
-						(0 << 14) ||
+						(tty.r_keyboard_flag << 14) ||
 						(tty.r_printer_flag << 13) ||
 						(0 << 12) ||
 						(rtc.r_rtc_flag << 11) ||
@@ -584,6 +600,13 @@ function rtc_tick(rtc, drq) {
 
 function tty_tick(tty) {
 	
+	// Check for character from uart
+	if (uartHasCharacter) {
+		tty.r_keyboard_flag = 1;
+		tty.r_keyboard_buffer = uartChar;
+		uartHasCharacter = false;
+	}
+	
 	// Decrement printer delay value
 	if (tty.printer_delay > 0) {
 		tty.printer_delay--;
@@ -700,11 +723,11 @@ terminal.onkeydown = function(e) {
 	
 	switch (ch) {
 		case 8:
-			uartInput(8);
+			uart_input(8);
 			return false;
 		
 		case 46:
-			uartInput(127);
+			uart_input(127);
 			return false;
 			
 		default:
@@ -716,7 +739,7 @@ terminal.onkeydown = function(e) {
 terminal.onkeypress = function(e) {
 	let ch = (e.keyCode || e.charCode);
 	
-	uartInput(ch);
+	uart_input(ch);
 	
 	return false;
 }
