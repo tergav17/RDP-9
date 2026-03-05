@@ -357,6 +357,12 @@ function drawFlow(cpu) {
 	flow_ctx.fillText("RUN", x - 2 , y - 10);
 	drawRegister(x, y, !cpu.s_halt_indicator, 1);
 	
+	// MEM signal
+	x = 502; y = 90;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("MEM", x - 2 , y - 10);
+	drawRegister(x, y, device_states.sysflag.r_flag_pi, 1);
+	
 	// Draw 18-Bank Switches
 	x = 10; y = 240;
 	flow_ctx.fillStyle = "black";

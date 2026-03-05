@@ -19,6 +19,7 @@ const play_bell = document.getElementById("play-bell");
 /* --- IO SUBSYSTEM EMULATION --- */
 
 const API_DEVICE_ID = 033;
+const MEM_DEVICE_ID = 077;
 
 // System flag states
 var sysflag_state = {
@@ -443,6 +444,7 @@ function io_propagate(cpu, devices) {
 			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
 				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
+				tty.r_keyboard_flag = 0;
 			}
 			
 			// IORS (it's in KEYBD for some reason?)
@@ -492,6 +494,30 @@ function io_propagate(cpu, devices) {
 				tty.printer_delay = 300;
 				uart_output(data_in & 0177);
 			}
+			break;
+			
+		// Extended memory control
+		case MEM_DEVICE_ID:
+		
+			sysflag = devices.sysflag;
+			
+			// Check extended memory flag
+			if (pulse & 001 && iot_pulse) {
+				if (sysflag.r_flag_memm) {
+					skip = 1;
+				}
+			}
+			
+			// Set extended mode flag
+			if (pulse & 002 && iot_pulse) {
+				sysflag.r_flag_memm = 1;
+			}
+			
+			// Reset extended mode flag
+			if (pulse & 004 && iot_pulse) {
+				sysflag.r_flag_memm = 0;
+			}
+		
 			break;
 		
 		default:

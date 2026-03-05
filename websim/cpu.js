@@ -25,6 +25,7 @@ cpu_state = {
 	r_reg_ma: 0,			// Memory Address
 	r_reg_ir: 0,			// Instruction Register
 	r_reg_ob: 0,			// Operator Buffer
+	r_reg_step: 0,			// Step Counter
 	r_reg_wrtbk: 0,			// Writeback Register
 	
 	// ALU stuff
