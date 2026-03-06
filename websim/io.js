@@ -31,7 +31,10 @@ var sysflag_state = {
 	r_flag_pi: 0,
 	
 	// Restore pending
-	r_flag_rest_pending: 0
+	r_flag_rest_pending: 0,
+	
+	// EMIR pending
+	r_flag_emir_pending: 0
 };
 
 // Device request 
@@ -516,6 +519,11 @@ function io_propagate(cpu, devices) {
 			// Reset extended mode flag
 			if (pulse & 004 && iot_pulse) {
 				sysflag.r_flag_memm = 0;
+			}
+			
+			// Set EMIR pending
+			if (subdevice & 002 && iot_pulse) {
+				sysflag.r_flag_emir_pending = 1;
 			}
 		
 			break;
