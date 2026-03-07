@@ -162,6 +162,7 @@ var device_states = {
 	// Last pulse states
 	last_iot_pulse_state: 0,
 	last_drq_pulse_state: 0,
+	last_jmp_i_pulse_state: 0,
 	last_read_in_pulse_state: 0
 };
 
@@ -279,6 +280,8 @@ function io_propagate(cpu, devices) {
 	let iot_falling = (devices.last_iot_pulse_state && !iot_pulse) ? 1 : 0;
 	let drq_rising = (!devices.last_drq_pulse_state && dev_req_grant) ? 1 : 0;
 	let drq_falling = (devices.last_drq_pulse_state && !dev_req_grant) ? 1 : 0;
+	let jmp_i_rising = (!devices.last_jmp_i_pulse_state && jmp_i_detect) ? 1 : 0;
+	let jmp_i_falling = (devices.last_jmp_i_pulse_state && !jmp_i_detect) ? 1 : 0;
 	let read_in_rising = (!devices.last_read_in_pulse_state && read_in_pulse) ? 1 : 0;
 	let read_in_falling = (devices.last_read_in_pulse_state && !read_in_pulse) ? 1 : 0;
 	
@@ -512,12 +515,12 @@ function io_propagate(cpu, devices) {
 			}
 			
 			// Set extended mode flag
-			if (pulse & 002 && iot_pulse) {
+			if (pulse & 002 && iot_falling) {
 				sysflag.r_flag_memm = 1;
 			}
 			
 			// Reset extended mode flag
-			if (pulse & 004 && iot_pulse) {
+			if (pulse & 004 && iot_falling) {
 				sysflag.r_flag_memm = 0;
 			}
 			
@@ -545,9 +548,26 @@ function io_propagate(cpu, devices) {
 		devices.sysflag.r_flag_pi = 0;
 	}
 	
-	// Do ansync reset of restore if a JMP I is detected
+	// Do asyncronous set of MEMM if a JMP I is detected
 	if (jmp_i_detect) {
+		let memm_bit = getbit(bus(cpu.s_data_bus), 16, 1);
+	
+		// Set coniditons
+		if (memm_bit && devices.sysflag.r_flag_rest_pending) {
+			devices.sysflag.r_flag_memm = 1;
+		}
+		
+		// Reset conditions
+		if (!memm_bit && (devices.sysflag.r_flag_rest_pending || devices.sysflag.r_flag_emir_pending)) {
+			devices.sysflag.r_flag_memm = 0;
+		}
+	}
+	
+	
+	// Do syncronous reset of restore and emir if a JMP I is detected
+	if (jmp_i_falling) {
 		devices.sysflag.r_flag_rest_pending = 0;
+		devices.sysflag.r_flag_emir_pending = 0;
 	}
 	
 	// Create interrupt request signal
@@ -564,6 +584,7 @@ function io_propagate(cpu, devices) {
 	cpu.s_iot_wait = wait;
 	devices.last_iot_pulse_state = iot_pulse;
 	devices.last_drq_pulse_state = dev_req_grant;
+	devices.last_jmp_i_pulse_state = jmp_i_detect;
 	devices.last_read_in_pulse_state = read_in_pulse;
 }
 
