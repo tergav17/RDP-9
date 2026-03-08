@@ -512,6 +512,7 @@ function propagate(cpu, devices) {
 			cpu.s_data_bus = assert(cpu.s_data_bus, ((bus(cpu.s_addr_bus) + constant_value) & 017777));
 			cpu.s_data_bus |= bus(cpu.s_addr_bus) & 060000;
 			cpu.s_data_bus |= cpu.r_reg_link << 17;
+			cpu.s_data_bus |= devices.sysflag.r_flag_memm << 16;
 			break;
 			
 		case BUS_SELECT_ALU:
