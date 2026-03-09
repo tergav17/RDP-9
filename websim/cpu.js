@@ -765,8 +765,8 @@ const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
 
 // JMP
-const OPCODE_JMP = 12;				// Initial step: Store MA itno PC
-const STEP_ISR_JMP_RESTORE = 3;		// Perform a restore, Bit 18 of OB is moved into the link register
+const OPCODE_JMP = 12;				// Conditional restore, Bit 18 of OB is moved into the link register
+const STEP_JMP_LOAD_PC = 3;		// Move OR of OB and MB into PC
 
 // EAE
 const OPCODE_EAE = 13;				// Initial step: Move AC into OB
@@ -1896,12 +1896,7 @@ function decode(input) {
 				//	 STEP_ISR_INDEX_INC -> NEXT
 				//  ELSE:
 				//   CORE[MA] -> MA, OB, MB
-				//	 IF OPCODE == JMP:
-				//    1 -> JMP_I_DETECT
-				//   IF OPCODE == JMP AND REST_PENDING:
-				//    STEP_ISR_JMP_RESTORE -> NEXT
-				//   ELSE:
-				//	  STEP_ISR_INDIR_COMPLETE -> NEXT
+				//   STEP_ISR_INDIR_COMPLETE -> NEXT
 				// ELSE:
 				//  GOTO STEP_ISR_INDEX_INC
 				case STEP_ISR_EXECUTE_BEGIN:
@@ -1932,18 +1927,7 @@ function decode(input) {
 							latch_ob = 1;
 							latch_mb = 1;
 							
-							// Jump detection
-							if (opcode == OPCODE_JMP) {
-								jmp_i_detect = 1;
-							}
-							
-							// We have completed the indirection
-							// Do we need to restore?
-							if (opcode == OPCODE_JMP && rest_pending) {
-								next_step = STEP_ISR_JMP_RESTORE;
-							} else {
-								next_step = STEP_ISR_INDIR_COMPLETE;
-							}
+							next_step = STEP_ISR_INDIR_COMPLETE;
 							break;
 						}
 					} else {
@@ -1955,14 +1939,9 @@ function decode(input) {
 				// Only do something if we are using the autoincrement functionality
 				// IF INDIR AND FLAG_MAAI:
 				//  (OB OR MB) + 1 -> CORE[MA], MA, OB, MB
-				//	IF OPCODE == JMP:
-				//   1 -> JMP_I_DETECT
-				//  IF OPCODE == JMP AND REST_PENDING:
-				//   STEP_ISR_JMP_RESTORE -> NEXT
-				//  ELSE:
-				//   NEXT -> STEP_ISR_INDIR_FETCH
+				//  NEXT -> STEP_ISR_INDIR_COMPLETE
 				// ELSE:
-				//  GOTO STEP_ISR_INDIR_FETCH
+				//  GOTO STEP_ISR_INDIR_COMPLETE
 				case STEP_ISR_INDEX_INC:
 					if (indirect && flag_maai) {
 						// Increment the contents of MB
@@ -1978,19 +1957,7 @@ function decode(input) {
 						latch_ob = 1;
 						latch_mb = 1;
 						
-						// Jump detection
-						if (opcode == OPCODE_JMP) {
-							jmp_i_detect = 1;
-						}
-						
-						// We are done, execute the instruction in the next step
-						// Do we need to restore?
-						if (opcode == OPCODE_JMP && rest_pending) {
-							next_step = STEP_ISR_JMP_RESTORE;
-						} else {
-							next_step = STEP_ISR_INDIR_COMPLETE;
-						}
-						break;
+						next_step = STEP_ISR_INDIR_COMPLETE;
 					} else {
 						// Fall to STEP_ISR_INDIR_COMPLETE
 						step = STEP_ISR_INDIR_COMPLETE;
@@ -2587,41 +2554,62 @@ function decode(input) {
 			case OPCODE_JMP:
 				// Skip if AC different
 				switch (step) {
-					// Store MA into PC
-					// EXT_ON -> ADDR_REG_MODE
-					// MA -> PC
-					// STEP_SRV_FETCH -> NEXT
+					// Optional restore operations
+
 					case STEP_ISR_INDIR_COMPLETE:
 					
-						// Get MA on the bus
-						bus_output_select = BUS_SELECT_CROSS;
-						select_pc_ma = ADDR_SELECT_MA;
+						// Setup ALU mode
+						// We want to get L from the shifter (RAL), but maintain the value on OB
+						// Thankfully, the OR operation shares the lower 2 bits for the operation code
+						// IF INDIR AND REST_PENDING:
+						//  OB[17] -> L
+						//  1 -> JMP_I_DETECT:
+						//  STEP_JMP_LOAD_PC -> NEXT
+						// ELSE
+						//  GOTO STEP_JMP_LOAD_PC
 						
-						// Latch PC
-						address_register_mode = ADDR_REG_MODE_EXT_ON;
-						latch_pc = 1;
+						if (indirect && rest_pending) {
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_OR;
+							alu_link_select = ALU_LINK_SHIFT;
+
+							// Latch OB to "lock in" the new value of L
+							latch_ob = 1;
+							
+							// Indicate that an indirect jump is happening
+							jmp_i_detect = 1;
+
+							//  Now move onto loading the PC
+							next_step = STEP_JMP_LOAD_PC;
+							break;
+						} else {
+							step = STEP_JMP_LOAD_PC;
+						}
 						
-						// We are done
-						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_FETCH;
-						break;
 						
-						
-					// Restore link register
-					// OB[17] -> L
-					// STEP_ISR_INDIR_COMPLETE -> NEXT
-					case STEP_ISR_JMP_RESTORE:
+					// Perform the jump with the fetched value
+					// If it's not indirect, force disabling of extended memory mode
+					// IF !INDIR
+					//  EXT_OFF = ADDR_REG_MODE
+					// (OB OR MB) -> PC
+					// STEP_SRV_FETCH -> NEXT
+					case STEP_JMP_LOAD_PC:
 					
 						// Setup ALU mode
 						bus_output_select = BUS_SELECT_ALU;
-						alu_op_select = ALU_SHIFT_RAL;
-						alu_link_select = ALU_LINK_SHIFT;
+						alu_op_select = ALU_OR;
 						
-						// Latch OB to "lock in" the new value of L
-						latch_ob = 1;
+						// Setup the desired addressing mode
+						if (indirect) {
+							address_register_mode = ADDR_REG_MODE_EXT_OFF;
+						}
+						
+						// Latch PC
+						latch_pc = 1;
 					
-						// Now we can do the actual jump
-						next_step = STEP_ISR_INDIR_COMPLETE;
+						// We are done
+						next_decode_mode = DECODE_MODE_SERVICE;
+						next_step = STEP_SRV_FETCH;
 						break;
 					
 				}
