@@ -1892,7 +1892,7 @@ function decode(input) {
 				// IF INDIR:
 				//  IF FLAG_MAAI:
 				//   FORCE_ZERO -> ADDR_REG_MODE
-				//	 CORE[MA] -> OB, MB
+				//	 CORE[MA] -> OB, MB, WRTBK
 				//	 STEP_ISR_INDEX_INC -> NEXT
 				//  ELSE:
 				//   CORE[MA] -> MA, OB, MB
@@ -1912,6 +1912,9 @@ function decode(input) {
 							// Place it in OB and MB
 							latch_ob = 1;
 							latch_mb = 1;
+							
+							// Place it in writeback too
+							latch_wrtbk = 1;
 							
 							// Increment the address next cycle
 							next_step = STEP_ISR_INDEX_INC;
@@ -1938,7 +1941,7 @@ function decode(input) {
 				// Step 2: Increment the value fetched in step 1, and store it in CORE[MA] / MA
 				// Only do something if we are using the autoincrement functionality
 				// IF INDIR AND FLAG_MAAI:
-				//  (OB OR MB) + 1 -> CORE[MA], MA, OB, MB
+				//  (OB OR MB) + 1 -> CORE[MA], MA, OB, MB, WRTBK
 				//  NEXT -> STEP_ISR_INDIR_COMPLETE
 				// ELSE:
 				//  GOTO STEP_ISR_INDIR_COMPLETE
@@ -1956,6 +1959,7 @@ function decode(input) {
 						latch_ma = 1;
 						latch_ob = 1;
 						latch_mb = 1;
+						latch_wrtbk = 1;
 						
 						next_step = STEP_ISR_INDIR_COMPLETE;
 					} else {
