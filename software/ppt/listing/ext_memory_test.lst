@@ -4,5 +4,13 @@
 
     1                   / RDP-9 EXTENDED MEMORY TEST
     2                   
-    3 00100 740040      HLT  
+    3                   	/ START
+    4 00100 200104      	LAC RETRN
+    5 00101 040021      	DAC 21
+    6 00102 707702      	EEM
+    7 00103 740040      	HLT
+    8                   	
+    9                   	
+   10                   	
+   11 00104 620020      RETRN,	JMP I 20
       No detected errors
