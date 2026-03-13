@@ -403,6 +403,7 @@ SYM_T permanent_symbols[] =
   { DEFFIX, "EEM",    0707702 },
   { DEFFIX, "EMIR",   0707742 },
   { DEFFIX, "LEM",    0707704 },
+  { DEFFIX, "DBR",    0703344 },
   /* High Speed Paper Tape Reader */
   { DEFFIX, "RSF",    0700101 },
   { DEFFIX, "RRB",    0700112 },
