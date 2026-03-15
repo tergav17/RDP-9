@@ -124,6 +124,21 @@ cpu_state.r_core[0123] = 0321;
 
 */
 
+// RIM loader @ 017763
+cpu_state.r_core[017763] = 0700101;
+cpu_state.r_core[017764] = 0617763;
+cpu_state.r_core[017765] = 0700112;
+cpu_state.r_core[017766] = 0700144;
+cpu_state.r_core[017767] = 0637762;
+cpu_state.r_core[017770] = 0700144;
+cpu_state.r_core[017771] = 0117762;
+cpu_state.r_core[017772] = 0057775;
+cpu_state.r_core[017773] = 0417775;
+cpu_state.r_core[017774] = 0117762;
+cpu_state.r_core[017775] = 0000000;
+cpu_state.r_core[017776] = 0617771;
+cpu_state.r_core[017777] = 0740040;
+
 //cpu_state.r_core[0] = 0340002;
 //cpu_state.r_core[1] = 0600000;
 //cpu_state.r_core[2] = 0000001;
