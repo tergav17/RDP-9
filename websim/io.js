@@ -554,6 +554,7 @@ function io_propagate(cpu, devices) {
 	// Do asyncronous set of MEMM if a JMP I is detected
 	if (jmp_i_detect) {
 		let memm_bit = getbit(data_in, 16, 1);
+		console.log("Data in: " + data_in);
 	
 		// Set coniditons
 		if (memm_bit && devices.sysflag.r_flag_rest_pending) {

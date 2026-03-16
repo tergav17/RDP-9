@@ -50,7 +50,7 @@ cpu_state = {
 	s_iot_wait: 0,
 	
 	// Switch Registers
-	s_switch_data: 0,
+	s_switch_data: 017770,
 	
 	// System buses
 	s_data_bus: 0,
@@ -1928,9 +1928,6 @@ function decode(input) {
 							latch_ob = 1;
 							latch_mb = 1;
 							
-							// Place it in writeback too
-							latch_wrtbk = 1;
-							
 							// Increment the address next cycle
 							next_step = STEP_ISR_INDEX_INC;
 							break;
@@ -1944,6 +1941,9 @@ function decode(input) {
 							latch_ma = 1;
 							latch_ob = 1;
 							latch_mb = 1;
+							
+							// Place it in writeback too
+							latch_wrtbk = 1;
 							
 							next_step = STEP_ISR_INDIR_COMPLETE;
 							break;
