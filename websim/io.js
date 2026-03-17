@@ -555,6 +555,13 @@ function io_propagate(cpu, devices) {
 	if (jmp_i_detect) {
 		let memm_bit = getbit(data_in, 16, 1);
 		console.log("Data in: " + data_in);
+		
+		if (devices.sysflag.r_flag_rest_pending) {
+			console.log("Rest pending");
+		}
+		if (devices.sysflag.r_flag_emir_pending) {
+			console.log("Emir pending");
+		}
 	
 		// Set coniditons
 		if (memm_bit && devices.sysflag.r_flag_rest_pending) {

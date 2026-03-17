@@ -15,7 +15,7 @@
 	LEM
 	CAL
 	SEM
-	JMP .+1
+	JMP .+2
 	HLT
 	
 	/ DBR MEMM ON TO ON
@@ -30,7 +30,7 @@
 	LEM
 	CAL
 	SEM
-	JMP .+1
+	JMP .+2
 	HLT
 	
 	/ DBR MEMM ON TO OFF
@@ -39,8 +39,25 @@
 	SEM
 	HLT
 	
+	/ SWITCH TO EMIR
+	LAC ISR3
+	DAC 22
+	LAC ISR4
+	DAC 21
 	
-	LAC	CON1
+	/ EMIR MEMM ON TO OFF
+	LEM
+	CAL
+	SEM
+	JMP .+2
+	HLT
+	EEM
+	CAL
+	SEM
+	HLT
+	
+	
+	LAC CON1
 	HLT
 	
 	
