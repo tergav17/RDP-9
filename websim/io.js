@@ -529,6 +529,7 @@ function io_propagate(cpu, devices) {
 			// Set EMIR pending
 			if (subdevice & 002 && iot_pulse) {
 				sysflag.r_flag_emir_pending = 1;
+				console.log("EMIR pending");
 			}
 		
 			break;
