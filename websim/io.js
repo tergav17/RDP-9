@@ -551,6 +551,7 @@ function io_propagate(cpu, devices) {
 	if (interrupt_detect) {
 		devices.sysflag.r_flag_pi = 0;
 		devices.sysflag.r_flag_memm = 0;
+		console.log("IRQ reset condition");
 	}
 	
 	// Do asyncronous set of MEMM if a JMP I is detected
