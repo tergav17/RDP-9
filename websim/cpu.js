@@ -2580,12 +2580,18 @@ function decode(input) {
 						// Setup ALU mode
 						// We want to get L from the shifter (RAL), but maintain the value on OB
 						// Thankfully, the OR operation shares the lower 2 bits for the operation code
+						// IF INDIR:
+						//  1 -> JMP_I_DETECT:
 						// IF INDIR AND REST_PENDING:
 						//  OB[17] -> L
-						//  1 -> JMP_I_DETECT:
 						//  STEP_JMP_LOAD_PC -> NEXT
 						// ELSE
 						//  GOTO STEP_JMP_LOAD_PC
+						
+						
+						if (indirect) {
+							jmp_i_detect = 1;
+						}
 						
 						if (indirect && rest_pending) {
 							bus_output_select = BUS_SELECT_ALU;
@@ -2594,9 +2600,6 @@ function decode(input) {
 
 							// Latch OB to "lock in" the new value of L
 							latch_ob = 1;
-							
-							// Indicate that an indirect jump is happening
-							jmp_i_detect = 1;
 
 							//  Now move onto loading the PC
 							next_step = STEP_JMP_LOAD_PC;

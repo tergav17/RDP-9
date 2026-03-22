@@ -252,6 +252,9 @@ function io_propagate(cpu, devices) {
 	let dev_req_grant = getbit(iot_cmd, DEV_REQ_GRANT, 1);
 	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
+	if (jmp_i_detect) {
+		console.log("!");
+	}
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
 	let read_in_clear_pulse = (read_in_pulse && getbit(cpu.r_state[2], 7, 1)) ? 1 : 0;
