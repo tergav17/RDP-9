@@ -554,31 +554,32 @@ function io_propagate(cpu, devices) {
 	if (interrupt_detect) {
 		devices.sysflag.r_flag_pi = 0;
 		devices.sysflag.r_flag_memm = 0;
-		console.log("IRQ reset condition");
 	}
 	
 	// Do asyncronous set of MEMM if a JMP I is detected
 	if (jmp_i_detect) {
 		let memm_bit = getbit(data_in, 16, 1);
-		console.log("Data in: " + data_in);
+		//console.log("Data in: " + data_in);
 		
+		/*
 		if (devices.sysflag.r_flag_rest_pending) {
 			console.log("Rest pending");
 		}
 		if (devices.sysflag.r_flag_emir_pending) {
 			console.log("Emir pending");
 		}
+		*/
 	
 		// Set coniditons
 		if (memm_bit && devices.sysflag.r_flag_rest_pending) {
 			devices.sysflag.r_flag_memm = 1;
-			console.log("MEMM set");
+			//console.log("MEMM set");
 		}
 		
 		// Reset conditions
 		if (!memm_bit && (devices.sysflag.r_flag_rest_pending || devices.sysflag.r_flag_emir_pending)) {
 			devices.sysflag.r_flag_memm = 0;
-			console.log("MEMM reset");
+			//console.log("MEMM reset");
 		}
 	}
 	
