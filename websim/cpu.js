@@ -850,7 +850,7 @@ function decode(input) {
 	//	I[3] = IR['14]
 	//	I[4] = Indirection
 	//	I[5:8] = Instruction
-	//	I[9] = 
+	//	I[9] = Restore Pending
 	//	I[10] =  MA auto index
 	// If Decode Mode == 2 (Operate Mode)
 	//	I[0] = Current step
@@ -2741,12 +2741,16 @@ function decode(input) {
 			case OPCODE_EAE:
 				// Extended arithmetic instruction
 				switch (step) {
-					// Shift bit 17 into the link register
+					
+					// Check if we need to clear MQ
+					// We will also decide if we are shifitng AC0 into L
+					// IF IR_14:
+					//
 					case STEP_ISR_EXECUTE_BEGIN:
 					
-						// Move AC into OB
-						bus_output_select = BUS_SELECT_AC;
-						latch_ob = 1;
+						if (ir_14) {
+							
+						}
 					
 						next_decode_mode = DECODE_MODE_SERVICE;
 						next_step = STEP_SRV_FETCH;
