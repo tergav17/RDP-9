@@ -32,8 +32,10 @@ cpu_state = {
 	s_next_link: 0,
 
 	// Flags
-	r_flag_ex: 0,			// Extended memory flag register
 	r_reg_link: 0,			// Link flag register
+	r_reg_link_init: 0,		// EAE link init
+	r_reg_link_ac_sign; 0,	// EAE AC sign
+	r_flag_ex: 0,			// Extended memory flag register
 	r_reg_zero: 0,			// OB = Zero flag
 	r_reg_sign: 0,			// OB = Sign flag
 	r_reg_skip: 0,			// OPR skip condition on last OB
@@ -284,7 +286,7 @@ function propagate(cpu, devices) {
 		case DECODE_MODE_SERVICE:
 			let step = cpu.r_state[0] & 077
 			microcode_input |= step;
-			microcode_input |= cpu.s_coproc_attn_req << 6;
+			microcode_input |= 0 << 6;
 			if (step >= 32) {
 				if (step < 48) {
 					// Put flags
@@ -328,8 +330,13 @@ function propagate(cpu, devices) {
 			
 		case DECODE_MODE_MISC:
 			microcode_input |= step;
+			microcode_input |= cpu.r_reg_link << 6;
 			if (step < 32) {
-				
+				microcode_input |= getbit(cpu.r_reg_ir, 6, 3) << 7;
+				microcode_input |= cpu.r_reg_link_ac_sign << 10;
+			} else {
+				microcode_input |= getbit(cpu.r_reg_ir, 9, 3) << 7;
+				microcode_input |= cpu.r_reg_link_init << 10;
 			}
 			break;
 			
@@ -866,11 +873,13 @@ function decode(input) {
 	//	I[10] = Link Flag
 	// If Decode Mode == 3 (Misc Mode)
 	//	I[0:5] = Current step
+	//	I[6] = Link Flag
 	//	If Step < 32:
-	//		I[7:10] = 
+	//		I[7:9] = EAE opcode (IR['11:'9])
+	//		I[10] = Link AC sign
 	//	Else:
-	//		I[6:8] = EAE opcode (IR['8:'6])
-	//		I[9] = EAE AC sign
+	//		I[7:9] = EAE secondary setup (IR['8:'6])
+	//		I[10] = EAE link init
 	
 	// --- OUTPUTS ---
 	//
