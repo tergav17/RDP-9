@@ -159,6 +159,7 @@ function latch(cpu, devices) {
 	// Update main registers
 	let latch_select = cpu.r_state[1];
 	let address_register_mode = getbit(cpu.r_state[2], 5, 2);
+	let constant_value = getbit(cpu.r_state[2], 7, 1);
 	
 	let extended_mode = 0;
 	if (address_register_mode == ADDR_REG_MODE_EXT_ON) {
@@ -224,6 +225,11 @@ function latch(cpu, devices) {
 	if (getbit(latch_select, BUS_LATCH_MB, 1)) {
 		cpu.r_reg_mb = bus(cpu.s_data_bus);
 		cpu.r_reg_iskp = cpu.s_iot_skip;
+		
+		if (constant_value) {
+			cpu.r_reg_link_ac_sign = cpu.r_reg_link_init;
+			cpu.r_reg_link_init = bus(cpu.s_next_link);
+		}
 	}
 	
 	// Write to core
@@ -328,15 +334,15 @@ function propagate(cpu, devices) {
 			microcode_input |= cpu.r_reg_link << 10;
 			break;
 			
-		case DECODE_MODE_MISC:
+		case DECODE_MODE_EAE:
 			microcode_input |= step;
 			microcode_input |= cpu.r_reg_link << 6;
 			if (step < 32) {
 				microcode_input |= getbit(cpu.r_reg_ir, 6, 3) << 7;
-				microcode_input |= cpu.r_reg_link_ac_sign << 10;
+				microcode_input |= cpu.r_reg_link_init << 10;
 			} else {
 				microcode_input |= getbit(cpu.r_reg_ir, 9, 3) << 7;
-				microcode_input |= cpu.r_reg_link_init << 10;
+				microcode_input |= cpu.r_reg_link_ac_sign << 10;
 			}
 			break;
 			
@@ -580,7 +586,7 @@ function propagate(cpu, devices) {
 const DECODE_MODE_SERVICE = 0;
 const DECODE_MODE_INSTRUCTION = 1;
 const DECODE_MODE_OPERATE = 2;
-const DECODE_MODE_MISC = 3;
+const DECODE_MODE_EAE = 3;
 
 // Bus selection modes
 const BUS_SELECT_AC = 0;
@@ -786,12 +792,12 @@ const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
 
+// EAE (Instruction Mode)
+const OPCODE_EAE = 13;				// Initial step: Move AC into OB
+
 // JMP
 const OPCODE_JMP = 12;				// Conditional restore, Bit 18 of OB is moved into the link register
 const STEP_JMP_LOAD_PC = 3;		// Move OR of OB and MB into PC
-
-// EAE
-const OPCODE_EAE = 13;				// Initial step: Move AC into OB
 
 // IOT
 const OPCODE_IOT = 14;
@@ -800,7 +806,7 @@ const OPCODE_IOT = 14;
 // OPR
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
 const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
-const STEP_OPR_STAGE_ONE = 0		// First stage of OPR, compliment / clear AC and L
+const STEP_OPR_STAGE_ONE = 0		// First stage of OPR, complement / clear AC and L
 const STEP_ISR_OPR_SWR_MB =  2		// Move the switch register into OB
 const STEP_OPR_STAGE_TWO = 1		// Perform shift operations or OR in the switch register
 
@@ -819,6 +825,29 @@ const INDIRECTABLE = [
 	OPCODE_SAD,
 	OPCODE_JMP
 ];
+
+// --- EAE OPCODES ---
+
+// EAE Setup Class
+const EAE_OPCODE_SETUP = 0;
+
+// EAE Multiplication Class
+const EAE_OPCODE_MUL = 1;
+
+// EAE Division Class
+const EAE_OPCODE_DIV = 3;
+
+// EAE Normalization Class
+const EAE_OPCODE_NORM = 4;
+
+// EAE Long Right Shift Class
+const EAE_OPCODE_LRS = 5;
+
+// EAE Long Left Shift Class
+const EAE_OPCODE_LLS = 6;
+
+// EAE AC Left Shift Class
+const EAE_OPCODE_AC_LEFT = 7;
 
 /*
  * Part of the propagation process
@@ -876,11 +905,12 @@ function decode(input) {
 	//	I[6] = Link Flag
 	//	If Step < 32:
 	//		I[7:9] = EAE opcode (IR['11:'9])
-	//		I[10] = Link AC sign
-	//	Else:
-	//		I[7:9] = EAE secondary setup (IR['8:'6])
 	//		I[10] = EAE link init
-	
+	//	Else:
+	//		I[7] = Clear AC
+	//		I[8] = Or MQ/AC
+	//		I[9] = Load EAE AC sign
+	//		I[10] = Link AC sign
 	// --- OUTPUTS ---
 	//
 	// O[0][0:5] = Next step
@@ -1892,7 +1922,8 @@ function decode(input) {
 		
 		// Build the next state
 		next_state = next_step & 077;
-	} else if (decode_mode == DECODE_MODE_INSTRUCTION) {
+	} 
+	else if (decode_mode == DECODE_MODE_INSTRUCTION) {
 		// Decode an instruction
 		let step = getbit(input, 0, 3);
 		let ir_14 = getbit(input, 3, 1);
@@ -2778,7 +2809,8 @@ function decode(input) {
 		
 		// Build the next state
 		next_state = next_step & 077;
-	} else if (decode_mode == DECODE_MODE_OPERATE) {
+	} 
+	else if (decode_mode == DECODE_MODE_OPERATE) {
 		// Operate step decoding
 		let step = getbit(input, 0, 1);
 		let cma = getbit(input, 1, 1);
@@ -2835,7 +2867,7 @@ function decode(input) {
 						alu_op_select = ALU_CLEAR;
 					}
 				} else {
-					// Either complimenet or don't
+					// Either complement or don't
 					if (cma) {
 						alu_op_select = ALU_XOR;
 					} else {
@@ -2925,6 +2957,54 @@ function decode(input) {
 					next_step = STEP_SRV_FETCH;
 				}
 				break;
+		}
+		
+		// Build the next state
+		next_state = next_step & 077;
+	} 
+	else if (decode_mode == DECODE_MODE_EAE) {
+		// Operate step decoding
+		let step = getbit(input, 0, 6);
+		let flag_link = getbit(input, 6, 1);
+		
+		
+		if (step < 32) {
+			// Primary EAE opcode execution
+			let eae_opcode = getbit(input, 7, 3);
+			let flag_link_init = getbit(input, 10, 1);
+			
+			// EAE opcode decoding
+			switch (eae_opcode) {
+				case EAE_OPCODE_SETUP:
+				
+				case EAE_OPCODE_MUL:
+				
+				case EAE_OPCODE_DIV:
+				
+				case EAE_OPCODE_NORM:
+				
+				case EAE_OPCODE_LRS:
+				
+				case EAE_OPCODE_LLS:
+				
+				case EAE_OPCODE_AC_LEFT:
+				
+				default:
+					// Invalid EAE opcode, stop instruction execution
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_FETCH;
+					break;
+					
+					
+			}
+			
+			
+		} else {
+			// Secondary EAE setup mode
+			let clear_ac = getbit(input, 7, 1);
+			let or_mq_ac = getbit(input, 8, 1);
+			let load_eae_sign = getbit(input, 9, 1);
+			let flag_eae_ac_sign = getbit(input, 10, 1);
 		}
 		
 		// Build the next state
