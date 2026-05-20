@@ -529,7 +529,7 @@ function propagate(cpu, devices) {
 			break;
 			
 		case BUS_SELECT_STEP:
-			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_step);
+			cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_step) & 077;
 			break;
 			
 		case BUS_SELECT_MQ:
@@ -724,6 +724,15 @@ const STEP_SRV_IRQ_SAVE_PC = 37;	// PC is stored in MB, OB
 const STEP_SRV_IRQ_WRITE_PC = 38;	// The logical OR of MB and OB is place in CORE[MA]
 const STEP_SRV_IRQ_MA_PC_INC = 39;	// MA + 1 is placed in the PC. Extend is enabled to ensure that bank 0 is selected
 
+// EAE setup steps
+const STEP_SRV_EAE_CLEAR_MQ = 48;	// Conditionally clear MQ
+const STEP_SRV_EAE_COMP_LOAD = 49;	// Check if we need to complement MQ, if so load OB with 0777777
+const STEP_SRV_EAE_OR_LOAD = 50;	// Check if we need to or AC with MQ, if so load OB with AC
+const STEP_SRV_EAE_SC_LOAD = 51;	// Check if we need to or AC with SC, if so load MB with SC
+const STEP_SRV_EAE_COMP_LATCH = 52;	// Perform 0777777 XOR MQ, latch it into MQ
+const STEP_SRV_EAE_OR_LATCH = 53; 	// Perform AC OR MQ, latch it into AC
+const STEP_SRV_EAE_SC_LOAD_AC = 54;	// Load OB with AC
+const STEP_SRV_EAE_SC_LATCH = 55;	// Perform AC OR SC, latch it into AC
 
 // --- INSTRUCTION MODE STEPS
 
@@ -792,23 +801,19 @@ const STEP_ISR_SAD_AC_OB = 3;		// Send the accumulator to the operator buffer
 const STEP_ISR_SAD_LATCH = 4;		// Latch the result of the XOR into OB
 const STEP_ISR_SAD_NULL = 5;
 
-// EAE (Instruction Mode)
-const OPCODE_EAE = 13;				// Initial step: Move AC into OB
-
 // JMP
 const OPCODE_JMP = 12;				// Conditional restore, Bit 18 of OB is moved into the link register
-const STEP_JMP_LOAD_PC = 3;		// Move OR of OB and MB into PC
+const STEP_JMP_LOAD_PC = 3;			// Move OR of OB and MB into PC
 
 // IOT
 const OPCODE_IOT = 14;
 
-
 // OPR
 const OPCODE_OPR = 15;				// Initial step: AC -> OB
-const STEP_ISR_OPR_PRESET_MB = 1	// Place 0777777 into MB
-const STEP_OPR_STAGE_ONE = 0		// First stage of OPR, complement / clear AC and L
-const STEP_ISR_OPR_SWR_MB =  2		// Move the switch register into OB
-const STEP_OPR_STAGE_TWO = 1		// Perform shift operations or OR in the switch register
+const STEP_ISR_OPR_PRESET_MB = 1;	// Place 0777777 into MB
+const STEP_OPR_STAGE_ONE = 0;		// First stage of OPR, complement / clear AC and L
+const STEP_ISR_OPR_SWR_MB =  2;		// Move the switch register into OB
+const STEP_OPR_STAGE_TWO = 1;		// Perform shift operations or OR in the switch register
 
 // Instructions defined here will allow for indirect addressing
 const INDIRECTABLE = [
@@ -826,10 +831,23 @@ const INDIRECTABLE = [
 	OPCODE_JMP
 ];
 
+// EAE
+const OPCODE_EAE = 13;				// Initial step: Move AC into OB. Check if we need to set link to AC['0]
+const STEP_ISR_EAE_SET_LINK = 1;	// Set link to AC['0]
+const STEP_EAE_SET_AC_SIGN = 32;	// If IR['6] is set, update EAE AC sign to FLAG_LINK or 0
+const STEP_EAE_SET_LINK_INIT = 33;	// Set link init to FLAG_LINK
+const STEP_EAE_OR_MQ_AC = 34;		// Either or MQ with AC or complement AC
+const STEP_EAE_OR_MQ_AC_LOAD = 35;	// Load MQ into MB
+const STEP_EAE_OR_MQ_AC_LATCH = 36; // Latch AC OR MQ into MQ
+const STEP_EAE_COMP_AC = 37;		// Latch AC XOR 0777777 into AC
+const STEP_EAE_CLEAR_AC = 38;		// If IR['8] then set AC to 0
+
+const STEP_EAE_EXECUTE_BEGIN = 0;	// First step in EAE instruction execution
+
 // --- EAE OPCODES ---
 
 // EAE Setup Class
-const EAE_OPCODE_SETUP = 0;
+const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into service decode mode
 
 // EAE Multiplication Class
 const EAE_OPCODE_MUL = 1;
@@ -878,8 +896,10 @@ function decode(input) {
 	//			I[9] = Device request
 	//			I[10] = Interrupt request
 	//		Else:
-	//			I[7:9] = IR['17:'15]
-	//			I[10] = IR['5]
+	//			I[7] = Or AC/SC	(IR['17])
+	//			I[8] = Or AC/MQ (IR['16])
+	//			I[9] = Complement MQ (IR['15])
+	//			I[10] = Clear MQ (IR['5])
 	//			
 	// If Decode Mode == 1 (Instruction Mode)
 	//	I[0:2] = Current step
@@ -907,9 +927,9 @@ function decode(input) {
 	//		I[7:9] = EAE opcode (IR['11:'9])
 	//		I[10] = EAE link init
 	//	Else:
-	//		I[7] = Clear AC
-	//		I[8] = Or MQ/AC
-	//		I[9] = Load EAE AC sign
+	//		I[7] = Clear AC (IR['8])
+	//		I[8] = Or MQ/AC (IR['7])
+	//		I[9] = Load EAE AC sign (IR['6])
 	//		I[10] = Link AC sign
 	// --- OUTPUTS ---
 	//
@@ -922,7 +942,7 @@ function decode(input) {
 	// O[1][3] = Latch AC
 	// O[1][4] = Latch STEP
 	// O[1][5] = Latch MQ
-	// O[1][6] = Latch MB
+	// O[1][6] = Latch MB / Latch FLAG_LINK_INIT / Latch FLAG_EAE_AC_SIGN
 	// O[1][7] = Write Core
 	//
 	// O[2][0:2] = Define bus select
@@ -939,7 +959,7 @@ function decode(input) {
 	// O[2][5:6] = Address register mode
 	// O[2][7] = Constant generation
 	//	0: ALU | 0 / ADDR + 0
-	//	1: ALU | 020 / ADDR + 1
+	//	1: ALU | 020 / ADDR + 1 / FLAG_LINK_INIT -> FLAG_EAE_AC_SIGN / NEXT_FLAG_LINK -> FLAG_LINK_INIT
 	//
 	// O[3][0] = Latch WRTBK
 	// O[3][1] = Clear all flags
@@ -958,7 +978,7 @@ function decode(input) {
 	//	3: Shifter -> Link
 	// O[4][5] = Select shifter
 	// O[4][6] = Set 1-s compliment mode
-	// O[4][7] = Latch OB
+	// O[4][7] = Latch OB / Latch FLAG_LINK
 	//
 	// O[5] = Instruction fetch cycle
 	
@@ -1027,11 +1047,11 @@ function decode(input) {
 		let device_req = getbit(input, 9, 1);
 		let interrupt_req = getbit(input, 10, 1);
 		
-		// EAE/IOT bit decoding
+		// EAE bit decoding
 		let eae_or_ac_sc = getbit(input, 7, 1);
 		let eae_or_ac_mq = getbit(input, 8, 1);
 		let eae_comp_mq = getbit(input, 9, 1);
-		let iot_clear_ac = getbit(input, 10, 1);
+		let eae_clear_mq = getbit(input, 10, 1);
 		
 		
 		switch (step) {
@@ -1915,7 +1935,36 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 				
+			// Conditionally clear MQ
+			// Also clear OB to setup for AC sign set
+			// 0 -> OB
+			// IF CLEAR_MQ:
+			//  0 -> MQ
+			// STEP_EAE_SET_AC_SIGN -> NEXT
+			case STEP_SRV_EAE_CLEAR_MQ:
+			
+				// Set the bus to 0
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_CLEAR;
+				
+				// Latch OB
+				latch_ob = 1;
+				
+				// Conditionallty latch MQ
+				if (eae_clear_mq) {
+					latch_mq = 1;
+				}
+				
+				next_decode_mode = DECODE_MODE_EAE;
+				next_step = STEP_EAE_SET_AC_SIGN;
+				break;
+				
+				
 			default:
+				// Service step not implemented, go fetch another one
+				console.log("Warning: We tried to execute an unimplemented service step!");
+				next_decode_mode = DECODE_MODE_SERVICE;
+				next_step = STEP_SRV_FETCH;
 				break;
 				
 		}
@@ -2345,7 +2394,7 @@ function decode(input) {
 						
 					// Perform the ALU operation and store in AC
 					// (MB ADD OB) -> AC, OB
-					// LINK_ARITH -> L
+					// LINK_ARITH -> FLAG_LINK
 					// STEP_SRV_FETCH -> NEXT
 					case STEP_ISR_ADD_LATCH:
 					
@@ -2782,18 +2831,37 @@ function decode(input) {
 				// Extended arithmetic instruction
 				switch (step) {
 					
-					// Check if we need to clear MQ
-					// We will also decide if we are shifitng AC0 into L
-					// IF IR_14:
-					//
+					// Load AC into OB for AC['0] -> L shift
+					// Also check if we need to in the first place
+					// If not, skip directly to the MQ clear check
+					// AC -> OB
+					// IF INDIR:
+					//	STEP_ISR_EAE_SET_LINK -> NEXT
+					// ELSE:
+					//  STEP_SRV_EAE_CLEAR_MQ -> NEXT
 					case STEP_ISR_EXECUTE_BEGIN:
 					
-						if (ir_14) {
-							
-						}
+						// Copy AC to OB
+						bus_output_select = BUS_SELECT_AC;
+						latch_ob;
 					
+						if (indir) {
+							next_step = STEP_ISR_EAE_SET_LINK;
+						} else {
+							next_step = STEP_SRV_EAE_CLEAR_MQ;
+							next_decode_mode = DECODE_MODE_SERVICE;
+						}
+						break;
+						
+					// OB << 1 -> OB
+					// LINK_SHIFT -> FLAG_LINK
+					// STEP_SRV_EAE_CLEAR_MQ -> NEXT
+					case STEP_ISR_EAE_SET_LINK:
+					
+						alu_link_select = ALU_LINK_SHIFT;
+					
+						next_step = STEP_SRV_EAE_CLEAR_MQ;
 						next_decode_mode = DECODE_MODE_SERVICE;
-						next_step = STEP_SRV_FETCH;
 						break;
 				}
 				
@@ -2801,6 +2869,7 @@ function decode(input) {
 				
 			default:
 				// Instruction not implemented, go fetch another one
+				console.log("Warning: We tried to decode an unimplemented instruction!");
 				next_decode_mode = DECODE_MODE_SERVICE;
 				next_step = STEP_SRV_FETCH;
 				break;
@@ -2840,14 +2909,14 @@ function decode(input) {
 			//   (OB AND MB) -> AC, OB
 			// IF CLL:
 			//  IF CML:
-			//   1 -> FLAG_L
+			//   1 -> FLAG_LINK
 			//  ELSE:
-			//   0 -> FLAG_L
+			//   0 -> FLAG_LINK
 			// ELSE:
 			//   IF CML:
-			//    !FLAG_L -> FLAG_L
+			//    !FLAG_LINK -> FLAG_LINK
 			//   ELSE:
-			//    FLAG_L -> FLAG_L
+			//    FLAG_LINK -> FLAG_LINK
 			// STEP_ISR_OPR_SWR_MB -> NEXT
 			
 			case STEP_OPR_STAGE_ONE:
@@ -2898,18 +2967,20 @@ function decode(input) {
 				
 			// Perform shift operations / do switch register OR operation
 			// IF OAS:
-			//  (OB OR MB) -> AC
+			//  (OB OR MB) -> AC, OB
 			// ELSE:
 			//  IF RAL:
+			//   LINK_SHIFT -> FLAG_LINK
 			//   IF AROT:
-			//    OB << 2 -> AC
+			//    OB << 2 -> AC, OB
 			//   ELSE:
-			//    OB << 1 -> AC
+			//    OB << 1 -> AC, OB
 			//  IF RAR:
+			//   LINK_SHIFT -> FLAG_LINK
 			//   IF AROT:
-			//    OB >> 2 -> AC
+			//    OB >> 2 -> AC, OB
 			//   ELSE:
-			//    OB >> 1 -> AC
+			//    OB >> 1 -> AC, OB
 			// IF HALT:
 			//  STEP_SRV_REFETCH -> NEXT
 			// ELSE:
@@ -2977,6 +3048,30 @@ function decode(input) {
 			switch (eae_opcode) {
 				case EAE_OPCODE_SETUP:
 				
+					// EAE Setup steps
+					switch (step) {
+						
+						// Load MQ into MB
+						// MQ -> MB
+						// ? -> NEXT
+						case STEP_EAE_EXECUTE_BEGIN:
+						
+							// MQ -> MB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_mb = 1;
+						
+							next_decode_mode = DECODE_MODE_SERVICE;
+							break;
+						
+						default:
+							// Invalid step, stop instruction execution
+							console.log("Warning: We tried to decode an unimplemented EAE instruction!");
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+							
+					}
+				
 				case EAE_OPCODE_MUL:
 				
 				case EAE_OPCODE_DIV:
@@ -2991,6 +3086,7 @@ function decode(input) {
 				
 				default:
 					// Invalid EAE opcode, stop instruction execution
+					console.log("Warning: We tried to decode an unimplemented EAE instruction!");
 					next_decode_mode = DECODE_MODE_SERVICE;
 					next_step = STEP_SRV_FETCH;
 					break;
@@ -3005,6 +3101,175 @@ function decode(input) {
 			let or_mq_ac = getbit(input, 8, 1);
 			let load_eae_sign = getbit(input, 9, 1);
 			let flag_eae_ac_sign = getbit(input, 10, 1);
+			
+			
+			switch (step) {
+				
+				// If IR['6] and FLAG_LINK, set EAE AC sign to link flag
+				// Otherwise set it to zero
+				// Also put 0777777 into MB so we can complement with it later
+				// IF LOAD_EAE_SIGN::
+				//  FLAG_LINK -> FLAG_EAE_AC_SIGN
+				// ELSE:
+				//  0 -> FLAG_EAE_AC_SIGN
+				// 0777777 -> MB
+				// STEP_EAE_SET_LINK_INIT -> NEXT
+				case STEP_EAE_SET_AC_SIGN:
+				
+					// Set bus to 0777777
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_PRESET;
+					
+					// Latch MB
+					// This is also used to write to EAE_AC_SIGN
+					latch_mb = 1;
+					constant_value = 1;
+					
+					// Check condition
+					if (load_eae_sign) {
+						// FLAG_LINK -> FLAG_EAE_AC_SIGN
+						alu_link_select = ALU_LINK_KEEP;
+					} else {
+						// 0 -> FLAG_EAE_AC_SIGN
+						// This works because we set OB to zero last step
+						alu_link_select = ALU_LINK_SHIFT;
+					}
+
+					
+					next_step = STEP_EAE_SET_LINK_INIT;
+					break;
+					
+				// Set flag init to FLAG_LINK
+				// FLAG_LINK -> FLAG_LINK_INIT
+				// 0777777 -> MB
+				// STEP_EAE_OR_MQ_AC -> NEXT
+				case STEP_EAE_SET_LINK_INIT:
+				
+					// Set bus to 0777777
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_PRESET;
+					
+					// Latch MB
+					// This is also used to write to EAE_AC_SIGN
+					latch_mb = 1;
+					constant_value = 1;
+					
+					// FLAG_LINK -> FLAG_LINK_INIT
+					alu_link_select = ALU_LINK_KEEP;
+				
+					next_step = STEP_EAE_OR_MQ_AC;
+					break;
+					
+				// If IR['7], then begin path to OR MQ with AC
+				// Otherwise, if IR['6] and FLAG_LINK is set then begin path to complement AC
+				// If both are false, continue on to clear AC
+				// AC -> OB
+				// IF OR_MQ_AC:
+				//  STEP_EAE_OR_MQ_AC_LOAD -> NEXT
+				// ELSE IF LOAD_EAE_SIGN AND FLAG_LINK:
+				//  STEP_EAE_COMP_AC -> NEXT
+				// ELSE:
+				//  IF CLEAR_AC:
+				//   STEP_EAE_CLEAR_AC -> NEXT
+				//  ELSE:
+				//   STEP_EAE_EXECUTE_BEGIN -> NEXT
+				case STEP_EAE_OR_MQ_AC:
+				
+					// Move AC into OB
+					bus_output_select = BUS_SELECT_AC;
+					latch_ob = 1;
+					
+					if (or_mq_ac) {
+						// Go and start performing an OR between MQ and AC
+						next_step = STEP_EAE_OR_MQ_AC_LOAD;
+					} else if (load_eae_sign && flag_link) {
+						// Go and complement AC
+						next_step = STEP_EAE_COMP_AC;
+					} else {
+						// Go and check if we need to clear AC or not
+						if (clear_ac) {
+							next_step = STEP_EAE_CLEAR_AC;
+						} else {
+							next_step = STEP_EAE_EXECUTE_BEGIN;
+						}
+					}
+					
+					break;
+					
+				// Load MQ into MB
+				// MQ -> MB
+				// STEP_EAE_OR_MQ_AC_LATCH -> NEXT
+				case STEP_EAE_OR_MQ_AC_LOAD:
+				
+					// Move MQ into MB
+					bus_output_select = BUS_SELECT_MQ;
+					latch_mb = 1;
+				
+					next_step = STEP_EAE_OR_MQ_AC_LATCH;
+					break;
+					
+				// Load MQ OR AC into MQ
+				// (OB OR MB) -> MQ
+				// IF CLEAR_AC:
+				//  STEP_EAE_CLEAR_AC -> NEXT
+				// ELSE:
+				//  STEP_EAE_EXECUTE_BEGIN -> NEXT
+				case STEP_EAE_OR_MQ_AC_LATCH:
+				
+					// Perform (OB OR MB) -> MQ
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_OR;
+					latch_mq = 1;
+				
+					if (clear_ac) {
+						next_step = STEP_EAE_CLEAR_AC 
+					} else {
+						next_step = STEP_EAE_EXECUTE_BEGIN;
+					}
+					break;
+					
+				// Load AC XOR 0777777 into AC
+				// (OB XOR MB) -> AC
+				// IF CLEAR_AC:
+				//  STEP_EAE_CLEAR_AC -> NEXT
+				// ELSE:
+				//  STEP_EAE_EXECUTE_BEGIN -> NEXT
+				case STEP_EAE_COMP_AC:
+				
+					// Perform (OB OR MB) -> MQ
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_XOR;
+					latch_ac = 1;
+				
+					if (clear_ac) {
+						next_step = STEP_EAE_CLEAR_AC 
+					} else {
+						next_step = STEP_EAE_EXECUTE_BEGIN;
+					}
+					break;
+					
+				// Load 0 into AC
+				// 0 -> AC
+				// STEP_EAE_EXECUTE_BEGIN -> NEXT
+				case STEP_EAE_CLEAR_AC:
+				
+					// 0 -> QC
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_CLEAR;
+					latch_ac = 1;
+					
+					next_step = STEP_EAE_EXECUTE_BEGIN;
+					break;
+					
+				
+				default:
+					// Invalid EAE opcode, stop instruction execution
+					console.log("Warning: We tried to decode an unimplemented EAE service step!");
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_FETCH;
+					break;
+			}
+			
 		}
 		
 		// Build the next state
