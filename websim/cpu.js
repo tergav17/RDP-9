@@ -34,7 +34,7 @@ cpu_state = {
 	// Flags
 	r_reg_link: 0,			// Link flag register
 	r_reg_link_init: 0,		// EAE link init
-	r_reg_link_ac_sign; 0,	// EAE AC sign
+	r_reg_link_ac_sign: 0,	// EAE AC sign
 	r_flag_ex: 0,			// Extended memory flag register
 	r_reg_zero: 0,			// OB = Zero flag
 	r_reg_sign: 0,			// OB = Sign flag
@@ -931,6 +931,7 @@ function decode(input) {
 	//		I[8] = Or MQ/AC (IR['7])
 	//		I[9] = Load EAE AC sign (IR['6])
 	//		I[10] = Link AC sign
+	//
 	// --- OUTPUTS ---
 	//
 	// O[0][0:5] = Next step
@@ -1033,7 +1034,6 @@ function decode(input) {
 		
 		// Front panel domain
 		let front_panel_state = getbit(input, 7, 4);
-		
 		
 		// Device status domain
 		let dma_request = getbit(input, 7, 1);
