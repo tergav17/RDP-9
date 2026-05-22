@@ -1960,6 +1960,36 @@ function decode(input) {
 				break;
 				
 				
+			// Check if we need to complement MQ
+			// If so load OB with 0777777
+			// Otherwise goto STEP_SRV_EAE_OR_LOAD
+			// IF EAE_COMP_MQ:
+			//  0777777 -> OB
+			//  STEP_SRV_EAE_COMP_LATCH -> NEXT
+			// GOTO STEP_SRV_EAE_OR_LOAD
+			case STEP_SRV_EAE_COMP_LOAD:
+			
+				if (eae_comp_mq) {
+					
+					// Set bus to 0777777
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_PRESET;
+					
+					// Latch OB
+					latch_ob = 1;
+					
+					next_step = STEP_SRV_EAE_COMP_LATCH;
+					break;
+				}
+				
+				// Fall through to STEP_SRV_EAE_LOAD
+
+				
+			case STEP_SRV_EAE_OR_LOAD:
+			
+				break;
+				
+				
 			default:
 				// Service step not implemented, go fetch another one
 				console.log("Warning: We tried to execute an unimplemented service step!");
