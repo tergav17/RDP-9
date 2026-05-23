@@ -338,29 +338,35 @@ function drawFlow(cpu) {
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("INSTRUCTION", x + 15, y - 10);
 	drawRegister(x, y, getbit(cpu.r_reg_ir, 13, 5), 5);
+
+	// Step Register
+	x = 518; y = 90;
+	flow_ctx.fillStyle = "black";
+	flow_ctx.fillText("STEP", x + 45, y - 10);
+	drawRegister(x, y, cpu.r_reg_step, 6);
 	
 	// Link register
 	x = 430; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("LNK", x - 2, y - 10);
+	flow_ctx.fillText("L", x + 3, y - 10);
 	drawRegister(x, y, cpu.r_reg_link, 1);
 	
 	// PIE signal
-	x = 454; y = 90;
+	x = 450; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("PIE", x - 2 , y - 10);
+	flow_ctx.fillText("PI", x + 1 , y - 10);
 	drawRegister(x, y, device_states.sysflag.r_flag_pi, 1);
 	
 	// Run signal
-	x = 478; y = 90;
+	x = 470; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("RUN", x - 2 , y - 10);
+	flow_ctx.fillText("GO", x + 1 , y - 10);
 	drawRegister(x, y, !cpu.s_halt_indicator, 1);
 	
 	// MEM signal
-	x = 502; y = 90;
+	x = 490; y = 90;
 	flow_ctx.fillStyle = "black";
-	flow_ctx.fillText("MEM", x - 2 , y - 10);
+	flow_ctx.fillText("MM", x + 1 , y - 10);
 	drawRegister(x, y, device_states.sysflag.r_flag_pi, 1);
 	
 	// Draw 18-Bank Switches

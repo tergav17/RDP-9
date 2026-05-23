@@ -94,7 +94,9 @@ cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0640004;	// CMQ
 cpu_state.r_core[3] = 0750000;	// CLA
 cpu_state.r_core[4] = 0640002;	// OMQ
-cpu_state.r_core[5] = 0600005;	// JMP 005
+cpu_state.r_core[5] = 0650000;	// CLQ
+cpu_state.r_core[6] = 0644000;  // ABS
+cpu_state.r_core[7] = 0600006;	// JMP 006
 
 cpu_state.r_core[040] = 0123456;
 
@@ -237,7 +239,11 @@ function latch(cpu, devices) {
 		
 		if (constant_value) {
 			cpu.r_reg_link_ac_sign = cpu.r_reg_link_init;
-			cpu.r_reg_link_init = bus(cpu.s_next_link);
+			cpu.r_reg_link_init = bus(cpu.s_next_link) & getbit(cpu.r_reg_ob, 17, 1);
+			console.log("OB: " + cpu.r_reg_ob);
+			console.log("Next link: " + cpu.s_next_link);
+			console.log("Link init is now: " + cpu.r_reg_link_init);
+
 		}
 	}
 	
@@ -346,7 +352,7 @@ function propagate(cpu, devices) {
 		case DECODE_MODE_EAE:
 			microcode_input |= cpu.r_state[0] & 077;
 			microcode_input |= cpu.r_reg_link << 6;
-			if (cpu.r_state[0] & 077 < 32) {
+			if ((cpu.r_state[0] & 077) < 32) {
 				microcode_input |= getbit(cpu.r_reg_ir, 6, 3) << 7;
 				microcode_input |= cpu.r_reg_link_init << 10;
 			} else {
@@ -942,7 +948,7 @@ function decode(input) {
 	//		I[7] = Clear AC (IR['8])
 	//		I[8] = Or MQ/AC (IR['7])
 	//		I[9] = Load EAE AC sign (IR['6])
-	//		I[10] = Link AC sign
+	//		I[10] = EAE AC sign
 	//
 	// --- OUTPUTS ---
 	//
@@ -1948,8 +1954,6 @@ function decode(input) {
 				break;
 				
 			// Conditionally clear MQ
-			// Also clear OB to setup for AC sign set
-			// 0 -> OB
 			// IF CLEAR_MQ:
 			//  0 -> MQ
 			// STEP_EAE_SET_AC_SIGN -> NEXT
@@ -1958,9 +1962,6 @@ function decode(input) {
 				// Set the bus to 0
 				bus_output_select = BUS_SELECT_ALU;
 				alu_op_select = ALU_CLEAR;
-				
-				// Latch OB
-				latch_ob = 1;
 				
 				// Conditionallty latch MQ
 				if (eae_clear_mq) {
@@ -3000,7 +3001,7 @@ function decode(input) {
 					
 						// Copy AC to OB
 						bus_output_select = BUS_SELECT_AC;
-						latch_ob;
+						latch_ob = 1;
 					
 						if (indirect) {
 							next_step = STEP_ISR_EAE_SET_LINK;
@@ -3010,11 +3011,12 @@ function decode(input) {
 						}
 						break;
 						
-					// OB << 1 -> OB
+					// OB << 1
 					// LINK_SHIFT -> FLAG_LINK
 					// STEP_SRV_EAE_CLEAR_MQ -> NEXT
 					case STEP_ISR_EAE_SET_LINK:
 					
+						alu_op_select = ALU_SHIFT_RAL;
 						alu_link_select = ALU_LINK_SHIFT;
 					
 						next_step = STEP_SRV_EAE_CLEAR_MQ;
@@ -3277,12 +3279,12 @@ function decode(input) {
 				
 				// If IR['6] and FLAG_LINK, set EAE AC sign to link flag
 				// Otherwise set it to zero
-				// Also put 0777777 into MB so we can complement with it later
+				// Also put 0777777 into OB so we can unconditionally set to FLAG_LINK_INIT bit
 				// IF LOAD_EAE_SIGN::
-				//  FLAG_LINK -> FLAG_EAE_AC_SIGN
+				//  1 && OB['0] -> FLAG_EAE_AC_SIGN
 				// ELSE:
-				//  0 -> FLAG_EAE_AC_SIGN
-				// 0777777 -> MB
+				//  0 && OB['0] -> FLAG_EAE_AC_SIGN
+				// 0777777 -> OB, MB
 				// STEP_EAE_SET_LINK_INIT -> NEXT
 				case STEP_EAE_SET_AC_SIGN:
 				
@@ -3290,19 +3292,27 @@ function decode(input) {
 					bus_output_select = BUS_SELECT_ALU;
 					alu_op_select = ALU_PRESET;
 					
-					// Latch MB
+					// Latch OB and MB
 					// This is also used to write to EAE_AC_SIGN
+					latch_ob = 1;
 					latch_mb = 1;
 					constant_value = 1;
 					
 					// Check condition
 					if (load_eae_sign) {
-						// FLAG_LINK -> FLAG_EAE_AC_SIGN
-						alu_link_select = ALU_LINK_KEEP;
+						// 1 && OB['0] -> FLAG_EAE_AC_SIGN
+						if (flag_link) {
+							alu_link_select = ALU_LINK_KEEP;
+						} else {
+							alu_link_select = ALU_LINK_COMP;
+						}
 					} else {
 						// 0 -> FLAG_EAE_AC_SIGN
-						// This works because we set OB to zero last step
-						alu_link_select = ALU_LINK_SHIFT;
+						if (!flag_link) {
+							alu_link_select = ALU_LINK_KEEP;
+						} else {
+							alu_link_select = ALU_LINK_COMP;
+						}
 					}
 
 					
@@ -3310,7 +3320,7 @@ function decode(input) {
 					break;
 					
 				// Set flag init to FLAG_LINK
-				// FLAG_LINK -> FLAG_LINK_INIT
+				// FLAG_LINK && OB['0] -> FLAG_LINK_INIT
 				// 0777777 -> MB
 				// STEP_EAE_OR_MQ_AC -> NEXT
 				case STEP_EAE_SET_LINK_INIT:
@@ -3324,7 +3334,7 @@ function decode(input) {
 					latch_mb = 1;
 					constant_value = 1;
 					
-					// FLAG_LINK -> FLAG_LINK_INIT
+					// FLAG_LINK && OB['0] -> FLAG_LINK_INIT
 					alu_link_select = ALU_LINK_KEEP;
 				
 					next_step = STEP_EAE_OR_MQ_AC;
@@ -3336,13 +3346,8 @@ function decode(input) {
 				// AC -> OB
 				// IF OR_MQ_AC:
 				//  STEP_EAE_OR_MQ_AC_LOAD -> NEXT
-				// ELSE IF LOAD_EAE_SIGN AND FLAG_LINK:
-				//  STEP_EAE_COMP_AC -> NEXT
 				// ELSE:
-				//  IF CLEAR_AC:
-				//   STEP_EAE_CLEAR_AC -> NEXT
-				//  ELSE:
-				//   STEP_EAE_EXECUTE_BEGIN -> NEXT
+				//  STEP_EAE_COMP_AC -> NEXT
 				case STEP_EAE_OR_MQ_AC:
 				
 					// Move AC into OB
@@ -3352,18 +3357,10 @@ function decode(input) {
 					if (or_mq_ac) {
 						// Go and start performing an OR between MQ and AC
 						next_step = STEP_EAE_OR_MQ_AC_LOAD;
-					} else if (load_eae_sign && flag_link) {
-						// Go and complement AC
-						next_step = STEP_EAE_COMP_AC;
 					} else {
-						// Go and check if we need to clear AC or not
-						if (clear_ac) {
-							next_step = STEP_EAE_CLEAR_AC;
-						} else {
-							next_step = STEP_EAE_EXECUTE_BEGIN;
-						}
+						// Go and conditionally complement AC
+						next_step = STEP_EAE_COMP_AC;
 					}
-					
 					break;
 					
 				// Load MQ into MB
@@ -3399,24 +3396,37 @@ function decode(input) {
 					break;
 					
 				// Load AC XOR 0777777 into AC
-				// (OB XOR MB) -> AC
-				// IF CLEAR_AC:
-				//  STEP_EAE_CLEAR_AC -> NEXT
-				// ELSE:
+				// IF FLAG_EAE_AC_SIGN:
+				//  (OB XOR MB) -> AC
+				//  IF CLEAR_AC:
+				//   STEP_EAE_CLEAR_AC -> NEXT
+				//  ELSE:
+				//   STEP_EAE_EXECUTE_BEGIN -> NEXT
+				// ELSE IF !CLEAR_AC:
 				//  STEP_EAE_EXECUTE_BEGIN -> NEXT
+				// ELSE:
+				//  GOTO STEP_EAE_CLEAR_AC
 				case STEP_EAE_COMP_AC:
 				
-					// Perform (OB OR MB) -> MQ
-					bus_output_select = BUS_SELECT_ALU;
-					alu_op_select = ALU_XOR;
-					latch_ac = 1;
-				
-					if (clear_ac) {
-						next_step = STEP_EAE_CLEAR_AC 
-					} else {
+					if (flag_eae_ac_sign) {
+						// Perform (OB XOR MB) -> AC
+						bus_output_select = BUS_SELECT_ALU;
+						alu_op_select = ALU_XOR;
+						latch_ac = 1;
+
+						if (clear_ac) {
+							next_step = STEP_EAE_CLEAR_AC
+						} else {
+							next_step = STEP_EAE_EXECUTE_BEGIN;
+						}
+						break;
+					} else if (!clear_ac) {
 						next_step = STEP_EAE_EXECUTE_BEGIN;
+						break;
 					}
-					break;
+
+					// Fall through to clear AC
+
 					
 				// Load 0 into AC
 				// 0 -> AC
