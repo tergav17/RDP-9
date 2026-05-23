@@ -89,6 +89,14 @@ cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memor
 //cpu_state.r_core[3] = 0600001;	// JMP 001
 //cpu_state.r_core[4] = 0600000;	// JMP 000
 
+cpu_state.r_core[0] = 0200040;	// LAC 040
+cpu_state.r_core[1] = 0652000;	// LMQ
+cpu_state.r_core[2] = 0640004;	// CMQ
+cpu_state.r_core[3] = 0640002;	// OMQ
+cpu_state.r_core[4] = 0600004;	// JMP 004
+
+cpu_state.r_core[040] = 0123456;
+
 /*
 // Simple tape read in program
 cpu_state.r_core[0] = 0700144;	// RSB			Set reader to binary mode and clear buffer
@@ -335,9 +343,9 @@ function propagate(cpu, devices) {
 			break;
 			
 		case DECODE_MODE_EAE:
-			microcode_input |= step;
+			microcode_input |= cpu.r_state[0] & 077;
 			microcode_input |= cpu.r_reg_link << 6;
-			if (step < 32) {
+			if (cpu.r_state[0] & 077 < 32) {
 				microcode_input |= getbit(cpu.r_reg_ir, 6, 3) << 7;
 				microcode_input |= cpu.r_reg_link_init << 10;
 			} else {
@@ -851,6 +859,9 @@ const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into servic
 
 // EAE Multiplication Class
 const EAE_OPCODE_MUL = 1;
+
+// EAE Null Class
+const EAE_OPCODE_NULL = 2;			// Just fetch the next instruction
 
 // EAE Division Class
 const EAE_OPCODE_DIV = 3;
@@ -2990,7 +3001,7 @@ function decode(input) {
 						bus_output_select = BUS_SELECT_AC;
 						latch_ob;
 					
-						if (indir) {
+						if (indirect) {
 							next_step = STEP_ISR_EAE_SET_LINK;
 						} else {
 							next_step = STEP_SRV_EAE_CLEAR_MQ;
@@ -3217,10 +3228,18 @@ function decode(input) {
 							
 					}
 				
+				case EAE_OPCODE_NULL:
+
+					// EAE NULL opcode steps
+					// We do nothing here, just fetch the next instruction
+					next_decode_mode = DECODE_MODE_SERVICE;
+					next_step = STEP_SRV_FETCH;
+					break;
+
 				case EAE_OPCODE_MUL:
 				
 				case EAE_OPCODE_DIV:
-				
+
 				case EAE_OPCODE_NORM:
 				
 				case EAE_OPCODE_LRS:
@@ -3231,7 +3250,7 @@ function decode(input) {
 				
 				default:
 					// Invalid EAE opcode, stop instruction execution
-					console.log("Warning: We tried to decode an unimplemented EAE instruction!");
+					console.log("Warning: We tried to decode an unimplemented EAE instruction: " + eae_opcode);
 					next_decode_mode = DECODE_MODE_SERVICE;
 					next_step = STEP_SRV_FETCH;
 					break;
