@@ -2054,6 +2054,57 @@ function decode(input) {
 				}
 				break;
 
+			// Perform the AC OR MQ, put it in AC
+			// (OB OR MB) -> AC
+			// IF EAE_OR_AC_SC:
+			//  STEP_SRV_EAE_SC_LOAD_SC -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH -> NEXT
+ 			case STEP_SRV_EAE_OR_LATCH:
+
+				// Set bus to ALU
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
+
+				// Latch into AC
+				latch_ac = 1;
+
+				if (eae_or_ac_sc) {
+					next_step = STEP_SRV_EAE_SC_LOAD_SC;
+				} else {
+					next_step = STEP_SRV_FETCH;
+				}
+				break;
+
+			// Load MB with SC
+			// SC -> MB
+			// STEP_SRV_EAE_SC_LATCH -> NEXT
+			case STEP_SRV_EAE_SC_LOAD_SC:
+
+				// Set bus to SC
+				bus_output_select = BUS_SELECT_STEP;
+
+				// Latch into MB
+				latch_mb = 1;
+
+				next_step = STEP_SRV_EAE_SC_LATCH;
+				break;
+
+			// Perform AC OR SC, put it in AC
+			// (OB OR MB) -> AC
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_EAE_SC_LATCH:
+
+				// Set bus to ALU
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_OR;
+
+				// Latch into AC
+				latch_ac = 1;
+
+				next_step = STEP_SRV_FETCH;
+				break;
+
 			default:
 				// Service step not implemented, go fetch another one
 				console.log("Warning: We tried to execute an unimplemented service step!");
