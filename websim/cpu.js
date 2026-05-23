@@ -728,10 +728,10 @@ const STEP_SRV_IRQ_MA_PC_INC = 39;	// MA + 1 is placed in the PC. Extend is enab
 const STEP_SRV_EAE_CLEAR_MQ = 48;	// Conditionally clear MQ
 const STEP_SRV_EAE_COMP_LOAD = 49;	// Check if we need to complement MQ, if so load OB with 0777777
 const STEP_SRV_EAE_OR_LOAD = 50;	// Check if we need to or AC with MQ, if so load OB with AC
-const STEP_SRV_EAE_SC_LOAD = 51;	// Check if we need to or AC with SC, if so load MB with SC
+const STEP_SRV_EAE_SC_LOAD = 51;	// Check if we need to or AC with SC, if so load OB with AC
 const STEP_SRV_EAE_COMP_LATCH = 52;	// Perform 0777777 XOR MQ, latch it into MQ
 const STEP_SRV_EAE_OR_LATCH = 53; 	// Perform AC OR MQ, latch it into AC
-const STEP_SRV_EAE_SC_LOAD_AC = 54;	// Load OB with AC
+const STEP_SRV_EAE_SC_LOAD_SC = 54;	// Load MB with SC
 const STEP_SRV_EAE_SC_LATCH = 55;	// Perform AC OR SC, latch it into AC
 
 // --- INSTRUCTION MODE STEPS
@@ -1984,12 +1984,76 @@ function decode(input) {
 				
 				// Fall through to STEP_SRV_EAE_LOAD
 
-				
+			// Check if we need to OR together AC and MQ
+			// If so load OB with AC
+			// Otherwise goto STEP_SRV_EAE_SC_LOAD
+			// IF EAE_OR_AC_SC:
+			//  AC -> OB
+			//  STEP_SRV_EAE_OR_LATCH -> NEXT
+			// GOTO STEP_SRV_EAE_SC_LOAD
 			case STEP_SRV_EAE_OR_LOAD:
 			
+				if (eae_or_ac_mq) {
+
+					// Set bus to AC
+					bus_output_select = BUS_SELECT_AC;
+
+					// Latch OB
+					latch_ob = 1;
+
+					next_step = STEP_SRV_EAE_OR_LATCH;
+					break;
+				}
+
+				// Fall through to STEP_SRV_EAE_SC_LOAD
+
+			// Check if we need to OR together AC and SC
+			// If so load OB with AC
+			// Otherwise EAE setup command is complete
+			// IF EAE_OR_AC_SC:
+			//  AC -> OB
+			//  STEP_SRV_EAE_OR_LATCH -> NEXT
+			// STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_EAE_SC_LOAD:
+
+				if (eae_or_ac_sc) {
+
+					// Set bus to AC
+					bus_output_select = BUS_SELECT_AC;
+
+					// Latch OB
+					latch_ob = 1;
+
+					next_step = STEP_SRV_EAE_SC_LOAD_SC;
+					break;
+				}
+
+				// Setup done, go to fetch
+				next_step = STEP_SRV_FETCH;
 				break;
 				
-				
+			// Perform the MQ complement, put it in MQ
+			// (OB OR MB) -> MQ
+			// IF EAE_OR_AC_SC OR EAE_OR_AC_MQ:
+			//  STEP_SRV_EAE_OR_LOAD -> NEXT
+			// ELSE:
+			//  STEP_SRV_FETCH -> NEXT
+			case STEP_SRV_EAE_COMP_LATCH:
+
+				// Set bus to ALU
+				bus_output_select = BUS_SELECT_ALU;
+				alu_op_select = ALU_XOR;
+
+				// Latch into MQ
+				latch_mq = 1;
+
+				if (eae_or_ac_mq || eae_or_ac_sc) {
+					next_step = STEP_SRV_EAE_OR_LOAD;
+				} else {
+					next_step = STEP_SRV_FETCH;
+				}
+				break;
+
 			default:
 				// Service step not implemented, go fetch another one
 				console.log("Warning: We tried to execute an unimplemented service step!");
