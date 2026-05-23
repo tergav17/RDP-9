@@ -92,8 +92,9 @@ cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memor
 cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0640004;	// CMQ
-cpu_state.r_core[3] = 0640002;	// OMQ
-cpu_state.r_core[4] = 0600004;	// JMP 004
+cpu_state.r_core[3] = 0750000;	// CLA
+cpu_state.r_core[4] = 0640002;	// OMQ
+cpu_state.r_core[5] = 0600005;	// JMP 005
 
 cpu_state.r_core[040] = 0123456;
 
@@ -3200,6 +3201,9 @@ function decode(input) {
 			let eae_opcode = getbit(input, 7, 3);
 			let flag_link_init = getbit(input, 10, 1);
 			
+			console.log("Decode EAE ISR: " + eae_opcode + ", " + step);
+
+
 			// EAE opcode decoding
 			switch (eae_opcode) {
 				case EAE_OPCODE_SETUP:
@@ -3209,13 +3213,14 @@ function decode(input) {
 						
 						// Load MQ into MB
 						// MQ -> MB
-						// ? -> NEXT
+						// STEP_SRV_EAE_COMP_LOAD -> NEXT
 						case STEP_EAE_EXECUTE_BEGIN:
 						
 							// MQ -> MB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_mb = 1;
 						
+							next_step = STEP_SRV_EAE_COMP_LOAD;
 							next_decode_mode = DECODE_MODE_SERVICE;
 							break;
 						
@@ -3227,6 +3232,7 @@ function decode(input) {
 							break;
 							
 					}
+					break;
 				
 				case EAE_OPCODE_NULL:
 
