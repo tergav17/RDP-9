@@ -95,8 +95,9 @@ cpu_state.r_core[2] = 0640004;	// CMQ
 cpu_state.r_core[3] = 0750000;	// CLA
 cpu_state.r_core[4] = 0640002;	// OMQ
 cpu_state.r_core[5] = 0650000;	// CLQ
-cpu_state.r_core[6] = 0644000;  // ABS
-cpu_state.r_core[7] = 0600006;	// JMP 006
+cpu_state.r_core[6] = 0664000;  // GSM
+cpu_state.r_core[7] = 0644000;  // ABS
+cpu_state.r_core[8] = 0600010;	// JMP 010
 
 cpu_state.r_core[040] = 0123456;
 
@@ -239,7 +240,7 @@ function latch(cpu, devices) {
 		
 		if (constant_value) {
 			cpu.r_reg_link_ac_sign = cpu.r_reg_link_init;
-			cpu.r_reg_link_init = bus(cpu.s_next_link) & getbit(cpu.r_reg_ob, 17, 1);
+			cpu.r_reg_link_init = bus(cpu.s_next_link) & getbit(bus(cpu.s_data_bus), 17, 1);
 			console.log("OB: " + cpu.r_reg_ob);
 			console.log("Next link: " + cpu.s_next_link);
 			console.log("Link init is now: " + cpu.r_reg_link_init);
@@ -3011,14 +3012,18 @@ function decode(input) {
 						}
 						break;
 						
-					// OB << 1
+					// OB << 1 -> OB
 					// LINK_SHIFT -> FLAG_LINK
 					// STEP_SRV_EAE_CLEAR_MQ -> NEXT
 					case STEP_ISR_EAE_SET_LINK:
 					
+						// Prepare RAL shift
 						alu_op_select = ALU_SHIFT_RAL;
 						alu_link_select = ALU_LINK_SHIFT;
 					
+						// Put it in OB so the flag updates
+						latch_ob = 1;
+
 						next_step = STEP_SRV_EAE_CLEAR_MQ;
 						next_decode_mode = DECODE_MODE_SERVICE;
 						break;
@@ -3279,22 +3284,20 @@ function decode(input) {
 				
 				// If IR['6] and FLAG_LINK, set EAE AC sign to link flag
 				// Otherwise set it to zero
-				// Also put 0777777 into OB so we can unconditionally set to FLAG_LINK_INIT bit
-				// IF LOAD_EAE_SIGN::
-				//  1 && OB['0] -> FLAG_EAE_AC_SIGN
+				// IF LOAD_EAE_SIGN:
+				//  1 && AC['0] -> FLAG_EAE_AC_SIGN
 				// ELSE:
-				//  0 && OB['0] -> FLAG_EAE_AC_SIGN
-				// 0777777 -> OB, MB
+				//  0 && AC['0] -> FLAG_EAE_AC_SIGN
+				// AC -> MB
 				// STEP_EAE_SET_LINK_INIT -> NEXT
 				case STEP_EAE_SET_AC_SIGN:
 				
-					// Set bus to 0777777
-					bus_output_select = BUS_SELECT_ALU;
-					alu_op_select = ALU_PRESET;
+					// Set bus to AC
+					// This will allow us to conditionally set EAE_AC_SIGN
+					bus_output_select = BUS_SELECT_AC;
 					
-					// Latch OB and MB
+					// Latch MB
 					// This is also used to write to EAE_AC_SIGN
-					latch_ob = 1;
 					latch_mb = 1;
 					constant_value = 1;
 					
@@ -3320,7 +3323,7 @@ function decode(input) {
 					break;
 					
 				// Set flag init to FLAG_LINK
-				// FLAG_LINK && OB['0] -> FLAG_LINK_INIT
+				// FLAG_LINK -> FLAG_LINK_INIT
 				// 0777777 -> MB
 				// STEP_EAE_OR_MQ_AC -> NEXT
 				case STEP_EAE_SET_LINK_INIT:
@@ -3334,7 +3337,7 @@ function decode(input) {
 					latch_mb = 1;
 					constant_value = 1;
 					
-					// FLAG_LINK && OB['0] -> FLAG_LINK_INIT
+					// FLAG_LINK -> FLAG_LINK_INIT
 					alu_link_select = ALU_LINK_KEEP;
 				
 					next_step = STEP_EAE_OR_MQ_AC;
