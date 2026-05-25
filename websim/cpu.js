@@ -857,8 +857,13 @@ const STEP_EAE_OR_MQ_AC_LOAD = 35;	// Load MQ into MB
 const STEP_EAE_OR_MQ_AC_LATCH = 36; // Latch AC OR MQ into MQ
 const STEP_EAE_COMP_AC = 37;		// Latch AC XOR 0777777 into AC
 const STEP_EAE_CLEAR_AC = 38;		// If IR['8] then set AC to 0
+const STEP_EAE_COM_LOAD_MQ = 39;	// Check if we need to complement MQ or move onto SC load
+const STEP_EAE_COM_LOAD_SC = 40;	// Load SC to be negated
+const STEP_EAE_COM_COMP_MQ = 41;	// Complement MQ
+const STEP_EAE_COM_NEG_SC = 42;		// Negate SC
 
 const STEP_EAE_EXECUTE_BEGIN = 0;	// First step in EAE instruction execution
+const STEP_EAE_COMMON_COMPLETE = 1;	// Common instruction setup complete step
 
 // --- EAE OPCODES ---
 
@@ -866,7 +871,13 @@ const STEP_EAE_EXECUTE_BEGIN = 0;	// First step in EAE instruction execution
 const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into service decode mode
 
 // EAE Multiplication Class
-const EAE_OPCODE_MUL = 1;
+const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
+const EAE_MUL_MQ_LOOP_LOAD = 1;		// Pre-loop MQ load
+const EAE_MUL_MQ_CHECK = 2;			// Check bit 0 of MQ to see if we need to add
+const EAE_MUL_READ_PC = 3;			// Read CORE[PC] into MB
+const EAE_MUL_ADD = 4;				// Conditionally add AC + MB -> AC
+const EAE_MUL_AC_SHIFT = 5;			// Right shift AC and store in link
+
 
 // EAE Null Class
 const EAE_OPCODE_NULL = 2;			// Just fetch the next instruction
@@ -993,11 +1004,11 @@ function decode(input) {
 	// O[4][0:2] = ALU operation select
 	// O[4][3:4] = Link operation select
 	//	0: Keep Link
-	//	1: Compliment Link
+	//	1: Complement Link
 	//	2: Arith -> Link
 	//	3: Shifter -> Link
 	// O[4][5] = Select shifter
-	// O[4][6] = Set 1-s compliment mode
+	// O[4][6] = Set 1-s complement mode
 	// O[4][7] = Latch OB / Latch FLAG_LINK
 	//
 	// O[5] = Instruction fetch cycle
@@ -1428,7 +1439,8 @@ function decode(input) {
 			// STEP_SRV_AWAIT_NOFP -> NEXT
 			case STEP_SRV_REFETCH:
 			
-				// Fetch the instruction from memory				// Read from core, put it in IR, MA, and MB
+				// Fetch the instruction from memory
+				// Read from core, put it in IR, MA, and MB
 				address_register_mode = ADDR_REG_MODE_EXT_OFF;
 				bus_output_select = BUS_SELECT_CORE;
 				select_pc_ma = ADDR_SELECT_PC;
@@ -3060,7 +3072,7 @@ function decode(input) {
 		// There are only 2 actual states, but what the hell I'll use a switch anyways
 		switch (step) {
 			
-			// Perform compliments and clearning on AC / L
+			// Perform complements and clearning on AC / L
 			// IF CLA:
 			//  IF CMA:
 			//   0777777 -> AC, OB
@@ -3233,7 +3245,7 @@ function decode(input) {
 						
 						default:
 							// Invalid step, stop instruction execution
-							console.log("Warning: We tried to decode an unimplemented EAE instruction!");
+							console.log("Warning: We tried to decode an unimplemented EAE setup step!");
 							next_decode_mode = DECODE_MODE_SERVICE;
 							next_step = STEP_SRV_FETCH;
 							break;
@@ -3250,6 +3262,103 @@ function decode(input) {
 					break;
 
 				case EAE_OPCODE_MUL:
+
+					// EAE multiple steps
+					switch (step) {
+
+						// Reset FLAG_LINK
+						// Also put 0777777 into OB
+						// 0 -> FLAG_LINK
+						// STEP_EAE_COM_LOAD_MQ -> NEXT
+						case STEP_EAE_EXECUTE_BEGIN:
+
+							// Load OB
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_PRESET;
+							latch_ob = 1;
+
+							// Reset flag
+							if (!flag_link) {
+								alu_link_select = ALU_LINK_KEEP;
+							} else {
+								alu_link_select = ALU_LINK_COMP;
+							}
+
+							next_step = STEP_EAE_COM_LOAD_MQ;
+							break;
+
+						// Load MQ into OB so we can check the first bit
+						// MQ -> OB
+						// EAE_MUL_MQ_CHECK -> NEXT
+						case EAE_MUL_MQ_LOOP_LOAD:
+
+							// Put MQ into OB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_ob = 1;
+
+							next_step = EAE_MUL_MQ_CHECK;
+							break;
+
+						// Put bit 0 of MQ into FLAG_LINK
+						// While we are doing that, move AC into OB
+						// AC -> OB
+						// OB[0] -> FLAG_LINK
+						case EAE_MUL_MQ_CHECK:
+
+							// Transfer AC to OB
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
+
+							// We will also put bit 0 of OB into FLAG_LINK
+							alu_op_select = ALU_SHIFT_RAR;
+							alu_link_select = ALU_LINK_SHIFT;
+
+							next_step = EAE_MUL_READ_PC;
+							break;
+
+
+						// Read CORE[PC] into MB
+						// CORE[PC] -> MB
+						// EAE_MUL_ADD -> NEXT
+						case EAE_MUL_READ_PC:
+
+							// Prepare to read from core
+							bus_output_select = BUS_SELECT_CORE;
+							select_pc_ma = ADDR_SELECT_PC;
+
+							// Place it in MB
+							latch_mb = 1;
+
+							next_step = EAE_MUL_ADD;
+							break;
+
+						// IF FLAG_LINK:
+						//  OB + MB -> AC, FLAG_LINK
+						//  EAE_MUL_AC_SHIFT -> NEXT
+						// ELSE:
+						//  GOTO EAE_MUL_AC_SHIFT
+						case EAE_MUL_ADD:
+
+							if (flag_link) {
+
+								// Perform add into AC
+								 bus_output_select = BUS_SELECT_ALU;
+								 alu_op_select = ALU_ADD;
+
+								 // Latch into AC and OB
+								 latch_ac = 1;
+								 latch_ob = 1;
+
+							}
+
+						default:
+							// Invalid step, stop instruction execution
+							console.log("Warning: We tried to decode an unimplemented EAE multiply step!");
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+					}
+					break;
 				
 				case EAE_OPCODE_DIV:
 
@@ -3444,7 +3553,76 @@ function decode(input) {
 					next_step = STEP_EAE_EXECUTE_BEGIN;
 					break;
 					
+				// Common mutliply divide setup
+				// Prepare to complement MQ if FLAG_EAE_AC_SIGN
+				// IF FLAG_EAE_AC_SIGN:
+				//  MQ -> MB
+				//  STEP_EAE_COM_COMP_MQ -> NEXT
+				// ELSE:
+				//  GOTO STEP_EAE_COM_LOAD_SC
+				case STEP_EAE_COM_LOAD_MQ:
+
+					if (FLAG_EAE_AC_SIGN) {
+						// Set bus to MQ
+						bus_output_select = BUS_SELECT_MQ;
+
+						// Latch MB
+						latch_mb = 1;
+
+						next_step = STEP_EAE_COM_COMP_MQ;
+						break;
+					}
+
+					// Fall through to STEP_EAE_COM_LOAD_SC
+
+				// Common arithmetic setup
+				// Prepare to negate SC
+				// MA -> MB
+				// STEP_EAE_COM_NEG_SC -> NEXT
+				case STEP_EAE_COM_LOAD_SC:
+
+					// Put MA on the bus
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_MA;
+
+					// Place it in MB
+					latch_mb = 1;
+
+					next_step = STEP_EAE_COM_NEG_SC;
+					break;
+
 				
+				// Complement MQ
+				// (OB XOR MB) -> MQ
+				// STEP_EAE_COM_LOAD_SC -> NEXT
+				case STEP_EAE_COM_COMP_MQ:
+
+					// Perform XOR operation
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_XOR;
+
+					// Place it in MQ
+					latch_mq = 1;
+
+					next_step = STEP_EAE_COM_LOAD_SC;
+					break;
+
+				// Negate SC
+				// (OB XOR MB) + 1 -> SC
+				// STEP_EAE_COMMON_COMPLETE -> NEXT
+				case STEP_EAE_COM_NEG_SC:
+
+					// Perform negate (XOR + 1)
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_XOR;
+					alu_select_ones = 1;
+
+					// Place in SC
+					latch_step = 1;
+
+					next_step = STEP_EAE_COMMON_COMPLETE;
+					break;
+
 				default:
 					// Invalid EAE opcode, stop instruction execution
 					console.log("Warning: We tried to decode an unimplemented EAE service step!");
