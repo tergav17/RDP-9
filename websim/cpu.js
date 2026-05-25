@@ -875,8 +875,9 @@ const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
 const EAE_MUL_MQ_LOOP_LOAD = 1;		// Pre-loop MQ load
 const EAE_MUL_MQ_CHECK = 2;			// Check bit 0 of MQ to see if we need to add
 const EAE_MUL_READ_PC = 3;			// Read CORE[PC] into MB
-const EAE_MUL_ADD = 4;				// Conditionally add AC + MB -> AC
+const EAE_MUL_COMP_FLAG = 4;		// Conditionally complement the flag link if needed
 const EAE_MUL_AC_SHIFT = 5;			// Right shift AC and store in link
+const EAE_MUL_ADD = 6;				// Add OB + MB = AC
 
 
 // EAE Null Class
@@ -3319,7 +3320,7 @@ function decode(input) {
 
 						// Read CORE[PC] into MB
 						// CORE[PC] -> MB
-						// EAE_MUL_ADD -> NEXT
+						// EAE_MUL_COMP_FLAG -> NEXT
 						case EAE_MUL_READ_PC:
 
 							// Prepare to read from core
@@ -3329,27 +3330,28 @@ function decode(input) {
 							// Place it in MB
 							latch_mb = 1;
 
-							next_step = EAE_MUL_ADD;
+							next_step = EAE_MUL_COMP_FLAG;
 							break;
 
 						// IF FLAG_LINK:
-						//  OB + MB -> AC, FLAG_LINK
-						//  EAE_MUL_AC_SHIFT -> NEXT
+						//  0 -> FLAG_LINK
+						//  EAE_MUL_ADD -> NEXT
 						// ELSE:
 						//  GOTO EAE_MUL_AC_SHIFT
-						case EAE_MUL_ADD:
+						case EAE_MUL_COMP_FLAG:
 
 							if (flag_link) {
 
-								// Perform add into AC
-								 bus_output_select = BUS_SELECT_ALU;
-								 alu_op_select = ALU_ADD;
+								// Put AC back into OB again
+								bus_output_select = BUS_SELECT_AC;
+								latch_ob = 1;
 
-								 // Latch into AC and OB
-								 latch_ac = 1;
-								 latch_ob = 1;
+								// Invert the link register
+								alu_link_select = ALU_LINK_COMP;
 
 							}
+
+							// Fall through to EAE_MUL_AC_SHIFT
 
 						default:
 							// Invalid step, stop instruction execution
