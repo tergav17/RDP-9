@@ -864,6 +864,9 @@ const STEP_EAE_COM_LOAD_MQ = 39;	// Check if we need to complement MQ or move on
 const STEP_EAE_COM_LOAD_SC = 40;	// Load SC to be negated
 const STEP_EAE_COM_COMP_MQ = 41;	// Complement MQ
 const STEP_EAE_COM_NEG_SC = 42;		// Negate SC
+const STEP_EAE_MUL_CHACS = 43;		// Multiply check AC sign
+
+const STEP_EAE_PC_NEXT = 63;	// Increment PC and fetch next instruction
 
 const STEP_EAE_EXECUTE_BEGIN = 0;	// First step in EAE instruction execution
 const STEP_EAE_COMMON_COMPLETE = 1;	// Common instruction setup complete step
@@ -875,16 +878,20 @@ const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into servic
 
 // EAE Multiplication Class
 const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
-const EAE_MUL_MQ_LOOP_LOAD = 1;		// Pre-loop MQ load
-const EAE_MUL_MQ_CHECK = 2;			// Check bit 0 of MQ to see if we need to add
-const EAE_MUL_READ_PC = 3;			// Read CORE[PC] into MB
-const EAE_MUL_COMP_FLAG = 4;		// Conditionally complement the flag link if needed
-const EAE_MUL_AC_SHIFT = 5;			// Right shift AC and store in link
-const EAE_MUL_ADD = 6;				// Add OB + MB = AC
-const EAE_MUL_SC_LOAD = 7;			// Load SC in preparation of increment
-const EAE_MUL_SC_INC = 8;			// Increment SC, put it in SC and OB
-const EAE_MUL_MQ_LOAD = 9;			// Load MQ prior to shift
-
+const STEP_EAE_MUL_MQ_LOOP_LOAD = 1;// Pre-loop MQ load
+const STEP_EAE_MUL_MQ_CHECK = 2;	// Check bit 0 of MQ to see if we need to add
+const STEP_EAE_MUL_READ_PC = 3;		// Read CORE[PC] into MB
+const STEP_EAE_MUL_COMP_FLAG = 4;	// Conditionally complement the flag link if needed
+const STEP_EAE_MUL_AC_SHIFT = 5;	// Right shift AC and store in link
+const STEP_EAE_MUL_ADD = 6;			// Add OB + MB = AC
+const STEP_EAE_MUL_SC_LOAD = 7;		// Load SC in preparation of increment
+const STEP_EAE_MUL_SC_INC = 8;		// Increment SC, put it in SC and OB
+const STEP_EAE_MUL_MQ_LOAD = 9;		// Load MQ prior to shift
+const STEP_EAE_MUL_PACS = 10;		// Multiply positive AC sign handling
+const STEP_EAE_MUL_NACS = 11;		// Multiply negative AC sign handling
+const STEP_EAE_MUL_COMP_MQ = 12;	// Complement MQ
+const STEP_EAE_MUL_AC_LOAD = 13;	// Load AC into MB
+const STEP_EAE_MUL_COMP_AC = 14;	// Complement AC
 
 // EAE Null Class
 const EAE_OPCODE_NULL = 2;			// Just fetch the next instruction
@@ -1977,6 +1984,9 @@ function decode(input) {
 			// Also complete the MQ long shift
 			// OB >> 1 -> MQ, OB, FLAG_LINK
 			// IF FLAG_ZERO:
+			//  
+			// ELSE:
+			//  STEP_EAE_MUL_READ_PC -> NEXT
 			case STEP_SRV_EAE_MUL_CHZ:
 			
 				// Prepare to shift
@@ -1988,6 +1998,15 @@ function decode(input) {
 				// Place it in OB and MQ 
 				latch_ob = 1;
 				latch_mq = 1;
+				
+				if (flag_zero) {
+					next_step = STEP_EAE_MUL_CHACS;
+					next_state = DECODE_MODE_EAE;
+				} else {
+					next_step = STEP_EAE_MUL_READ_PC;
+					next_state = DECODE_MODE_EAE;
+				}
+				break;
 				
 			// Conditionally clear MQ
 			// IF CLEAR_MQ:
@@ -3312,21 +3331,21 @@ function decode(input) {
 
 						// Load MQ into OB so we can check the first bit
 						// MQ -> OB
-						// EAE_MUL_MQ_CHECK -> NEXT
-						case EAE_MUL_MQ_LOOP_LOAD:
+						// STEP_EAE_MUL_MQ_CHECK -> NEXT
+						case STEP_EAE_MUL_MQ_LOOP_LOAD:
 
 							// Put MQ into OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
 
-							next_step = EAE_MUL_MQ_CHECK;
+							next_step = STEP_EAE_MUL_MQ_CHECK;
 							break;
 
 						// Put bit 0 of MQ into FLAG_LINK
 						// While we are doing that, move AC into OB
 						// AC -> OB
 						// OB[0] -> FLAG_LINK
-						case EAE_MUL_MQ_CHECK:
+						case STEP_EAE_MUL_MQ_CHECK:
 
 							// Transfer AC to OB
 							bus_output_select = BUS_SELECT_AC;
@@ -3336,14 +3355,14 @@ function decode(input) {
 							alu_op_select = ALU_SHIFT_RAR;
 							alu_link_select = ALU_LINK_SHIFT;
 
-							next_step = EAE_MUL_READ_PC;
+							next_step = STEP_EAE_MUL_READ_PC;
 							break;
 
 
 						// Read CORE[PC] into MB
 						// CORE[PC] -> MB
-						// EAE_MUL_COMP_FLAG -> NEXT
-						case EAE_MUL_READ_PC:
+						// STEP_EAE_MUL_COMP_FLAG -> NEXT
+						case STEP_EAE_MUL_READ_PC:
 
 							// Prepare to read from core
 							bus_output_select = BUS_SELECT_CORE;
@@ -3352,17 +3371,17 @@ function decode(input) {
 							// Place it in MB
 							latch_mb = 1;
 
-							next_step = EAE_MUL_COMP_FLAG;
+							next_step = STEP_EAE_MUL_COMP_FLAG;
 							break;
 
 						// Either complement the flag or branch directly to shifting
 						// AC -> OB
 						// IF FLAG_LINK:
 						//  0 -> FLAG_LINK
-						//  EAE_MUL_ADD -> NEXT
+						//  STEP_EAE_MUL_ADD -> NEXT
 						// ELSE:
-						//  EAE_MUL_AC_SHIFT -> NEXT
-						case EAE_MUL_COMP_FLAG:
+						//  STEP_EAE_MUL_AC_SHIFT -> NEXT
+						case STEP_EAE_MUL_COMP_FLAG:
 						
 							// Put AC back into OB again
 							bus_output_select = BUS_SELECT_AC;
@@ -3373,16 +3392,16 @@ function decode(input) {
 								// Invert the link register
 								alu_link_select = ALU_LINK_COMP;
 								
-								next_step = EAE_MUL_ADD;
+								next_step = STEP_EAE_MUL_ADD;
 							} else {
-								next_step = EAE_MUL_AC_SHIFT;
+								next_step = STEP_EAE_MUL_AC_SHIFT;
 							}
 							break;
 
 						// Shift AC right and store link
 						// AC >> 1 -> AC, FLAG_LINK
-						// EAE_MUL_SC_LOAD -> NEXT
-						case EAE_MUL_AC_SHIFT:
+						// STEP_EAE_MUL_SC_LOAD -> NEXT
+						case STEP_EAE_MUL_AC_SHIFT:
 						
 							// Put the ALU on bus
 							bus_output_select = BUS_SELECT_ALU;
@@ -3396,14 +3415,14 @@ function decode(input) {
 							latch_ob = 1;
 							latch_ac = 1;
 							
-							next_step = EAE_MUL_SC_LOAD;
+							next_step = STEP_EAE_MUL_SC_LOAD;
 							break;
 
 
 						// Perform the addition of MB into AC
 						// (OB + MB) -> AC, FLAG_LINK
-						// EAE_MUL_AC_SHIFT -> NEXT
-						case EAE_MUL_ADD:
+						// STEP_EAE_MUL_AC_SHIFT -> NEXT
+						case STEP_EAE_MUL_ADD:
 						
 							// Put the ALU on bus
 							bus_output_select = BUS_SELECT_ALU;
@@ -3416,26 +3435,26 @@ function decode(input) {
 							latch_ob = 1;
 							latch_ac = 1;
 						
-							next_step = EAE_MUL_AC_SHIFT;
+							next_step = STEP_EAE_MUL_AC_SHIFT;
 							break;
 							
 						// Load SC into MB and OB
 						// SC -> OB, MB
-						// EAE_MUL_SC_INC -> NEXT
-						case EAE_MUL_SC_LOAD:
+						// STEP_EAE_MUL_SC_INC -> NEXT
+						case STEP_EAE_MUL_SC_LOAD:
 						
 							// SC -> MB, OB
 							bus_output_select = BUS_SELECT_STEP;
 							latch_mb = 1;
 							latch_ob = 1;
 						
-							next_step = EAE_MUL_SC_INC;
+							next_step = STEP_EAE_MUL_SC_INC;
 							break;
 							
 						// Perform increment of SC
 						// (OB OR MB) + 1 -> OB, SC
-						// EAE_MUL_MQ_LOAD -> NEXT
-						case EAE_MUL_SC_INC:
+						// STEP_EAE_MUL_MQ_LOAD -> NEXT
+						case STEP_EAE_MUL_SC_INC:
 						
 							// Perform increment
 							bus_output_select = BUS_SELECT_ALU;
@@ -3446,19 +3465,100 @@ function decode(input) {
 							latch_ob = 1;
 							latch_step = 1;
 						
-							next_step = EAE_MUL_MQ_LOAD;
+							next_step = STEP_EAE_MUL_MQ_LOAD;
 							break;
 							
 						// Put MQ into OB prior to shifting
 						// MQ -> OB
 						// STEP_SRV_EAE_MUL_CHZ -> NEXT
-						case EAE_MUL_MQ_LOAD:
+						case STEP_EAE_MUL_MQ_LOAD:
 						
 							// MQ -> OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
 							
 							next_step = STEP_SRV_EAE_MUL_CHZ;
+							next_state = DECODE_MODE_SERVICE;
+							break;
+							
+						// Multiply positive AC sign handling
+						// MQ -> MB
+						// IF FLAG_LINK_INIT:
+						//  STEP_EAE_PC_NEXT -> NEXT
+						// ELSE:
+						//  STEP_EAE_MUL_COMP_MQ -> NEXT
+						case STEP_EAE_MUL_PACS:
+							
+							// MQ -> MB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_mb = 1;
+							
+							if (flag_link_init) {
+								next_state = STEP_EAE_PC_NEXT;
+							} else {
+								next_step = STEP_EAE_MUL_COMP_MQ;
+							}
+							break;
+							
+						// Multiply negative AC sign handling
+						// MQ -> MB
+						// IF !FLAG_LINK_INIT:
+						//  STEP_EAE_PC_NEXT -> NEXT
+						// ELSE:
+						//  STEP_EAE_MUL_COMP_MQ -> NEXT
+						case STEP_EAE_MUL_PACS:
+							
+							// MQ -> MB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_mb = 1;
+							
+							if (!flag_link_init) {
+								next_state = STEP_EAE_PC_NEXT;
+							} else {
+								next_step = STEP_EAE_MUL_COMP_MQ;
+							}
+							break;
+							
+						// Complement MQ
+						// (OB XOR MB) -> MQ
+						// STEP_EAE_MUL_AC_LOAD -> NEXT
+						case STEP_EAE_MUL_COMP_MQ:
+						
+							// Do complement
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_XOR;
+							
+							// Put it in MQ
+							latch_mq = 1;
+						
+							next_step = STEP_EAE_MUL_AC_LOAD;
+							break;
+							
+						// Load AC into MB
+						// AC -> MB
+						// STEP_EAE_MUL_COMP_AC -> NEXT
+						case STEP_EAE_MUL_AC_LOAD:
+						
+							// AC -> MB
+							bus_output_select = BUS_SELECT_AC;
+							latch_mb = 1;
+						
+							next_step = STEP_EAE_MUL_COMP_AC;
+							break;
+							
+						// Complement AC
+						// (OB XOR MB) -> AC
+						// STEP_SRV_FETCH -> NEXT
+						case STEP_EAE_MUL_COMP_AC:
+						
+							// Do complement
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_XOR;
+							
+							// Put it in AC
+							latch_ac = 1;
+						
+							next_step = STEP_SRV_FETCH;
 							next_state = DECODE_MODE_SERVICE;
 							break;
 
@@ -3733,6 +3833,40 @@ function decode(input) {
 					latch_step = 1;
 
 					next_step = STEP_EAE_COMMON_COMPLETE;
+					break;
+					
+				// Put 0777777 into OB and check EAE AC sign for multiply
+				// 0777777 -> OB
+				// IF FLAG_EAE_AC_SIGN:
+				//  STEP_EAE_MUL_NACS -> NEXT
+				// ELSE:
+				//  STEP_EAE_MUL_PACS -> NEXT
+				case STEP_EAE_MUL_CHACS:
+				
+					// Put 0777777 into OB
+					bus_output_select = BUS_SELECT_ALU;
+					alu_op_select = ALU_PRESET;
+					latch_ob = 1;
+					
+					if (flag_eae_ac_sign) {
+						next_step = STEP_EAE_MUL_NACS;
+					} else {
+						next_step = STEP_EAE_MUL_PACS;
+					}
+					break;
+					
+				// PC + 1 -> PC
+				// STEP_SRV_FETCH -> NEXT
+				case STEP_EAE_PC_NEXT:
+				
+					// Increment the PC
+					bus_output_select = BUS_SELECT_CROSS;
+					select_pc_ma = ADDR_SELECT_PC;
+					latch_pc = 1;
+					constant_value = 1;
+					
+					next_step = STEP_SRV_FETCH;
+					next_state = DECODE_MODE_SERVICE;
 					break;
 
 				default:
