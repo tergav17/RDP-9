@@ -740,6 +740,9 @@ const STEP_SRV_IRQ_SAVE_PC = 37;	// PC is stored in MB, OB
 const STEP_SRV_IRQ_WRITE_PC = 38;	// The logical OR of MB and OB is place in CORE[MA]
 const STEP_SRV_IRQ_MA_PC_INC = 39;	// MA + 1 is placed in the PC. Extend is enabled to ensure that bank 0 is selected
 
+// EAE flag check steps
+const STEP_SRV_EAE_MUL_CHZ = 40;	// Check if OB = zero, also perform the last part of the MQ long shift
+
 // EAE setup steps
 const STEP_SRV_EAE_CLEAR_MQ = 48;	// Conditionally clear MQ
 const STEP_SRV_EAE_COMP_LOAD = 49;	// Check if we need to complement MQ, if so load OB with 0777777
@@ -878,6 +881,9 @@ const EAE_MUL_READ_PC = 3;			// Read CORE[PC] into MB
 const EAE_MUL_COMP_FLAG = 4;		// Conditionally complement the flag link if needed
 const EAE_MUL_AC_SHIFT = 5;			// Right shift AC and store in link
 const EAE_MUL_ADD = 6;				// Add OB + MB = AC
+const EAE_MUL_SC_LOAD = 7;			// Load SC in preparation of increment
+const EAE_MUL_SC_INC = 8;			// Increment SC, put it in SC and OB
+const EAE_MUL_MQ_LOAD = 9;			// Load MQ prior to shift
 
 
 // EAE Null Class
@@ -1966,6 +1972,22 @@ function decode(input) {
 			
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
+				
+			// Check if OB = 0 from 2 cycles ago (SC increment)
+			// Also complete the MQ long shift
+			// OB >> 1 -> MQ, OB, FLAG_LINK
+			// IF FLAG_ZERO:
+			case STEP_SRV_EAE_MUL_CHZ:
+			
+				// Prepare to shift
+				bus_output_select = BUS_SELECT_ALU;
+				alu_select_shifter = 1;
+				alu_op_select = ALU_SHIFT_RAR;
+				alu_link_select = ALU_LINK_SHIFT;
+				
+				// Place it in OB and MQ 
+				latch_ob = 1;
+				latch_mq = 1;
 				
 			// Conditionally clear MQ
 			// IF CLEAR_MQ:
@@ -3333,25 +3355,113 @@ function decode(input) {
 							next_step = EAE_MUL_COMP_FLAG;
 							break;
 
+						// Either complement the flag or branch directly to shifting
+						// AC -> OB
 						// IF FLAG_LINK:
 						//  0 -> FLAG_LINK
 						//  EAE_MUL_ADD -> NEXT
 						// ELSE:
-						//  GOTO EAE_MUL_AC_SHIFT
+						//  EAE_MUL_AC_SHIFT -> NEXT
 						case EAE_MUL_COMP_FLAG:
+						
+							// Put AC back into OB again
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
 
 							if (flag_link) {
 
-								// Put AC back into OB again
-								bus_output_select = BUS_SELECT_AC;
-								latch_ob = 1;
-
 								// Invert the link register
 								alu_link_select = ALU_LINK_COMP;
-
+								
+								next_step = EAE_MUL_ADD;
+							} else {
+								next_step = EAE_MUL_AC_SHIFT;
 							}
+							break;
 
-							// Fall through to EAE_MUL_AC_SHIFT
+						// Shift AC right and store link
+						// AC >> 1 -> AC, FLAG_LINK
+						// EAE_MUL_SC_LOAD -> NEXT
+						case EAE_MUL_AC_SHIFT:
+						
+							// Put the ALU on bus
+							bus_output_select = BUS_SELECT_ALU;
+							
+							// Prepare to shift
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAR;
+							alu_link_select = ALU_LINK_SHIFT;
+							
+							// Put it in OB and AC
+							latch_ob = 1;
+							latch_ac = 1;
+							
+							next_step = EAE_MUL_SC_LOAD;
+							break;
+
+
+						// Perform the addition of MB into AC
+						// (OB + MB) -> AC, FLAG_LINK
+						// EAE_MUL_AC_SHIFT -> NEXT
+						case EAE_MUL_ADD:
+						
+							// Put the ALU on bus
+							bus_output_select = BUS_SELECT_ALU;
+							
+							// Prepare to add
+							alu_op_select = ALU_ADD;
+							alu_link_select = ALU_LINK_ARITH;
+							
+							// Put it in OB and AC
+							latch_ob = 1;
+							latch_ac = 1;
+						
+							next_step = EAE_MUL_AC_SHIFT;
+							break;
+							
+						// Load SC into MB and OB
+						// SC -> OB, MB
+						// EAE_MUL_SC_INC -> NEXT
+						case EAE_MUL_SC_LOAD:
+						
+							// SC -> MB, OB
+							bus_output_select = BUS_SELECT_STEP;
+							latch_mb = 1;
+							latch_ob = 1;
+						
+							next_step = EAE_MUL_SC_INC;
+							break;
+							
+						// Perform increment of SC
+						// (OB OR MB) + 1 -> OB, SC
+						// EAE_MUL_MQ_LOAD -> NEXT
+						case EAE_MUL_SC_INC:
+						
+							// Perform increment
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_OR;
+							alu_select_ones = 1 
+							
+							// Put it in OB and SC
+							latch_ob = 1;
+							latch_step = 1;
+						
+							next_step = EAE_MUL_MQ_LOAD;
+							break;
+							
+						// Put MQ into OB prior to shifting
+						// MQ -> OB
+						// STEP_SRV_EAE_MUL_CHZ -> NEXT
+						case EAE_MUL_MQ_LOAD:
+						
+							// MQ -> OB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_ob = 1;
+							
+							next_step = STEP_SRV_EAE_MUL_CHZ;
+							next_state = DECODE_MODE_SERVICE;
+							break;
+
 
 						default:
 							// Invalid step, stop instruction execution
