@@ -295,6 +295,8 @@ function drawFlow(cpu) {
 	flow_ctx.fillText("Addr Bus: " + toWord(cpu.s_addr_bus, 18), x + 400, y+15);
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("OB: " + toWord(cpu.r_reg_ob, 18), x + 400, y+30);
+	flow_ctx.fillText("LI: " + toWord(cpu.r_reg_link_init, 1), x + 540, y+30);
+	flow_ctx.fillText("AS: " + toWord(cpu.r_reg_link_ac_sign, 1), x + 580, y+30);
 	
 	// Draw front panel box
 	x = 10; y = 90;

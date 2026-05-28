@@ -35,6 +35,7 @@ cpu_state = {
 	r_reg_link: 0,			// Link flag register
 	r_reg_link_init: 0,		// EAE link init
 	r_reg_link_ac_sign: 0,	// EAE AC sign
+	r_reg_step_zero: 0,		// SC = Zero flag
 	r_flag_ex: 0,			// Extended memory flag register
 	r_reg_zero: 0,			// OB = Zero flag
 	r_reg_sign: 0,			// OB = Sign flag
@@ -89,6 +90,7 @@ cpu_state.r_core = new Array(4 * 8192).fill(0); // Allocate space for core memor
 //cpu_state.r_core[3] = 0600001;	// JMP 001
 //cpu_state.r_core[4] = 0600000;	// JMP 000
 
+/*
 cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0640004;	// CMQ
@@ -100,6 +102,14 @@ cpu_state.r_core[7] = 0644000;  // ABS
 cpu_state.r_core[8] = 0600010;	// JMP 010
 
 cpu_state.r_core[040] = 0123456;
+*/
+
+cpu_state.r_core[0] = 0200040;	// LAC 040
+cpu_state.r_core[1] = 0653122;  // MUL
+cpu_state.r_core[2] = 0000420;  // 420
+cpu_state.r_core[3] = 0600003;  // JMP 003
+
+cpu_state.r_core[040] = 067;
 
 /*
 // Simple tape read in program
@@ -225,7 +235,12 @@ function latch(cpu, devices) {
 	
 	// STEP register
 	if (getbit(latch_select, BUS_LATCH_STEP, 1)) {
-		cpu.r_reg_step = bus(cpu.s_data_bus) & 0377;
+		if (constant_value) {
+			cpu.r_reg_step = (cpu.r_reg_step + 1) & 077;
+		} else {
+			cpu.r_reg_step = bus(cpu.s_data_bus) & 077;
+		}
+		cpu.r_reg_step_zero = cpu.r_reg_step ? 0 : 1;
 	}
 	
 	// MQ register
@@ -308,7 +323,7 @@ function propagate(cpu, devices) {
 		case DECODE_MODE_SERVICE:
 			let step = cpu.r_state[0] & 077
 			microcode_input |= step;
-			microcode_input |= 0 << 6;
+			microcode_input |= cpu.r_reg_step_zero << 6;
 			if (step >= 32) {
 				if (step < 48) {
 					// Put flags
@@ -866,7 +881,7 @@ const STEP_EAE_COM_COMP_MQ = 41;	// Complement MQ
 const STEP_EAE_COM_NEG_SC = 42;		// Negate SC
 const STEP_EAE_MUL_CHACS = 43;		// Multiply check AC sign
 
-const STEP_EAE_PC_NEXT = 63;	// Increment PC and fetch next instruction
+const STEP_EAE_PC_NEXT = 63;		// Increment PC and fetch next instruction
 
 const STEP_EAE_EXECUTE_BEGIN = 0;	// First step in EAE instruction execution
 const STEP_EAE_COMMON_COMPLETE = 1;	// Common instruction setup complete step
@@ -879,19 +894,18 @@ const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into servic
 // EAE Multiplication Class
 const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
 const STEP_EAE_MUL_MQ_LOOP_LOAD = 1;// Pre-loop MQ load
-const STEP_EAE_MUL_MQ_CHECK = 2;	// Check bit 0 of MQ to see if we need to add
-const STEP_EAE_MUL_READ_PC = 3;		// Read CORE[PC] into MB
-const STEP_EAE_MUL_COMP_FLAG = 4;	// Conditionally complement the flag link if needed
-const STEP_EAE_MUL_AC_SHIFT = 5;	// Right shift AC and store in link
+const STEP_EAE_MUL_READ_PC = 2;		// Read CORE[PC] into MB
+const STEP_EAE_MUL_MQ_CHECK = 3;	// Check bit 0 of MQ to see if we need to add
+const STEP_EAE_MUL_SC_INC = 4;		// Null cycle, also increment SC here
+const STEP_EAE_MUL_COMP_FLAG = 5;	// Conditionally complement the flag link if needed
 const STEP_EAE_MUL_ADD = 6;			// Add OB + MB = AC
-const STEP_EAE_MUL_SC_LOAD = 7;		// Load SC in preparation of increment
-const STEP_EAE_MUL_SC_INC = 8;		// Increment SC, put it in SC and OB
-const STEP_EAE_MUL_MQ_LOAD = 9;		// Load MQ prior to shift
-const STEP_EAE_MUL_PACS = 10;		// Multiply positive AC sign handling
-const STEP_EAE_MUL_NACS = 11;		// Multiply negative AC sign handling
-const STEP_EAE_MUL_COMP_MQ = 12;	// Complement MQ
-const STEP_EAE_MUL_AC_LOAD = 13;	// Load AC into MB
-const STEP_EAE_MUL_COMP_AC = 14;	// Complement AC
+const STEP_EAE_MUL_AC_SHIFT = 7;	// Right shift AC and store in link
+const STEP_EAE_MUL_MQ_LOAD = 8;		// Load MQ prior to shift
+const STEP_EAE_MUL_PACS = 9;		// Multiply positive AC sign handling
+const STEP_EAE_MUL_NACS = 10;		// Multiply negative AC sign handling
+const STEP_EAE_MUL_COMP_MQ = 11;	// Complement MQ
+const STEP_EAE_MUL_AC_LOAD = 12;	// Load AC into MB
+const STEP_EAE_MUL_COMP_AC = 13;	// Complement AC
 
 // EAE Null Class
 const EAE_OPCODE_NULL = 2;			// Just fetch the next instruction
@@ -924,7 +938,7 @@ function decode(input) {
 	// I[11:12] = Decode Mode
 	// If Decode Mode == 0 (Service Mode)
 	// 	I[0:5] = Current step
-	//	I[6] = 
+	//	I[6] = Step zero flag
 	//	If Step < 32:
 	//		If Step < 16:
 	//			I[7:10] = Front panel status
@@ -1072,9 +1086,10 @@ function decode(input) {
 	let next_step = STEP_SRV_RESET_ENTRY;
 	let next_state = 0;
 	if (decode_mode == DECODE_MODE_SERVICE) {
+		
 		// Misc step decoding
 		let step = getbit(input, 0, 6);
-		let irq_pending = getbit(input, 6, 1);
+		let flag_step_zero = getbit(input, 6, 1);
 		
 		// Front panel domain
 		let front_panel_state = getbit(input, 7, 4);
@@ -1097,6 +1112,7 @@ function decode(input) {
 		let eae_comp_mq = getbit(input, 9, 1);
 		let eae_clear_mq = getbit(input, 10, 1);
 		
+		console.log("Decode SRV: " + step);
 		
 		switch (step) {
 			// --- SYSTEM RESET BLOCK ---
@@ -1980,13 +1996,13 @@ function decode(input) {
 				next_step = STEP_SRV_FETCH_IGDV;
 				break;
 				
-			// Check if OB = 0 from 2 cycles ago (SC increment)
+			// Check if SC = 0
 			// Also complete the MQ long shift
 			// OB >> 1 -> MQ, OB, FLAG_LINK
-			// IF FLAG_ZERO:
-			//  
+			// IF FLAG_STEP_ZERO:
+			//  STEP_EAE_MUL_CHACS -> NEXT
 			// ELSE:
-			//  STEP_EAE_MUL_READ_PC -> NEXT
+			//  STEP_EAE_MUL_MQ_CHECK -> NEXT
 			case STEP_SRV_EAE_MUL_CHZ:
 			
 				// Prepare to shift
@@ -1999,12 +2015,13 @@ function decode(input) {
 				latch_ob = 1;
 				latch_mq = 1;
 				
-				if (flag_zero) {
+				console.log("Flag: " + flag_step_zero);
+				if (flag_step_zero) {
 					next_step = STEP_EAE_MUL_CHACS;
-					next_state = DECODE_MODE_EAE;
+					next_decode_mode = DECODE_MODE_EAE;
 				} else {
-					next_step = STEP_EAE_MUL_READ_PC;
-					next_state = DECODE_MODE_EAE;
+					next_step = STEP_EAE_MUL_MQ_CHECK;
+					next_decode_mode = DECODE_MODE_EAE;
 				}
 				break;
 				
@@ -3331,12 +3348,28 @@ function decode(input) {
 
 						// Load MQ into OB so we can check the first bit
 						// MQ -> OB
-						// STEP_EAE_MUL_MQ_CHECK -> NEXT
+						// STEP_EAE_MUL_READ_PC -> NEXT
 						case STEP_EAE_MUL_MQ_LOOP_LOAD:
 
 							// Put MQ into OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
+
+							next_step = STEP_EAE_MUL_READ_PC;
+							break;
+							
+
+						// Read CORE[PC] into MB
+						// CORE[PC] -> MB
+						// STEP_EAE_MUL_MQ_CHECK -> NEXT
+						case STEP_EAE_MUL_READ_PC:
+
+							// Prepare to read from core
+							bus_output_select = BUS_SELECT_CORE;
+							select_pc_ma = ADDR_SELECT_PC;
+
+							// Place it in MB
+							latch_mb = 1;
 
 							next_step = STEP_EAE_MUL_MQ_CHECK;
 							break;
@@ -3345,6 +3378,7 @@ function decode(input) {
 						// While we are doing that, move AC into OB
 						// AC -> OB
 						// OB[0] -> FLAG_LINK
+						// STEP_EAE_MUL_SC_INC -> NEXT
 						case STEP_EAE_MUL_MQ_CHECK:
 
 							// Transfer AC to OB
@@ -3355,22 +3389,19 @@ function decode(input) {
 							alu_op_select = ALU_SHIFT_RAR;
 							alu_link_select = ALU_LINK_SHIFT;
 
-							next_step = STEP_EAE_MUL_READ_PC;
+							next_step = STEP_EAE_MUL_SC_INC;
 							break;
-
-
-						// Read CORE[PC] into MB
-						// CORE[PC] -> MB
+							
+						// Increment the SC counter
+						// We don't need a dedicated cycle for this, but we weren't doing anything else here
+						// SC + 1 -> SC
 						// STEP_EAE_MUL_COMP_FLAG -> NEXT
-						case STEP_EAE_MUL_READ_PC:
-
-							// Prepare to read from core
-							bus_output_select = BUS_SELECT_CORE;
-							select_pc_ma = ADDR_SELECT_PC;
-
-							// Place it in MB
-							latch_mb = 1;
-
+						case STEP_EAE_MUL_SC_INC:
+						
+							// Increment SC register
+							constant_value = 1;
+							latch_step = 1;
+						
 							next_step = STEP_EAE_MUL_COMP_FLAG;
 							break;
 
@@ -3397,28 +3428,7 @@ function decode(input) {
 								next_step = STEP_EAE_MUL_AC_SHIFT;
 							}
 							break;
-
-						// Shift AC right and store link
-						// AC >> 1 -> AC, FLAG_LINK
-						// STEP_EAE_MUL_SC_LOAD -> NEXT
-						case STEP_EAE_MUL_AC_SHIFT:
-						
-							// Put the ALU on bus
-							bus_output_select = BUS_SELECT_ALU;
 							
-							// Prepare to shift
-							alu_select_shifter = 1;
-							alu_op_select = ALU_SHIFT_RAR;
-							alu_link_select = ALU_LINK_SHIFT;
-							
-							// Put it in OB and AC
-							latch_ob = 1;
-							latch_ac = 1;
-							
-							next_step = STEP_EAE_MUL_SC_LOAD;
-							break;
-
-
 						// Perform the addition of MB into AC
 						// (OB + MB) -> AC, FLAG_LINK
 						// STEP_EAE_MUL_AC_SHIFT -> NEXT
@@ -3438,36 +3448,27 @@ function decode(input) {
 							next_step = STEP_EAE_MUL_AC_SHIFT;
 							break;
 							
-						// Load SC into MB and OB
-						// SC -> OB, MB
-						// STEP_EAE_MUL_SC_INC -> NEXT
-						case STEP_EAE_MUL_SC_LOAD:
+
+						// Shift AC right and store link
+						// AC >> 1 -> AC, FLAG_LINK
+						// STEP_EAE_MUL_SC_LOAD -> NEXT
+						case STEP_EAE_MUL_AC_SHIFT:
 						
-							// SC -> MB, OB
-							bus_output_select = BUS_SELECT_STEP;
-							latch_mb = 1;
-							latch_ob = 1;
-						
-							next_step = STEP_EAE_MUL_SC_INC;
-							break;
-							
-						// Perform increment of SC
-						// (OB OR MB) + 1 -> OB, SC
-						// STEP_EAE_MUL_MQ_LOAD -> NEXT
-						case STEP_EAE_MUL_SC_INC:
-						
-							// Perform increment
+							// Put the ALU on bus
 							bus_output_select = BUS_SELECT_ALU;
-							alu_op_select = ALU_OR;
-							alu_select_ones = 1 
 							
-							// Put it in OB and SC
+							// Prepare to shift
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAR;
+							alu_link_select = ALU_LINK_SHIFT;
+							
+							// Put it in OB and AC
 							latch_ob = 1;
-							latch_step = 1;
-						
+							latch_ac = 1;
+							
 							next_step = STEP_EAE_MUL_MQ_LOAD;
 							break;
-							
+
 						// Put MQ into OB prior to shifting
 						// MQ -> OB
 						// STEP_SRV_EAE_MUL_CHZ -> NEXT
@@ -3478,29 +3479,10 @@ function decode(input) {
 							latch_ob = 1;
 							
 							next_step = STEP_SRV_EAE_MUL_CHZ;
-							next_state = DECODE_MODE_SERVICE;
+							next_decode_mode = DECODE_MODE_SERVICE;
 							break;
 							
 						// Multiply positive AC sign handling
-						// MQ -> MB
-						// IF FLAG_LINK_INIT:
-						//  STEP_EAE_PC_NEXT -> NEXT
-						// ELSE:
-						//  STEP_EAE_MUL_COMP_MQ -> NEXT
-						case STEP_EAE_MUL_PACS:
-							
-							// MQ -> MB
-							bus_output_select = BUS_SELECT_MQ;
-							latch_mb = 1;
-							
-							if (flag_link_init) {
-								next_state = STEP_EAE_PC_NEXT;
-							} else {
-								next_step = STEP_EAE_MUL_COMP_MQ;
-							}
-							break;
-							
-						// Multiply negative AC sign handling
 						// MQ -> MB
 						// IF !FLAG_LINK_INIT:
 						//  STEP_EAE_PC_NEXT -> NEXT
@@ -3513,7 +3495,26 @@ function decode(input) {
 							latch_mb = 1;
 							
 							if (!flag_link_init) {
-								next_state = STEP_EAE_PC_NEXT;
+								next_step = STEP_EAE_PC_NEXT;
+							} else {
+								next_step = STEP_EAE_MUL_COMP_MQ;
+							}
+							break;
+							
+						// Multiply negative AC sign handling
+						// MQ -> MB
+						// IF FLAG_LINK_INIT:
+						//  STEP_EAE_PC_NEXT -> NEXT
+						// ELSE:
+						//  STEP_EAE_MUL_COMP_MQ -> NEXT
+						case STEP_EAE_MUL_PACS:
+							
+							// MQ -> MB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_mb = 1;
+							
+							if (flag_link_init) {
+								next_step = STEP_EAE_PC_NEXT;
 							} else {
 								next_step = STEP_EAE_MUL_COMP_MQ;
 							}
@@ -3559,7 +3560,7 @@ function decode(input) {
 							latch_ac = 1;
 						
 							next_step = STEP_SRV_FETCH;
-							next_state = DECODE_MODE_SERVICE;
+							next_decode_mode = DECODE_MODE_SERVICE;
 							break;
 
 
@@ -3600,6 +3601,7 @@ function decode(input) {
 			let load_eae_sign = getbit(input, 9, 1);
 			let flag_eae_ac_sign = getbit(input, 10, 1);
 			
+			console.log("Decode EAE Setup: " + step);
 			
 			switch (step) {
 				
@@ -3774,7 +3776,7 @@ function decode(input) {
 				//  GOTO STEP_EAE_COM_LOAD_SC
 				case STEP_EAE_COM_LOAD_MQ:
 
-					if (FLAG_EAE_AC_SIGN) {
+					if (flag_eae_ac_sign) {
 						// Set bus to MQ
 						bus_output_select = BUS_SELECT_MQ;
 
@@ -3866,7 +3868,7 @@ function decode(input) {
 					constant_value = 1;
 					
 					next_step = STEP_SRV_FETCH;
-					next_state = DECODE_MODE_SERVICE;
+					next_decode_mode = DECODE_MODE_SERVICE;
 					break;
 
 				default:
