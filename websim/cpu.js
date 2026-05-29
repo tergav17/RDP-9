@@ -106,10 +106,10 @@ cpu_state.r_core[040] = 0123456;
 
 cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0653122;  // MUL
-cpu_state.r_core[2] = 0000420;  // 420
+cpu_state.r_core[2] = 0001234;  // 420
 cpu_state.r_core[3] = 0600003;  // JMP 003
 
-cpu_state.r_core[040] = 067;
+cpu_state.r_core[040] = 04567;
 
 /*
 // Simple tape read in program
@@ -410,24 +410,20 @@ function propagate(cpu, devices) {
 		case ALU_BMA:
 		
 			// Do B MINUS A
-			arith_out = (arith_input_b - arith_input_a) - 1;
+			arith_out = arith_input_b - arith_input_a;
 			break;
 			
 		case ALU_AMB:
 		
 			// Do A MINUS B
-			arith_out = (arith_input_a - arith_input_b) - 1;
+			arith_out = arith_input_a - arith_input_b;
+			
 			break;
 			
 		case ALU_ADD:
 		
 			// Do A ADD B
 			arith_out = arith_input_a + arith_input_b;
-			if (alu_select_ones) {
-				arith_carry_out = getbit(shift_input + arith_input_b, 18, 1);
-			} else {
-				arith_carry_out = getbit(arith_out, 18, 1);
-			}
 			break;
 			
 		case ALU_XOR:
@@ -453,6 +449,13 @@ function propagate(cpu, devices) {
 			// Do PRESET
 			arith_out = 01777777;
 			break;
+	}
+	
+	// Common arith carry out logic
+	if (alu_select_ones) {
+		arith_carry_out = getbit(shift_input + arith_input_b, 18, 1);
+	} else {
+		arith_carry_out = getbit(arith_out, 18, 1);
 	}
 	
 	// 1's mode
@@ -878,8 +881,7 @@ const STEP_EAE_CLEAR_AC = 38;		// If IR['8] then set AC to 0
 const STEP_EAE_COM_LOAD_MQ = 39;	// Check if we need to complement MQ or move onto SC load
 const STEP_EAE_COM_LOAD_SC = 40;	// Load SC to be negated
 const STEP_EAE_COM_COMP_MQ = 41;	// Complement MQ
-const STEP_EAE_COM_NEG_SC = 42;		// Negate SC
-const STEP_EAE_MUL_CHACS = 43;		// Multiply check AC sign
+const STEP_EAE_MUL_CHACS = 42;		// Multiply check AC sign
 
 const STEP_EAE_PC_NEXT = 63;		// Increment PC and fetch next instruction
 
@@ -893,25 +895,33 @@ const EAE_OPCODE_SETUP = 0;			// Initial step: Load MQ into MB, jump into servic
 
 // EAE Multiplication Class
 const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
-const STEP_EAE_MUL_MQ_LOOP_LOAD = 1;// Pre-loop MQ load
-const STEP_EAE_MUL_READ_PC = 2;		// Read CORE[PC] into MB
-const STEP_EAE_MUL_MQ_CHECK = 3;	// Check bit 0 of MQ to see if we need to add
-const STEP_EAE_MUL_SC_INC = 4;		// Null cycle, also increment SC here
-const STEP_EAE_MUL_COMP_FLAG = 5;	// Conditionally complement the flag link if needed
-const STEP_EAE_MUL_ADD = 6;			// Add OB + MB = AC
-const STEP_EAE_MUL_AC_SHIFT = 7;	// Right shift AC and store in link
-const STEP_EAE_MUL_MQ_LOAD = 8;		// Load MQ prior to shift
-const STEP_EAE_MUL_PACS = 9;		// Multiply positive AC sign handling
-const STEP_EAE_MUL_NACS = 10;		// Multiply negative AC sign handling
-const STEP_EAE_MUL_COMP_MQ = 11;	// Complement MQ
-const STEP_EAE_MUL_AC_LOAD = 12;	// Load AC into MB
-const STEP_EAE_MUL_COMP_AC = 13;	// Complement AC
+const STEP_EAE_MUL_NEG_SC = 1;		// Negate SC and load
+const STEP_EAE_MUL_MQ_LOOP_LOAD = 2;// Pre-loop MQ load
+const STEP_EAE_MUL_READ_PC = 3;		// Read CORE[PC] into MB
+const STEP_EAE_MUL_MQ_CHECK = 4;	// Check bit 0 of MQ to see if we need to add
+const STEP_EAE_MUL_SC_INC = 5;		// Null cycle, also increment SC here
+const STEP_EAE_MUL_COMP_FLAG = 6;	// Conditionally complement the flag link if needed
+const STEP_EAE_MUL_ADD = 7;			// Add OB + MB = AC
+const STEP_EAE_MUL_AC_SHIFT = 8;	// Right shift AC and store in link
+const STEP_EAE_MUL_MQ_LOAD = 9;		// Load MQ prior to shift
+const STEP_EAE_MUL_PACS = 10;		// Multiply positive AC sign handling
+const STEP_EAE_MUL_NACS = 11;		// Multiply negative AC sign handling
+const STEP_EAE_MUL_COMP_MQ = 12;	// Complement MQ
+const STEP_EAE_MUL_AC_LOAD = 13;	// Load AC into MB
+const STEP_EAE_MUL_COMP_AC = 14;	// Complement AC
 
 // EAE Null Class
 const EAE_OPCODE_NULL = 2;			// Just fetch the next instruction
 
 // EAE Division Class
-const EAE_OPCODE_DIV = 3;
+const EAE_OPCODE_DIV = 3;			// Initial step: Reset FLAG_LINK
+const STEP_EAE_DIV_NEG_SC = 1;		// Negate SC and save to MA
+const STEP_EAE_DIV_READ_PC = 2;		// Read CORE[PC] into MB
+const STEP_EAE_DIV_AC_LOAD = 3;		// Load AC into OB
+const STEP_EAE_DIV_OVFL = 4;		// Check for overflow, update flag if occured
+const STEP_EAE_DIV_PC_NEXT = 5;		// Increment the PC, we needed to do this eventually
+const STEP_EAE_DIV_PREPARE = 6;		// Either load AC and exit after overflow, or load SC and prepare to loop
+
 
 // EAE Normalization Class
 const EAE_OPCODE_NORM = 4;
@@ -3322,7 +3332,7 @@ function decode(input) {
 
 				case EAE_OPCODE_MUL:
 
-					// EAE multiple steps
+					// EAE multiply steps
 					switch (step) {
 
 						// Reset FLAG_LINK
@@ -3345,6 +3355,22 @@ function decode(input) {
 
 							next_step = STEP_EAE_COM_LOAD_MQ;
 							break;
+							
+						// Negate SC
+						// (OB XOR MB) + 1 -> SC
+						// STEP_EAE_MUL_MQ_LOOP_LOAD -> NEXT
+						case STEP_EAE_MUL_NEG_SC:
+
+							// Perform negate (XOR + 1)
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_XOR;
+							alu_select_ones = 1;
+
+							// Place in SC
+							latch_step = 1;
+
+							next_step = STEP_EAE_MUL_MQ_LOOP_LOAD;
+							break;
 
 						// Load MQ into OB so we can check the first bit
 						// MQ -> OB
@@ -3358,7 +3384,6 @@ function decode(input) {
 							next_step = STEP_EAE_MUL_READ_PC;
 							break;
 							
-
 						// Read CORE[PC] into MB
 						// CORE[PC] -> MB
 						// STEP_EAE_MUL_MQ_CHECK -> NEXT
@@ -3574,6 +3599,136 @@ function decode(input) {
 					break;
 				
 				case EAE_OPCODE_DIV:
+				
+				
+					// EAE multiply steps
+					switch (step) {
+
+						// Reset FLAG_LINK
+						// Also put 0777777 into OB
+						// 0 -> FLAG_LINK
+						// STEP_EAE_COM_LOAD_MQ -> NEXT
+						case STEP_EAE_EXECUTE_BEGIN:
+
+							// Load OB
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_PRESET;
+							latch_ob = 1;
+
+							// Reset flag
+							if (!flag_link) {
+								alu_link_select = ALU_LINK_KEEP;
+							} else {
+								alu_link_select = ALU_LINK_COMP;
+							}
+
+							next_step = STEP_EAE_COM_LOAD_MQ;
+							break;
+							
+						// Negate SC
+						// (OB XOR MB) + 1 -> SC
+						// STEP_EAE_DIV_READ_PC -> NEXT
+						case STEP_EAE_DIV_NEG_SC:
+
+							// Perform negate (XOR + 1)
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_XOR;
+							alu_select_ones = 1;
+
+							// Place in back into MA (We don't want it in SC just yet)
+							latch_ma = 1;
+
+							next_step = STEP_EAE_DIV_READ_PC;
+							break;
+							
+						// Read CORE[PC] into MB
+						// CORE[PC] -> MB
+						// STEP_EAE_DIV_AC_LOAD -> NEXT
+						case STEP_EAE_DIV_READ_PC:
+
+							// Prepare to read from core
+							bus_output_select = BUS_SELECT_CORE;
+							select_pc_ma = ADDR_SELECT_PC;
+
+							// Place it in MB
+							latch_mb = 1;
+
+							next_step = STEP_EAE_DIV_AC_LOAD;
+							break;
+							
+						// Load AC into OB
+						// AC -> OB
+						// STEP_EAE_DIV_OVFL -> NEXT
+						case STEP_EAE_DIV_AC_LOAD:
+						
+							// Load AC into OB
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
+							
+							next_step = STEP_EAE_DIV_OVFL;
+							break;
+							
+						// Check for overflow 
+						// (OB - MB) -> AC, OB, FLAG_LINK
+						// STEP_EAE_DIV_PC_NEXT -> NEXT
+						case STEP_EAE_DIV_OVFL:
+						
+							// Perform subtraction
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_AMB;
+							alu_link_select = ALU_LINK_ARITH;
+							
+							// Load into OB and AC
+							latch_ob = 1;
+							latch_ac = 1;
+							
+							next_step = STEP_EAE_DIV_PC_NEXT;
+							break;
+							
+						// PC + 1 -> PC
+						// STEP_EAE_DIV_PREPARE -> NEXT
+						case STEP_EAE_DIV_PC_NEXT:
+						
+							// Increment the PC
+							bus_output_select = BUS_SELECT_CROSS;
+							select_pc_ma = ADDR_SELECT_PC;
+							latch_pc = 1;
+							constant_value = 1;
+							
+							next_step = STEP_EAE_DIV_PREPARE;
+							break;
+							
+						// Check the flag
+						// If flag is set, go to fetch
+						// Otherwise load MA into SC and prepare to loop
+						// IF FLAG_LINK:
+						//  STEP_SRV_FETCH -> NEXT
+						// ELSE:
+						//  MA -> SC
+						//  ? -> NEXT
+						case STEP_EAE_DIV_PREPARE:
+						
+							if (flag_link) {
+								next_step = STEP_SRV_FETCH;
+								next_decode_mode = DECODE_MODE_SERVICE;
+							} else {
+								// Load MA into SC
+								bus_output_select = BUS_SELECT_CROSS;
+								select_pc_ma = ADDR_SELECT_MA;
+								latch_step = 1;
+							}
+							break;
+							
+							
+						default:
+							// Invalid step, stop instruction execution
+							console.log("Warning: We tried to decode an unimplemented EAE divide step!");
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+							
+					}
+					break;
 
 				case EAE_OPCODE_NORM:
 				
@@ -3792,7 +3947,7 @@ function decode(input) {
 				// Common arithmetic setup
 				// Prepare to negate SC
 				// MA -> MB
-				// STEP_EAE_COM_NEG_SC -> NEXT
+				// STEP_EAE_COMMON_COMPLETE -> NEXT
 				case STEP_EAE_COM_LOAD_SC:
 
 					// Put MA on the bus
@@ -3802,7 +3957,7 @@ function decode(input) {
 					// Place it in MB
 					latch_mb = 1;
 
-					next_step = STEP_EAE_COM_NEG_SC;
+					next_step = STEP_EAE_COMMON_COMPLETE;
 					break;
 
 				
@@ -3819,22 +3974,6 @@ function decode(input) {
 					latch_mq = 1;
 
 					next_step = STEP_EAE_COM_LOAD_SC;
-					break;
-
-				// Negate SC
-				// (OB XOR MB) + 1 -> SC
-				// STEP_EAE_COMMON_COMPLETE -> NEXT
-				case STEP_EAE_COM_NEG_SC:
-
-					// Perform negate (XOR + 1)
-					bus_output_select = BUS_SELECT_ALU;
-					alu_op_select = ALU_XOR;
-					alu_select_ones = 1;
-
-					// Place in SC
-					latch_step = 1;
-
-					next_step = STEP_EAE_COMMON_COMPLETE;
 					break;
 					
 				// Put 0777777 into OB and check EAE AC sign for multiply
