@@ -921,6 +921,9 @@ const STEP_EAE_DIV_AC_LOAD = 3;		// Load AC into OB
 const STEP_EAE_DIV_OVFL = 4;		// Check for overflow, update flag if occured
 const STEP_EAE_DIV_PC_NEXT = 5;		// Increment the PC, we needed to do this eventually
 const STEP_EAE_DIV_PREPARE = 6;		// Either load AC and exit after overflow, or load SC and prepare to loop
+const STEP_EAE_DIV_SC_INC = 7;		// Increment SC prior to looping
+const STEP_EAE_DIV_MQ_LOAD = 8;		// Load MQ into OB, also complement link
+const STEP_EAE_DIV_MQ_SHIFT = 9;	// Shift MQ left once
 
 
 // EAE Normalization Class
@@ -3705,7 +3708,7 @@ function decode(input) {
 						//  STEP_SRV_FETCH -> NEXT
 						// ELSE:
 						//  MA -> SC
-						//  ? -> NEXT
+						//  STEP_EAE_DIV_SC_INC -> NEXT
 						case STEP_EAE_DIV_PREPARE:
 						
 							if (flag_link) {
@@ -3716,9 +3719,21 @@ function decode(input) {
 								bus_output_select = BUS_SELECT_CROSS;
 								select_pc_ma = ADDR_SELECT_MA;
 								latch_step = 1;
+								
+								next_step = STEP_EAE_DIV_SC_INC;
 							}
 							break;
-							
+						
+						// Increment SC
+						// SC + 1 -> SC
+						// ? -> NEXT
+						case STEP_EAE_DIV_SC_INC:
+						
+							// Increment SC
+							latch_step = 1;
+							constant_value = 1;
+						
+							break;
 							
 						default:
 							// Invalid step, stop instruction execution
