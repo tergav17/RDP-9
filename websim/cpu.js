@@ -758,9 +758,6 @@ const STEP_SRV_IRQ_SAVE_PC = 37;	// PC is stored in MB, OB
 const STEP_SRV_IRQ_WRITE_PC = 38;	// The logical OR of MB and OB is place in CORE[MA]
 const STEP_SRV_IRQ_MA_PC_INC = 39;	// MA + 1 is placed in the PC. Extend is enabled to ensure that bank 0 is selected
 
-// EAE flag check steps
-const STEP_SRV_EAE_MUL_CHZ = 40;	// Check if OB = zero, also perform the last part of the MQ long shift
-
 // EAE setup steps
 const STEP_SRV_EAE_CLEAR_MQ = 48;	// Conditionally clear MQ
 const STEP_SRV_EAE_COMP_LOAD = 49;	// Check if we need to complement MQ, if so load OB with 0777777
@@ -770,6 +767,11 @@ const STEP_SRV_EAE_COMP_LATCH = 52;	// Perform 0777777 XOR MQ, latch it into MQ
 const STEP_SRV_EAE_OR_LATCH = 53; 	// Perform AC OR MQ, latch it into AC
 const STEP_SRV_EAE_SC_LOAD_SC = 54;	// Load MB with SC
 const STEP_SRV_EAE_SC_LATCH = 55;	// Perform AC OR SC, latch it into AC
+
+// EAE flag check steps
+const STEP_SRV_EAE_MUL_CHZ = 56;	// Check if OB = zero, also perform the last part of the MQ long shift
+const STEP_EAE_DIV_MQ_SHIFT = 57;	// Shift MQ, quotent bit not set 
+const STEP_EAE_DIV_MQ_SHIFT_Q = 58;	// Shift MQ, quotent bit is set
 
 // --- INSTRUCTION MODE STEPS
 
@@ -923,7 +925,7 @@ const STEP_EAE_DIV_PC_NEXT = 5;		// Increment the PC, we needed to do this event
 const STEP_EAE_DIV_PREPARE = 6;		// Either load AC and exit after overflow, or load SC and prepare to loop
 const STEP_EAE_DIV_SC_INC = 7;		// Increment SC prior to looping
 const STEP_EAE_DIV_MQ_LOAD = 8;		// Load MQ into OB, also complement link
-const STEP_EAE_DIV_MQ_SHIFT = 9;	// Shift MQ left once
+const STEP_EAE_DIV_MQ_SHIFT = 9;	// Shift MQ left once, check if we need to 
 
 
 // EAE Normalization Class
