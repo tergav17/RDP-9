@@ -104,12 +104,15 @@ cpu_state.r_core[8] = 0600010;	// JMP 010
 cpu_state.r_core[040] = 0123456;
 */
 
-cpu_state.r_core[0] = 0200040;	// LAC 040
-cpu_state.r_core[1] = 0653122;  // MUL
-cpu_state.r_core[2] = 0001234;  // 420
-cpu_state.r_core[3] = 0600003;  // JMP 003
+cpu_state.r_core[0] = 0200041;	// LAC 041
+cpu_state.r_core[1] = 0652000;	// LMQ
+cpu_state.r_core[2] = 0200040;	// LAC 040
+cpu_state.r_core[3] = 0640323;  // DIV
+cpu_state.r_core[4] = 0000123; 
+cpu_state.r_core[5] = 0600005;  // JMP 005
 
-cpu_state.r_core[040] = 04567;
+cpu_state.r_core[040] = 0000006;
+cpu_state.r_core[041] = 0107354;
 
 /*
 // Simple tape read in program
@@ -3814,14 +3817,21 @@ function decode(input) {
 						// Check the flag
 						// If flag is set, go to fetch
 						// Otherwise load MA into SC and prepare to loop
-						// IF FLAG_LINK:
+						// IF !FLAG_LINK:
+						//  !FLAG_LINK -> FLAG_LINK
 						//  STEP_SRV_FETCH -> NEXT
 						// ELSE:
 						//  MA -> SC
 						//  STEP_EAE_DIV_SC_INC -> NEXT
 						case STEP_EAE_DIV_PREPARE:
 						
-							if (flag_link) {
+							if (!flag_link) {
+								
+								// Invert link flag
+								bus_output_select = BUS_SELECT_AC;
+								latch_ob = 1;
+								alu_link_select = ALU_LINK_COMP;
+								
 								next_step = STEP_SRV_FETCH;
 								next_decode_mode = DECODE_MODE_SERVICE;
 							} else {
@@ -3927,7 +3937,7 @@ function decode(input) {
 						// Subtract AC and the last bit of memory read
 						// OB + MB -> AC, OB, FLAG_LINK
 						// STEP_EAE_DIV_SC_INC -> NEXT
-						case STEP_EAE_DIV_ADD:
+						case STEP_EAE_DIV_SUB:
 							
 							// Prepare addition
 							bus_output_select = BUS_SELECT_ALU;
@@ -3977,7 +3987,7 @@ function decode(input) {
 							// Put it in AC
 							latch_ac = 1;
 							
-							if (FLAG_LINK_INIT) {
+							if (flag_link_init) {
 								next_decode_mode = DECODE_MODE_SERVICE;
 								next_step = STEP_SRV_FETCH;
 							} else {
@@ -3995,7 +4005,7 @@ function decode(input) {
 						//  STEP_SRV_FETCH -> NEXT
 						case STEP_EAE_DIV_PACS:
 							
-							if (!FLAG_LINK_INIT) {
+							if (!flag_link_init) {
 								next_decode_mode = DECODE_MODE_SERVICE;
 								next_step = STEP_SRV_FETCH;
 								break;
@@ -4316,7 +4326,7 @@ function decode(input) {
 				//  STEP_EAE_DIV_NACS -> NEXT
 				// ELSE:
 				//  STEP_EAE_DIV_PACS -> NEXT
-				case STEP_EAE_MUL_CHACS:
+				case STEP_EAE_DIV_CHACS:
 				
 					// Put 0777777 into MB
 					bus_output_select = BUS_SELECT_ALU;
