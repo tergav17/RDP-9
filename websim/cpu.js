@@ -108,11 +108,11 @@ cpu_state.r_core[0] = 0200041;	// LAC 041
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0200040;	// LAC 040
 cpu_state.r_core[3] = 0744000;	// CLL
-cpu_state.r_core[4] = 0640503;  // LRS
+cpu_state.r_core[4] = 0640603;  // LRS
 cpu_state.r_core[5] = 0600005;  // JMP 005
 
 cpu_state.r_core[040] = 0000067;
-cpu_state.r_core[041] = 0000670;
+cpu_state.r_core[041] = 0670000;
 
 /*
 // Simple tape read in program
@@ -779,6 +779,7 @@ const STEP_SRV_DIV_AC_LOAD = 59;	// Load AC into OB, quotent bit not set
 const STEP_SRV_DIV_AC_LOAD_Q = 60;	// Load AC into OB, quotent bit set
 const STEP_SRV_NORM_AC_SHIFT = 61;	// Shift AC left once
 const STEP_SRV_LRS_AC_SHIFT = 62;	// Shift AC right once
+const STEP_SRV_LLS_MQ_SHIFT = 63;	// Shift MQ left once
 
 // --- INSTRUCTION MODE STEPS
 
@@ -966,6 +967,10 @@ const STEP_EAE_LRS_MQ_SHIFT = 4;	// Shift MQ left once
 
 // EAE Long Left Shift Class
 const EAE_OPCODE_LLS = 6;
+const STEP_EAE_LLS_NEG_SC = 1;		// Negate SC and load
+const STEP_EAE_LLS_LINK_REST = 2;	// Restore link flag and put MQ into OB
+const STEP_EAE_LLS_AC_LOAD = 3;		// Load AC into OB, increment SC
+const STEP_EAE_LLS_AC_SHIFT = 4;	// Shift AC left once
 
 // EAE AC Left Shift Class
 const EAE_OPCODE_AC_LEFT = 7;
@@ -2382,6 +2387,34 @@ function decode(input) {
 					
 					next_decode_mode = DECODE_MODE_EAE;
 					next_step = STEP_EAE_LRS_MQ_LOAD;
+				}
+				break;
+				
+			// Check SC, if SC = 0 then do fetch next
+			// Otherwise shift MQ left once
+			// IF FLAG_STEP_ZERO:
+			//  STEP_SRV_FETCH -> NEXT
+			// ELSE:
+			//  OB << 1 -> MQ, OB, FLAG_LINK
+			//  STEP_EAE_LLS_MQ_LOAD -> NEXT
+			case STEP_SRV_LLS_MQ_SHIFT:
+			
+				if (flag_step_zero) {
+					// We are done
+					next_step = STEP_SRV_FETCH;
+				} else {
+					// Do a right shift
+					bus_output_select = BUS_SELECT_ALU;
+					alu_select_shifter = 1;
+					alu_op_select = ALU_SHIFT_RAL;
+					alu_link_select = ALU_LINK_SHIFT;
+					
+					// Put it in MQ and OB
+					latch_mq = 1;
+					latch_ob = 1;
+					
+					next_decode_mode = DECODE_MODE_EAE;
+					next_step = STEP_EAE_LLS_AC_LOAD;
 				}
 				break;
 
@@ -4341,7 +4374,7 @@ function decode(input) {
 				
 				case EAE_OPCODE_LRS:
 				
-					// EAE normalize steps
+					// EAE long right shift steps
 					switch (step) {
 
 
@@ -4437,6 +4470,101 @@ function decode(input) {
 					break;
 				
 				case EAE_OPCODE_LLS:
+				
+					// EAE long left shift steps
+					switch (step) {
+
+
+						// Setup to load SC
+						// 0777777 -> OB
+						case STEP_EAE_EXECUTE_BEGIN:
+						
+							// Load OB
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_PRESET;
+							latch_ob = 1;
+						
+							next_step = STEP_EAE_COM_LOAD_SC;
+							break;
+							
+						// Negate SC
+						// (OB XOR MB) + 1 -> SC
+						// STEP_EAE_LLS_LINK_REST -> NEXT
+						case STEP_EAE_LLS_NEG_SC:
+
+							// Perform negate (XOR + 1)
+							bus_output_select = BUS_SELECT_ALU;
+							alu_op_select = ALU_XOR;
+							alu_select_ones = 1;
+
+							// Place in SC
+							latch_step = 1;
+
+							next_step = STEP_EAE_LLS_LINK_REST;
+							break;
+							
+						// Set the link flag to link init flag
+						// Also put AC into OB
+						// MQ -> OB
+						// FLAG_LINK_INIT -> FLAG_LINK
+						case STEP_EAE_LLS_LINK_REST:
+						
+							// Put MQ into OB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_ob = 1;
+						
+							// Set the link flag to link flag init
+							if (flag_link != flag_link_init) {
+								alu_link_select = ALU_LINK_COMP;
+							}
+						
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_LLS_MQ_SHIFT;
+							break;
+							
+						// Load AC into OB
+						// Also increment SC
+						// AC -> OB
+						// SC + 1 -> SC
+						// STEP_EAE_LLS_AC_SHIFT -> NEXT
+						case STEP_EAE_LLS_AC_LOAD:
+						
+							// Put MQ into OB
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
+							
+							// Increment SC
+							constant_value = 1;
+							latch_step = 1;
+						
+							next_step = STEP_EAE_LLS_AC_SHIFT;
+							break;
+							
+						// Shift AC right once
+						// OB >> 1 -> OB, AC
+						// STEP_EAE_LLS_LINK_REST -> NEXT
+						case STEP_EAE_LLS_AC_SHIFT:
+						
+							// Shift right once
+							bus_output_select = BUS_SELECT_ALU;
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAL;
+							
+							// Load into OB and AC
+							latch_ob = 1;
+							latch_ac = 1;
+						
+							next_step = STEP_EAE_LLS_LINK_REST;
+							break;
+							
+						default:
+							// Invalid step, stop instruction execution
+							console.log("Warning: We tried to decode an unimplemented EAE LLS step!");
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+					}
+					break;
 				
 				case EAE_OPCODE_AC_LEFT:
 				
