@@ -107,12 +107,12 @@ cpu_state.r_core[040] = 0123456;
 cpu_state.r_core[0] = 0200041;	// LAC 041
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0200040;	// LAC 040
-cpu_state.r_core[3] = 0640323;  // DIV
-cpu_state.r_core[4] = 0000123; 
+cpu_state.r_core[3] = 0744002;	// CCL
+cpu_state.r_core[4] = 0640444;  // NORM
 cpu_state.r_core[5] = 0600005;  // JMP 005
 
-cpu_state.r_core[040] = 0000006;
-cpu_state.r_core[041] = 0107354;
+cpu_state.r_core[040] = 0000000;
+cpu_state.r_core[041] = 0000067;
 
 /*
 // Simple tape read in program
@@ -943,7 +943,15 @@ const STEP_EAE_DIV_MQ_COMP = 17;	// Complement MQ
 
 
 // EAE Normalization Class
-const EAE_OPCODE_NORM = 4;
+const EAE_OPCODE_NORM = 4;			// Initial step: Load AC into OB
+const STEP_EAE_NORM_GETBIT_A = 1;	// Shift OB[17] into link register
+const STEP_EAE_NORM_GETBIT_B = 2;	// Shift OB[16] into link register
+const STEP_EAE_NORM_CHECK_A = 3;	// Check the contents of OB[17]
+const STEP_EAE_NORM_CHECK_BX = 4;	// Check contents of OB[16], OB[17] = 0
+const STEP_EAE_NORM_CHECK_BY = 5;	// Check contents of OB[16], OB[17] = 1  
+const STEP_EAE_NORM_MQ_SHIFT = 7;	// Shift MQ left once
+const STEP_EAE_NORM_AC_LOAD = 8;	// Load AC into OB
+const STEP_EAE_NORM_AC_SHIFT = 9;	// Shift AC left once
 
 // EAE Long Right Shift Class
 const EAE_OPCODE_LRS = 5;
@@ -4042,8 +4050,6 @@ function decode(input) {
 							break;
 							
 							
-							
-							
 						default:
 							// Invalid step, stop instruction execution
 							console.log("Warning: We tried to decode an unimplemented EAE divide step!");
@@ -4055,6 +4061,192 @@ function decode(input) {
 					break;
 
 				case EAE_OPCODE_NORM:
+				
+					// EAE multiply steps
+					switch (step) {
+
+						// Load AC into OB
+						// AC -> OB
+						// STEP_EAE_NORM_GETBIT_A -> NEXT
+						case STEP_EAE_EXECUTE_BEGIN:
+						
+							// Put AC into OB
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
+						
+							next_step = STEP_EAE_NORM_GETBIT_A;
+							break;
+							
+						// Shift OB[17] into link register
+						// OB[17] -> FLAG_LINK
+						// STEP_EAE_NORM_GETBIT_B -> NEXT
+						case STEP_EAE_NORM_GETBIT_A:
+						
+							// Perform a singl left shift
+							bus_output_select = BUS_SELECT_AC;
+							alu_op_select = ALU_SHIFT_RAL;
+							alu_link_select = ALU_LINK_SHIFT;
+							latch_ob = 1;
+						
+							next_step = STEP_EAE_NORM_GETBIT_B;
+							break;
+							
+						// Shift OB[16] into link register
+						// OB[16] -> FLAG_LINK
+						// STEP_EAE_NORM_CHECK_A -> NEXT
+						case STEP_EAE_NORM_GETBIT_B:
+						
+							// Perform a singl left shift
+							bus_output_select = BUS_SELECT_AC;
+							alu_op_select = ALU_SHIFT_RTL;
+							alu_link_select = ALU_LINK_SHIFT;
+							latch_ob = 1;
+						
+							next_step = STEP_EAE_NORM_CHECK_A;
+							break;
+							
+						// Check contents of OB[17]
+						// Carry this information into the next step
+						// IF FLAG_LINK:
+						//  STEP_EAE_NORM_CHECK_BY -> NEXT
+						// ELSE:
+						//  STEP_EAE_NORM_CHECK_BX -> NEXT
+						case STEP_EAE_NORM_CHECK_A:
+						
+							if (flag_link) {
+								next_step = STEP_EAE_NORM_CHECK_BY;
+							} else {
+								next_step = STEP_EAE_NORM_CHECK_BX;
+							}
+							break;
+							
+						// Check contenrs of OB[16]
+						// OB[17] is 0
+						// Make sure we reset the flag register to FLAG_LINK_INIT
+						// We will also do the MQ load and increment SC
+						// AC -> OB
+						// SC + 1 -> SC
+						// FLAG_LINK_INIT -> FLAG_LINK
+						// IF FLAG_LINK:
+						//  STEP_SRV_FETCH -> NEXT
+						// ELSE:
+						//  STEP_EAE_NORM_MQ_SHIFT -> NEXT
+						case STEP_EAE_NORM_CHECK_BX:
+						
+							// Put MQ into OB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_ob = 1;
+							
+							// Increment SC
+							constant_value = 1;
+							latch_step = 1;
+							
+							// Set the link flag to link flag init
+							if (flag_link != flag_link_init) {
+								alu_link_select = ALU_LINK_COMP;
+							}
+							
+							// Check the link, if it's different from OB[17] we are done
+							if (flag_link) {
+								next_decode_mode = DECODE_MODE_SERVICE;
+								next_step = STEP_SRV_FETCH;
+							} else {
+								next_step = STEP_EAE_NORM_MQ_SHIFT;
+							}
+							break;
+							
+						// Check contenrs of OB[16]
+						// OB[17] is 1
+						// Make sure we reset the flag register to FLAG_LINK_INIT
+						// We will also do the MQ load and increment SC
+						// AC -> OB
+						// SC + 1 -> SC
+						// FLAG_LINK_INIT -> FLAG_LINK
+						// IF !FLAG_LINK:
+						//  STEP_SRV_FETCH -> NEXT
+						// ELSE:
+						//  STEP_EAE_NORM_MQ_SHIFT -> NEXT
+						case STEP_EAE_NORM_CHECK_BY:
+						
+							// Put MQ into OB
+							bus_output_select = BUS_SELECT_MQ;
+							latch_ob = 1;
+							
+							// Increment SC
+							constant_value = 1;
+							latch_step = 1;
+							
+							// Set the link flag to link flag init
+							if (flag_link != flag_link_init) {
+								alu_link_select = ALU_LINK_COMP;
+							}
+							
+							// Check the link, if it's different from OB[17] we are done
+							if (!flag_link) {
+								next_decode_mode = DECODE_MODE_SERVICE;
+								next_step = STEP_SRV_FETCH;
+							} else {
+								next_step = STEP_EAE_NORM_MQ_SHIFT;
+							}
+							break;
+							
+						// Perform left shift on MQ
+						// OB << 1 -> MQ, OB, FLAG_LINK
+						// STEP_EAE_NORM_AC_LOAD -> NEXT
+						case STEP_EAE_NORM_MQ_SHIFT:
+		
+							// Do left shift
+							bus_output_select = BUS_SELECT_ALU;
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAL;
+							alu_link_select = ALU_LINK_SHIFT;
+							
+							// Put it in MQ and OB
+							latch_mq = 1;
+							latch_ob = 1;
+		
+							next_step = STEP_EAE_NORM_AC_LOAD;
+							break;
+							
+						// Load AC into OB
+						// AC -> OB
+						// STEP_EAE_NORM_AC_SHIFT -> NEXT
+						case STEP_EAE_NORM_AC_LOAD:
+						
+							// Put AC into OB
+							bus_output_select = BUS_SELECT_AC;
+							latch_ob = 1;
+						
+							next_step = STEP_EAE_NORM_AC_SHIFT;
+							break;
+							
+						// Perform left shift on AC
+						// OB << 1 -> AC, OB, FLAG_LINK
+						// STEP_EAE_NORM_GETBIT_A -> NEXT
+						case STEP_EAE_NORM_AC_SHIFT:
+		
+							// Do left shift
+							bus_output_select = BUS_SELECT_ALU;
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAL;
+							alu_link_select = ALU_LINK_SHIFT;
+							
+							// Put it in AC and OB
+							latch_ac = 1;
+							latch_ob = 1;
+		
+							next_step = STEP_EAE_NORM_GETBIT_A;
+							break;
+						
+						default:
+							// Invalid step, stop instruction execution
+							console.log("Warning: We tried to decode an unimplemented EAE divide step!");
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_FETCH;
+							break;
+							
+					}
+					break;
 				
 				case EAE_OPCODE_LRS:
 				
