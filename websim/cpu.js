@@ -7,6 +7,7 @@
  
 // Optional breakpoint
 var breakpoint_addr = -1; 
+var enableUcTrace = true;
 
 /*
  * Current CPU state
@@ -108,11 +109,11 @@ cpu_state.r_core[0] = 0200041;	// LAC 041
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0200040;	// LAC 040
 cpu_state.r_core[3] = 0744000;	// CLL
-cpu_state.r_core[4] = 0640703;  // ALS
+cpu_state.r_core[4] = 0640401;  // NORM
 cpu_state.r_core[5] = 0600005;  // JMP 005
 
-cpu_state.r_core[040] = 0000067;
-cpu_state.r_core[041] = 0067000;
+cpu_state.r_core[040] = 0200000;
+cpu_state.r_core[041] = 0000001;
 
 /*
 // Simple tape read in program
@@ -196,16 +197,25 @@ function latch(cpu, devices) {
 	// IR register
 	if (getbit(latch_select, BUS_LATCH_IR, 1)) {
 		
+		cpu.r_reg_ir = bus(cpu.s_data_bus)
+		
 		// Breakpoint stuff
 		if (cpu.r_state[5]) {
+			
+			if (doTrace) {
+				console.log(disassemble(cpu.r_reg_ir, cpu.s_addr_bus));
+			}
+			
 			if (cpu.s_addr_bus == breakpoint_addr) {
 				cpu.front_panel_ctrl.halt_step = 100;
 				cpu_state.front_panel_state = 1;
 				console.log("Hit breakpoint");
 			}
 		}
-		
-		cpu.r_reg_ir = bus(cpu.s_data_bus)
+	
+		if ((cpu.r_reg_ir & 0760000) == 0640000) {
+			//console.log("EAE Instruction: " + cpu.r_reg_ir.toString(8));
+		}
 	}
 	
 	// MA register
@@ -259,9 +269,9 @@ function latch(cpu, devices) {
 		if (constant_value) {
 			cpu.r_reg_link_ac_sign = cpu.r_reg_link_init;
 			cpu.r_reg_link_init = bus(cpu.s_next_link) & getbit(bus(cpu.s_data_bus), 17, 1);
-			console.log("OB: " + cpu.r_reg_ob);
-			console.log("Next link: " + cpu.s_next_link);
-			console.log("Link init is now: " + cpu.r_reg_link_init);
+			//console.log("OB: " + cpu.r_reg_ob);
+			//console.log("Next link: " + cpu.s_next_link);
+			//console.log("Link init is now: " + cpu.r_reg_link_init);
 
 		}
 	}
@@ -1166,7 +1176,7 @@ function decode(input) {
 		let eae_comp_mq = getbit(input, 9, 1);
 		let eae_clear_mq = getbit(input, 10, 1);
 		
-		console.log("Decode SRV: " + step);
+		//console.log("Decode SRV: " + step);
 		
 		switch (step) {
 			// --- SYSTEM RESET BLOCK ---
@@ -1255,7 +1265,7 @@ function decode(input) {
 					address_register_mode = ADDR_REG_MODE_EXT_ON;
 					latch_ma = 1;
 					
-					console.log("Entering into IRQ path");
+					//console.log("Entering into IRQ path");
 					next_step = STEP_SRV_IRQ_SAVE_PC;
 					break;
 					
@@ -3534,8 +3544,9 @@ function decode(input) {
 			let eae_opcode = getbit(input, 7, 3);
 			let flag_link_init = getbit(input, 10, 1);
 			
-			console.log("Decode EAE ISR: " + eae_opcode + ", " + step);
-
+			if (doTrace && enableUcTrace) {
+				console.log("Decode EAE ISR: " + eae_opcode + ", " + step);
+			}
 
 			// EAE opcode decoding
 			switch (eae_opcode) {
@@ -3819,7 +3830,7 @@ function decode(input) {
 							
 						// Complement AC
 						// (OB XOR MB) -> AC
-						// STEP_SRV_FETCH -> NEXT
+						// STEP_EAE_PC_NEXT -> NEXT
 						case STEP_EAE_MUL_COMP_AC:
 						
 							// Do complement
@@ -3829,8 +3840,7 @@ function decode(input) {
 							// Put it in AC
 							latch_ac = 1;
 						
-							next_step = STEP_SRV_FETCH;
-							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_EAE_PC_NEXT;
 							break;
 
 
@@ -4275,21 +4285,17 @@ function decode(input) {
 						// Make sure we reset the flag register to FLAG_LINK_INIT
 						// We will also do the MQ load and increment SC
 						// AC -> OB
-						// SC + 1 -> SC
 						// FLAG_LINK_INIT -> FLAG_LINK
 						// IF FLAG_LINK:
 						//  STEP_SRV_FETCH -> NEXT
 						// ELSE:
+						//  SC + 1 -> SC
 						//  STEP_EAE_NORM_MQ_SHIFT -> NEXT
 						case STEP_EAE_NORM_CHECK_BX:
 						
 							// Put MQ into OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
-							
-							// Increment SC
-							constant_value = 1;
-							latch_step = 1;
 							
 							// Set the link flag to link flag init
 							if (flag_link != flag_link_init) {
@@ -4301,6 +4307,11 @@ function decode(input) {
 								next_decode_mode = DECODE_MODE_SERVICE;
 								next_step = STEP_SRV_FETCH;
 							} else {
+								
+								// Increment SC
+								constant_value = 1;
+								latch_step = 1;
+								
 								next_step = STEP_EAE_NORM_MQ_SHIFT;
 							}
 							break;
@@ -4310,21 +4321,17 @@ function decode(input) {
 						// Make sure we reset the flag register to FLAG_LINK_INIT
 						// We will also do the MQ load and increment SC
 						// AC -> OB
-						// SC + 1 -> SC
 						// FLAG_LINK_INIT -> FLAG_LINK
 						// IF !FLAG_LINK:
 						//  STEP_SRV_FETCH -> NEXT
 						// ELSE:
+						//  SC + 1 -> SC
 						//  STEP_EAE_NORM_MQ_SHIFT -> NEXT
 						case STEP_EAE_NORM_CHECK_BY:
 						
 							// Put MQ into OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
-							
-							// Increment SC
-							constant_value = 1;
-							latch_step = 1;
 							
 							// Set the link flag to link flag init
 							if (flag_link != flag_link_init) {
@@ -4336,6 +4343,11 @@ function decode(input) {
 								next_decode_mode = DECODE_MODE_SERVICE;
 								next_step = STEP_SRV_FETCH;
 							} else {
+								
+								// Increment SC
+								constant_value = 1;
+								latch_step = 1;
+								
 								next_step = STEP_EAE_NORM_MQ_SHIFT;
 							}
 							break;
@@ -4694,7 +4706,9 @@ function decode(input) {
 			let load_eae_sign = getbit(input, 9, 1);
 			let flag_eae_ac_sign = getbit(input, 10, 1);
 			
-			console.log("Decode EAE Setup: " + step);
+			if (doTrace && enableUcTrace) {
+				console.log("Decode EAE Setup: " + step);
+			}
 			
 			switch (step) {
 				

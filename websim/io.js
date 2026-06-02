@@ -253,7 +253,7 @@ function io_propagate(cpu, devices) {
 	let req_addr_phase = getbit(iot_cmd, REQ_ADDR_PHASE, 1);
 	let jmp_i_detect = getbit(iot_cmd, JMP_I_DETECT, 1);
 	if (jmp_i_detect) {
-		console.log("!");
+		//console.log("!");
 	}
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
@@ -594,6 +594,8 @@ function io_propagate(cpu, devices) {
 	devices.r_interrupt_req = 0;
 	if (devices.sysflag.r_flag_pi) {
 		devices.r_interrupt_req |= devices.rtc.r_rtc_flag;
+		devices.r_interrupt_req |= devices.tty.r_keyboard_flag;
+		devices.r_interrupt_req |= devices.tty.r_printer_flag;
 	}
 	if (devices.r_interrupt_req) {
 		console.log("IRQ!");

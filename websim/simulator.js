@@ -6,6 +6,7 @@
 
 const diag_flow = document.getElementById("diagflow");
 const button_run = document.getElementById("button-run");
+const button_trace = document.getElementById("button-trace");
 
 // Attempt to get the context for the diag flow
 if (diag_flow.getContext) {
@@ -39,6 +40,18 @@ function simRunHalt() {
 		button_run.innerHTML = "HALT";
 	} else {
 		button_run.innerHTML = "RUN";
+	}
+}
+
+// Start trace log
+var doTrace = false;
+function simToggleTrace() {
+	doTrace = !doTrace;
+	
+	if (doTrace) {
+		button_trace.innerHTML = "TRACE OFF";
+	} else {
+		button_trace.innerHTML = "TRACE ON";
 	}
 }
 
@@ -89,7 +102,9 @@ function updateClock() {
 		cpu_state.front_panel_state = 1;
 	}
 	if (cpu_state.front_panel_ctrl.cont) {
-		cpu_state.front_panel_ctrl.cont--;
+		if (runClock) {
+			cpu_state.front_panel_ctrl.cont--;
+		}
 		cpu_state.front_panel_state = 2;
 	}
 	if (cpu_state.front_panel_ctrl.go_to) {
