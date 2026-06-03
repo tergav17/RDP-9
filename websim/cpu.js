@@ -8,6 +8,7 @@
 // Optional breakpoint
 var breakpoint_addr = -1; 
 var enableUcTrace = true;
+var doTrace = false;
 
 /*
  * Current CPU state
@@ -202,9 +203,8 @@ function latch(cpu, devices) {
 		// Breakpoint stuff
 		if (cpu.r_state[5]) {
 			
-			if (doTrace) {
-				console.log(disassemble(cpu.r_reg_ir, cpu.s_addr_bus));
-			}
+			// Log operation
+			logValue("L: " + cpu.r_reg_link + "AC: " + oct18(cpu.r_reg_ac) + " MQ: " + oct18(cpu.r_reg_mq) + " SC: " + oct18(cpu.r_reg_step) + " ISR: " + disassemble(cpu.r_reg_ir, cpu.s_addr_bus));
 			
 			if (cpu.s_addr_bus == breakpoint_addr) {
 				cpu.front_panel_ctrl.halt_step = 100;
@@ -1176,7 +1176,9 @@ function decode(input) {
 		let eae_comp_mq = getbit(input, 9, 1);
 		let eae_clear_mq = getbit(input, 10, 1);
 		
-		//console.log("Decode SRV: " + step);
+		if (doTrace && enableUcTrace) {
+			console.log("Decode SRV: " + step);
+		}
 		
 		switch (step) {
 			// --- SYSTEM RESET BLOCK ---

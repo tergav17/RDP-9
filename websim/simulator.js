@@ -44,7 +44,6 @@ function simRunHalt() {
 }
 
 // Start trace log
-var doTrace = false;
 function simToggleTrace() {
 	doTrace = !doTrace;
 	
@@ -52,6 +51,24 @@ function simToggleTrace() {
 		button_trace.innerHTML = "TRACE OFF";
 	} else {
 		button_trace.innerHTML = "TRACE ON";
+	}
+}
+
+
+// History log handling
+var historyLog = []
+
+function logValue(val) {
+	historyLog.push(val);
+	
+	while (historyLog.length > 500) {
+		historyLog.shift();
+	}
+}
+
+function simDumpLog() {
+	while (historyLog.length != 0) {
+		console.log(historyLog.shift());
 	}
 }
 
