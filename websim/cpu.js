@@ -782,7 +782,7 @@ const STEP_SRV_EAE_SC_LOAD_SC = 54;	// Load MB with SC
 const STEP_SRV_EAE_SC_LATCH = 55;	// Perform AC OR SC, latch it into AC
 
 // EAE flag check steps
-const STEP_SRV_MUL_CHZ = 56;		// Check if SC = zero, also perform the last part of the MQ long shift
+const STEP_SRV_MUL_MQ_CHECK = 56;	// Check if SC = zero, also check bit 0 of MQ
 const STEP_SRV_DIV_MQ_SHIFT = 57;	// Shift MQ, quotent bit not set 
 const STEP_SRV_DIV_MQ_SHIFT_Q = 58;	// Shift MQ, quotent bit is set
 const STEP_SRV_DIV_AC_LOAD = 59;	// Load AC into OB, quotent bit not set
@@ -920,12 +920,12 @@ const EAE_OPCODE_MUL = 1;			// Initial step: Reset FLAG_LINK
 const STEP_EAE_MUL_NEG_SC = 1;		// Negate SC and load
 const STEP_EAE_MUL_MQ_LOOP_LOAD = 2;// Pre-loop MQ load
 const STEP_EAE_MUL_READ_PC = 3;		// Read CORE[PC] into MB
-const STEP_EAE_MUL_MQ_CHECK = 4;	// Check bit 0 of MQ to see if we need to add
-const STEP_EAE_MUL_SC_INC = 5;		// Null cycle, also increment SC here
-const STEP_EAE_MUL_COMP_FLAG = 6;	// Conditionally complement the flag link if needed
-const STEP_EAE_MUL_ADD = 7;			// Add OB + MB = AC
-const STEP_EAE_MUL_AC_SHIFT = 8;	// Right shift AC and store in link
-const STEP_EAE_MUL_MQ_LOAD = 9;		// Load MQ prior to shift
+const STEP_EAE_MUL_SC_INC = 4;		// Null cycle, also increment SC here
+const STEP_EAE_MUL_COMP_FLAG = 5;	// Conditionally complement the flag link if needed
+const STEP_EAE_MUL_ADD = 6;			// Add OB + MB = AC
+const STEP_EAE_MUL_AC_SHIFT = 7;	// Right shift AC and store in link
+const STEP_EAE_MUL_MQ_LOAD = 8;		// Load MQ prior to shift
+const STEP_EAE_MUL_MQ_SHIFT = 9;	// Right shift MQ
 const STEP_EAE_MUL_PACS = 10;		// Multiply positive AC sign handling
 const STEP_EAE_MUL_NACS = 11;		// Multiply negative AC sign handling
 const STEP_EAE_MUL_COMP_MQ = 12;	// Complement MQ
@@ -2228,29 +2228,29 @@ function decode(input) {
 				break;
 				
 			// Check if SC = 0
-			// Also complete the MQ long shift
-			// OB >> 1 -> MQ, OB, FLAG_LINK
+			// Put bit 0 of MQ into FLAG_LINK
+			// While we are doing that, move AC into OB
+			// AC -> OB
+			// OB[0] -> FLAG_LINK
 			// IF FLAG_STEP_ZERO:
 			//  STEP_EAE_MUL_CHACS -> NEXT
 			// ELSE:
-			//  STEP_EAE_MUL_MQ_CHECK -> NEXT
-			case STEP_SRV_MUL_CHZ:
+			//  STEP_EAE_MUL_SC_INC -> NEXT
+			case STEP_SRV_MUL_MQ_CHECK:
 			
-				// Prepare to shift
-				bus_output_select = BUS_SELECT_ALU;
-				alu_select_shifter = 1;
+				// Transfer AC to OB
+				bus_output_select = BUS_SELECT_AC;
+				latch_ob = 1;
+
+				// We will also put bit 0 of OB into FLAG_LINK
 				alu_op_select = ALU_SHIFT_RAR;
 				alu_link_select = ALU_LINK_SHIFT;
-				
-				// Place it in OB and MQ 
-				latch_ob = 1;
-				latch_mq = 1;
 				
 				if (flag_step_zero) {
 					next_step = STEP_EAE_MUL_CHACS;
 					next_decode_mode = DECODE_MODE_EAE;
 				} else {
-					next_step = STEP_EAE_MUL_MQ_CHECK;
+					next_step = STEP_EAE_MUL_SC_INC;
 					next_decode_mode = DECODE_MODE_EAE;
 				}
 				break;
@@ -3644,7 +3644,7 @@ function decode(input) {
 							
 						// Read CORE[PC] into MB
 						// CORE[PC] -> MB
-						// STEP_EAE_MUL_MQ_CHECK -> NEXT
+						// STEP_SRV_MUL_MQ_CHECK -> NEXT
 						case STEP_EAE_MUL_READ_PC:
 
 							// Prepare to read from core
@@ -3654,25 +3654,8 @@ function decode(input) {
 							// Place it in MB
 							latch_mb = 1;
 
-							next_step = STEP_EAE_MUL_MQ_CHECK;
-							break;
-
-						// Put bit 0 of MQ into FLAG_LINK
-						// While we are doing that, move AC into OB
-						// AC -> OB
-						// OB[0] -> FLAG_LINK
-						// STEP_EAE_MUL_SC_INC -> NEXT
-						case STEP_EAE_MUL_MQ_CHECK:
-
-							// Transfer AC to OB
-							bus_output_select = BUS_SELECT_AC;
-							latch_ob = 1;
-
-							// We will also put bit 0 of OB into FLAG_LINK
-							alu_op_select = ALU_SHIFT_RAR;
-							alu_link_select = ALU_LINK_SHIFT;
-
-							next_step = STEP_EAE_MUL_SC_INC;
+							next_decode_mode = DECODE_MODE_SERVICE;
+							next_step = STEP_SRV_MUL_MQ_CHECK;
 							break;
 							
 						// Increment the SC counter
@@ -3754,16 +3737,36 @@ function decode(input) {
 
 						// Put MQ into OB prior to shifting
 						// MQ -> OB
-						// STEP_SRV_MUL_CHZ -> NEXT
+						// STEP_EAE_MUL_MQ_SHIFT -> NEXT
 						case STEP_EAE_MUL_MQ_LOAD:
 						
 							// MQ -> OB
 							bus_output_select = BUS_SELECT_MQ;
 							latch_ob = 1;
 							
-							next_step = STEP_SRV_MUL_CHZ;
+							next_step = STEP_EAE_MUL_MQ_SHIFT;
+							break;
+							
+						// Shift MQ right and store link
+						// OB >> 1 -> MQ, OB
+						// 0 -> FLAG_LINK
+						// STEP_SRV_MUL_MQ_CHECK -> NEXT
+						case STEP_EAE_MUL_MQ_SHIFT:
+						
+							// Prepare to shift
+							bus_output_select = BUS_SELECT_ALU;
+							alu_select_shifter = 1;
+							alu_op_select = ALU_SHIFT_RAR;
+							alu_link_select = ALU_LINK_SHIFT;
+							
+							// Place it in OB and MQ 
+							latch_ob = 1;
+							latch_mq = 1;
+						
+							next_step = STEP_SRV_MUL_MQ_CHECK;
 							next_decode_mode = DECODE_MODE_SERVICE;
 							break;
+							
 							
 						// Multiply positive AC sign handling
 						// MQ -> MB
