@@ -1,0 +1,4 @@
+at ptr maindec_eae_test_2.bin
+d asw 017720
+set cpu history=100
+boot -h ptr

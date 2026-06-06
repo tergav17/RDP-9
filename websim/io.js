@@ -139,6 +139,26 @@ var tty_state = {
 	r_keyboard_buffer: 0
 };
 
+// RB disk drive
+const RB_DEVICE_ID = 071;
+const RB_DRQ_PRIORITY = 1;
+
+var rb_state = {
+	
+	// Track / sector register
+	r_rb_tsa: 0,
+	
+	// Memory address
+	r_rb_addr: 0,
+	
+	// Word count
+	r_rb_wc: 0,
+	
+	// Status register
+	r_rb_status = 0
+	
+};
+
 var device_states = {
 	
 	// Interrupt signal
