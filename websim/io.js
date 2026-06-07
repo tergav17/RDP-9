@@ -142,6 +142,19 @@ var tty_state = {
 // RB disk drive
 const RB_DEVICE_ID = 071;
 const RB_DRQ_PRIORITY = 1;
+const RB_STAT_EF = 17;
+const RB_STAT_PARITY = 16;
+const RB_STAT_IADDR = 15;
+const RB_STAT_TIMING = 14;
+const RB_STAT_NREADY = 13;
+const RB_STAT_DONE = 12;
+const RB_STAT_INTEN = 11;
+const RB_STAT_BUSY = 10;
+const RB_STAT_RW = 9;
+
+const RB_STAT_ERRFLG = (1 << RB_STAT_PARITY) | (1 << RB_STAT_IADDR) | (1 << RB_STAT_TIMING) | (1 << RB_STAT_NREADY);
+const RB_STAT_XOR = (1 << RB_STAT_INTEN) | (1 << RB_STAT_BUSY) | (1 << RB_STAT_RW);
+const RB_STAT_UNUSED = 0777;
 
 var rb_state = {
 	
@@ -153,6 +166,9 @@ var rb_state = {
 	
 	// Word count
 	r_rb_wc: 0,
+	
+	// Disk image pointer
+	r_rb_pointer: 0,
 	
 	// Status register
 	r_rb_status = 0
@@ -178,6 +194,9 @@ var device_states = {
 	
 	// Teleprinter state
 	tty: tty_state,
+	
+	// RB disk statee
+	rb: rb_state,
 	
 	// Last pulse states
 	last_iot_pulse_state: 0,
@@ -363,6 +382,56 @@ function io_propagate(cpu, devices) {
 	// Handle activites
 	switch (device) {
 		
+		
+		// RB disk drive
+		case RB_DEVICE_ID:
+		
+			rb = devices.rb;
+			
+			if (pulse & 001) {
+				if (subdevice == 0 && iot_falling) {
+					// Clear error bits and done
+					rb.r_rb_status = rb_set_ef(rb.r_rb_status & ~(RB_STAT_ERRFLG | (1 << RB_STAT_DONE)));
+				}
+				if (subdevice == 1 && iot_pulse) {
+					// Skip if error bits or done
+					if (rb.r_rb_status & (RB_STAT_ERRFLG | (1 << RB_STAT_DONE))) {
+						skip = 1;
+					}
+				}
+				if (subdevice == 2) {
+					// Clear status register
+					rb.r_rb_status = 0;
+				}
+			}
+			
+			if (pulse & 002) {
+				if (subdevice == 0 && iot_pulse) {
+					// Assert track/sector address
+					cpu.s_device_bus = assert(cpu.s_device_bus, rb.r_rb_tsa);
+				}
+				if (subdevice == 1 && iot_pulse) {
+					// Assert word count
+					cpu.s_device_bus = assert(cpu.s_device_bus, rb.r_rb_wc);
+				}
+				if (subdevice == 2 && iot_falling) {
+					// Write memory address
+					rb.r_rb_addr = AC & 077777;
+				}
+			}
+			
+			if (pulse & 004) {
+				if (subdevice == 0 && iot_falling) {
+					
+				}
+				if (subdevice == 1 && iot_falling) {
+					// Write word count
+					rb.r_rb_wc = data_in & 0177777;
+				}
+			}
+		
+			break;
+		
 		// API stuff
 		// We don't actually API installed, but we still need to handle DBR
 		case API_DEVICE_ID:
@@ -474,7 +543,7 @@ function io_propagate(cpu, devices) {
 			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
 				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
-				tty.r_keyboard_flag = 0;
+				tty.r_keyboard_flag = 0;  
 			}
 			
 			// IORS (it's in KEYBD for some reason?)
@@ -675,6 +744,13 @@ function device_tick(devices) {
 	
 	// Tick the paper tape subsystem
 	ppt_tick(devices.ppt);
+}
+
+function rb_set_ef(status) {
+	if (status & RB_STAT_ERRFLG)
+		return status | (1 << RB_STAT_EF);
+	}
+	return status;
 }
 
 function rtc_tick(rtc, drq) {
