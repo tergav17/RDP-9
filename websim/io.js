@@ -7,12 +7,14 @@
 // I/O elements 
 const dump_core = document.getElementById("button-dump-core");
 const mount_ppt = document.getElementById("button-mount-ppt");
+const mount_rb = document.getElementById("button-mount-rb");
 const rewind_ppt = document.getElementById("button-rewind-ppt");
 const upload_core = document.getElementById("upload-core");
 const terminal = document.getElementById("terminal");
 const readout = document.getElementById("readout");
 
 const upload_ppt = document.getElementById("upload-ppt");
+const upload_img = document.getElementById("upload-img");
 
 const play_bell = document.getElementById("play-bell");
 
@@ -170,8 +172,17 @@ var rb_state = {
 	// Disk image pointer
 	r_rb_pointer: 0,
 	
+	// RB disk image
+	rb_data: [],
+	
+	// RB transfer pending
+	rb_pending: 0,
+	
+	// RB data buffer
+	r_rb_buffer: 0,
+	
 	// Status register
-	r_rb_status = 0
+	r_rb_status: 0
 	
 };
 
@@ -263,10 +274,10 @@ function io_latch(cpu, devices) {
 		// Is one of the devices requesting an action?
 		if (i < 8) {
 			// Set DRQ value
-			r_selected_dev = i;
+			drq.r_selected_dev = i;
 			drq.r_drq = 1;
-			drq.r_req_dma = drq.r_req_dma;
-			drq.r_req_dev_chan = drq.r_req_dev_chan;
+			drq.r_req_dma = drq.devices[i].r_req_dma;
+			drq.r_req_dev_chan = drq.devices[i].r_req_dev_chan;
 			
 		} else {
 			// Reset DRQ
@@ -330,7 +341,7 @@ function io_propagate(cpu, devices) {
 	// Propagate DRQ signals
 	let drq = devices.drq;
 	for (let i = 0; i < 8; i++) {
-		drq.devices[i].s_drq_grant = (dev_req_grant && r_selected_dev == i) ? 1 : 0;
+		drq.devices[i].s_drq_grant = (dev_req_grant && drq.r_selected_dev == i) ? 1 : 0;
 	}
 	
 	// RTC DRQ handler
@@ -344,6 +355,38 @@ function io_propagate(cpu, devices) {
 		
 		// Set extrn
 		extrn = 1;
+		
+		// Check increment zero pulse
+		if (increment_zero_pulse) {
+			devices.rtc.r_rtc_flag = 1;
+		}
+	}
+	
+	// RB DRQ handler
+	if (drq.devices[RB_DRQ_PRIORITY].s_drq_grant) {
+
+		rb = devices.rb;
+
+		// Async register reset
+		drq.devices[RB_DRQ_PRIORITY].r_drq = 0;
+		
+		// Set address or data
+		if (req_addr_phase) {
+			cpu.s_device_bus = assert(cpu.s_device_bus, rb.r_rb_addr);
+			extrn = 1;
+		} else {
+			if (!getbit(rb.r_rb_status, RB_STAT_RW, 1)) {
+				// Read bit
+				//console.log("Placing " + oct18(rb.r_rb_buffer) + " onto device bus");
+				cpu.s_device_bus = assert(cpu.s_device_bus, rb.r_rb_buffer);
+				extrn = 1;
+			} else {
+				// Write bit
+				rb.r_rb_buffer = data_in;
+			}
+		}
+		
+		
 		
 		// Check increment zero pulse
 		if (increment_zero_pulse) {
@@ -387,6 +430,9 @@ function io_propagate(cpu, devices) {
 		case RB_DEVICE_ID:
 		
 			rb = devices.rb;
+			if (iot_rising) {
+				console.log("RB IOT: " + device + ", " + subdevice + ", "  + pulse);
+			}
 			
 			if (pulse & 001) {
 				if (subdevice == 0 && iot_falling) {
@@ -399,7 +445,7 @@ function io_propagate(cpu, devices) {
 						skip = 1;
 					}
 				}
-				if (subdevice == 2) {
+				if (subdevice == 2 && iot_falling) {
 					// Clear status register
 					rb.r_rb_status = 0;
 				}
@@ -416,17 +462,49 @@ function io_propagate(cpu, devices) {
 				}
 				if (subdevice == 2 && iot_falling) {
 					// Write memory address
-					rb.r_rb_addr = AC & 077777;
+					rb.r_rb_addr = data_in & 077777;
+					
 				}
 			}
 			
 			if (pulse & 004) {
 				if (subdevice == 0 && iot_falling) {
+					console.log("Writing TSA register with data " + data_in);
+					sector_ones = getbit(data_in, 0, 4);
+					sector_tens = getbit(data_in, 4, 4);
+					track_ones = getbit(data_in, 8, 4);
+					track_tens = getbit(data_in, 12, 4);
+					track_huns = getbit(data_in, 16, 1);
 					
+					sector = sector_ones + (10 * sector_tens);
+					track = track_ones + (10 * track_tens) + (100 * track_huns);
+					valid = sector_ones < 10 &&
+							sector_tens < 10 &&
+							track_ones < 10 &&
+							track_tens < 10 &&
+							sector < 80 &&
+							track < 200;
+					if (!valid) {
+						// Error!
+						// Not a valid address
+						console.log("Tried to load invalid address!");
+						rb.r_rb_status = rb_set_ef(rb.r_rb_status | (1 << RB_STAT_IADDR));
+					} else {
+						
+						console.log("Load sector: " + sector);
+						console.log("Load track: " + track);
+						
+						// Update track and pointer
+						rb.r_rb_pointer = (sector + (80 * track)) * 64;
+						rb.r_rb_tsa = data_in & 0377777;
+					}
 				}
 				if (subdevice == 1 && iot_falling) {
 					// Write word count
 					rb.r_rb_wc = data_in & 0177777;
+				}
+				if (subdevice == 2 && iot_falling) {
+					rb.r_rb_status = rb_set_ef((data_in & ~ RB_STAT_UNUSED) ^ (rb.r_rb_status & RB_STAT_XOR));
 				}
 			}
 		
@@ -685,6 +763,9 @@ function io_propagate(cpu, devices) {
 		devices.r_interrupt_req |= devices.rtc.r_rtc_flag;
 		devices.r_interrupt_req |= devices.tty.r_keyboard_flag;
 		devices.r_interrupt_req |= devices.tty.r_printer_flag;
+		if (getbit(devices.rb.r_rb_status, RB_STAT_INTEN, 1)) {
+			devices.r_interrupt_req |= getbit(devices.rb.r_rb_status, RB_STAT_EF, 1) | getbit(devices.rb.r_rb_status, RB_STAT_DONE, 1);
+		}
 	}
 	if (devices.r_interrupt_req) {
 		console.log("IRQ!");
@@ -708,6 +789,7 @@ function io_propagate(cpu, devices) {
 function clear_all_flags(devices) {
 	
 	console.log("CAF");
+	let drq = devices.drq;
 	
 	// Clear system stuff
 	let sysflag = devices.sysflag;
@@ -715,7 +797,6 @@ function clear_all_flags(devices) {
 	
 	// Clear RTC stuff
 	let rtc = devices.rtc;
-	let drq = devices.drq;
 	drq.devices[RTC_DRQ_PRIORITY].r_drq = 0;
 	r_rtc_flag = 0;
 	
@@ -728,6 +809,11 @@ function clear_all_flags(devices) {
 	// Clear TTY
 	let tty = devices.tty;
 	tty.r_printer_flag = 0;
+	
+	// Clear RB stuff
+	let rb = devices.rb;
+	rb.r_rb_status = 0;
+	drq.devices[RB_DRQ_PRIORITY].r_drq = 0;
 	
 }
 
@@ -744,13 +830,9 @@ function device_tick(devices) {
 	
 	// Tick the paper tape subsystem
 	ppt_tick(devices.ppt);
-}
-
-function rb_set_ef(status) {
-	if (status & RB_STAT_ERRFLG)
-		return status | (1 << RB_STAT_EF);
-	}
-	return status;
+	
+	// Tick the RB disk system
+	rb_tick(devices.rb, devices.drq);
 }
 
 function rtc_tick(rtc, drq) {
@@ -828,6 +910,87 @@ function ppt_tick(ppt) {
 		ppt.pptr_delay = PPTR_DELAY_CONST;
 	}
 }
+
+function rb_tick(rb, drq) {
+	
+	
+	// Check to see if we have completed a DRQ
+	if (rb.rb_pending && !drq.r_drq) {
+		//console.log("Ending RB transfer");
+		rb.rb_pending = 0;
+		
+		if (getbit(rb.r_rb_status, RB_STAT_RW, 1)) {
+			// We did a write
+			if (rb.r_rb_pointer % 64 == 0) {
+				// Start of sector, truncate sector
+				for (i = 0; i < 64; i++) {
+					rb.rb_data[rb.r_rb_pointer + i] = 0;
+				}
+			}
+			rb.rb_data[rb.r_rb_pointer] = rb.r_rb_buffer;
+			
+		}
+		
+		// Increment pointer
+		rb.r_rb_pointer++;
+		if (rb.rb_pointer >= 1024000)
+			rb.r_rb_pointer = 0;
+		
+		// Increment address
+		rb.r_rb_addr = (rb.r_rb_addr + 1) & 077777;
+		
+		// Increment word count
+		rb.r_rb_wc = (rb.r_rb_wc + 1) & 0177777;
+		if (rb.r_rb_wc == 0) {
+			// We are done
+			rb.r_rb_status &= ~(1 << RB_STAT_BUSY);
+			rb.r_rb_status |= 1 << RB_STAT_DONE;
+		}
+		
+		// Decode back into TSA register
+		sector = Math.trunc(rb.r_rb_pointer / 64) % 80;
+		track = Math.trunc(rb.r_rb_pointer / (64 * 80)) % 200;
+		rb.r_rb_tsa =	((sector % 10) << 0) |
+						(Math.trunc(sector / 10) << 4) |
+						((track % 10) << 8) |
+						((Math.trunc(track / 10) % 10) << 12) |
+						(Math.trunc(track / 100) << 16);
+	}
+	
+	// Do we need to do something here
+	if (getbit(rb.r_rb_status, RB_STAT_BUSY, 1) && !rb.rb_pending) {
+		//console.log("Starting RB transfer");
+		if (rb.rb_data.length >= 1024000) {
+			// Are we reading or writing?
+			if (!getbit(rb.r_rb_status, RB_STAT_RW, 1)) {
+				// Read, set up the data buffer
+				rb.r_rb_buffer = rb.rb_data[rb.r_rb_pointer];
+				//console.log("Buffer is " + oct18(rb.r_rb_buffer) + " from pointer " + rb.r_rb_pointer);
+			}
+			
+			// Start up a DMA DRQ
+			drq.devices[RB_DRQ_PRIORITY].r_drq = 1;
+			drq.devices[RB_DRQ_PRIORITY].r_req_dma = 1;
+			rb.rb_pending = 1;
+			
+		} else {
+			// Were's the data!
+			console.log("No data!");
+			rb.r_rb_status |= 1 << RB_STAT_NREADY;
+			rb.r_rb_status &= ~(1 << RB_STAT_BUSY);
+			rb.r_rb_status |= 1 << RB_STAT_DONE;
+			rb.r_rb_status = rb_set_ef(rb.r_rb_status);
+		}
+	}
+	
+}
+
+function rb_set_ef(status) {
+	if (status & RB_STAT_ERRFLG)
+		return status | (1 << RB_STAT_EF);
+	return status;
+}
+
 
 /* --- TERMINAL STUFF --- */
 
@@ -953,6 +1116,11 @@ rewind_ppt.onclick = function() {
 	ppt_state.pptr_pointer = 0;
 }
 
+// Link "LOAD .IMG" button to file input
+mount_rb.onclick = function() {
+	upload_img.click();
+}
+
 // Shove the .PPT into buffer when uploaded
 upload_ppt.addEventListener('change', function(e) {
 	let pptFile = upload_ppt.files[0];
@@ -971,13 +1139,6 @@ upload_ppt.addEventListener('change', function(e) {
 	})();
 });
 
-/*
-
-// Link "MOUNT .IMG" button to file input
-document.getElementById("button-mount-img").onclick = function() {
-	upload_img.click();
-}
-
 // Shove the .IMG into an emulated CF card
 upload_img.addEventListener('change', function(e) {
 	let imgFile = upload_img.files[0];
@@ -988,11 +1149,14 @@ upload_img.addEventListener('change', function(e) {
 
 		// Load into compact flash image
         let i = 0;
-		while (i < fileContent.length && i < (512 * 256 * 256)) {
-			cf_state.data[i] = fileContent[i];
-			i++;
+		while (i < fileContent.length && i < (64 * 80 * 200)) {
+			p = i * 4;
+			rb_state.rb_data[i] = fileContent[p] | (fileContent[p+1] << 8) | (fileContent[p+2] << 16); 
+			if (i >= 0x881C0 && i < 0x881C0 + 64) {
+				console.log("Read data " + oct18(rb_state.rb_data[i]));
+			}
+			i += 1;
 		}
 		
 	})();
 });
-*/

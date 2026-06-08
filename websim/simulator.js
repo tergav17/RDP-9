@@ -97,6 +97,16 @@ function simStep() {
 }
 
 /*
+ * Execute 1000 cycles, update flow
+ */
+function simSuperStep() {
+	for (i = 0; i < 1000; i++) {
+		simTick();
+	}
+	updateFlow(false);
+}
+
+/*
  * Execute a single clock cycle. Update CPU and IO state but do not redraw
  */ 
 function simTick() {
@@ -106,7 +116,7 @@ function simTick() {
 }
 
 // event farm!!!! :)
-var clockCyclesPerTick = 5000;
+var clockCyclesPerTick = 50000;
 var last_front_panel_state = 0;
 function updateClock() {
 	
@@ -317,18 +327,18 @@ function drawFlow(cpu) {
 	}
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("uCode Input: " + toWord(cpu.s_ucode_input, 13), x, y);
-	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("uCode Output: " + ucode, x, y+15);
-	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("Current State: " + ustate, x, y+30);
-	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("Data Bus: " + toWord(cpu.s_data_bus, 18), x + 400, y);
-	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("Addr Bus: " + toWord(cpu.s_addr_bus, 18), x + 400, y+15);
-	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("OB: " + toWord(cpu.r_reg_ob, 18), x + 400, y+30);
 	flow_ctx.fillText("LI: " + toWord(cpu.r_reg_link_init, 1), x + 540, y+30);
 	flow_ctx.fillText("AS: " + toWord(cpu.r_reg_link_ac_sign, 1), x + 580, y+30);
+	
+	flow_ctx.fillText("RB Status: " + oct18(rb_state.r_rb_status), x, y + 315);
+	flow_ctx.fillText("RB TrkSec: " + oct18(rb_state.r_rb_tsa), x, y + 330);
+	flow_ctx.fillText("RB MAddrs: " + oct18(rb_state.r_rb_addr), x, y + 345);
+	flow_ctx.fillText("RB WrdCnt: " + oct18(rb_state.r_rb_wc), x, y + 360);
 	
 	// Draw front panel box
 	x = 10; y = 90;

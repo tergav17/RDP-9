@@ -55,7 +55,7 @@ cpu_state = {
 	s_iot_wait: 0,
 	
 	// Switch Registers
-	s_switch_data: 017770,
+	s_switch_data: 010000,
 	
 	// System buses
 	s_data_bus: 0,
@@ -106,6 +106,8 @@ cpu_state.r_core[8] = 0600010;	// JMP 010
 cpu_state.r_core[040] = 0123456;
 */
 
+/*
+// EAE test set
 cpu_state.r_core[0] = 0200041;	// LAC 041
 cpu_state.r_core[1] = 0652000;	// LMQ
 cpu_state.r_core[2] = 0200040;	// LAC 040
@@ -115,6 +117,27 @@ cpu_state.r_core[5] = 0600005;  // JMP 005
 
 cpu_state.r_core[040] = 0200000;
 cpu_state.r_core[041] = 0000001;
+*/
+
+// RB test
+cpu_state.r_core[0] = 0200040;	// LAC 040
+cpu_state.r_core[1] = 0707124;	// DSLW
+cpu_state.r_core[2] = 0200041;	// LAC 041
+cpu_state.r_core[3] = 0707142;	// DSLM
+cpu_state.r_core[4] = 0200042;	// LAC 042
+cpu_state.r_core[5] = 0707104;	// DSLD
+cpu_state.r_core[6] = 0200043;	// LAC 043
+cpu_state.r_core[7] = 0707144;	// DSLS
+cpu_state.r_core[8] = 0600010;  // JMP 010
+
+// Word count
+cpu_state.r_core[040] = (0 - 64) & 0777777;
+// Memory address
+cpu_state.r_core[041] = 0000100;
+// Track / sector
+cpu_state.r_core[042] = 0204161;
+// Status
+cpu_state.r_core[043] = 0002000;
 
 /*
 // Simple tape read in program
@@ -617,6 +640,7 @@ function propagate(cpu, devices) {
 			} else {
 				cpu.s_data_bus = assert(cpu.s_data_bus, cpu.r_reg_wrtbk);
 			}
+			//console.log("Read " + oct18(cpu.s_data_bus) + " from source " + cpu.s_iot_extrn);
 			break;
 	
 		default:
@@ -1846,8 +1870,10 @@ function decode(input) {
 			// 1 -> REQ_ADDR_PHASE
 			// IF DMA_REQUEST:
 			//  CORE[MA] -> WRTBK, MB
+			//  STEP_SRV_DRQ_DATA_READ -> NEXT
 			// ELSE
 			//  CORE[MA] -> MB, OB
+			//  STEP_SRV_DRQ_COUNT_INC -> NEXT
 			case STEP_SRV_DRQ_COUNT_READ:
 			
 				// Raise device request and address phase signals
@@ -1861,7 +1887,7 @@ function decode(input) {
 				if (dma_request) {
 					latch_wrtbk = 1;
 					latch_mb = 1;
-					next_step = STEP_SRV_DRQ_DATA_WRITE;
+					next_step = STEP_SRV_DRQ_DATA_READ;
 				} else {
 					latch_ob = 1;
 					latch_mb = 1;

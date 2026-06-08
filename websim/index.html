@@ -64,16 +64,17 @@
 		</td>
 		<td>
 			<button type="button" onclick="simStep()">STEP</button>
+			<button type="button" onclick="simSuperStep()">SPR STEP</button>
 		</td>
 		<td>
-			&nbsp; &nbsp; &nbsp; &nbsp;
+			&nbsp; &nbsp;
 		</td>
 		<td>
 			<button type="button" onclick="simReset()">RESET</button>
 		</td>
 		
 		<td>
-			&nbsp; &nbsp; &nbsp; &nbsp;
+			&nbsp; &nbsp;
 		</td>
 		<td>
 			<button type="button" id="button-trace" onclick="simToggleTrace()">TRACE ON</button>
@@ -102,8 +103,9 @@
 		<table>
 			<tr>
 				<td>
-					<button type="button" id="button-mount-ppt">MOUNT PAPER TAPE</button>
+					<button type="button" id="button-mount-ppt">MOUNT PTR</button>
 					<button type="button" id="button-rewind-ppt">REWIND TAPE</button>
+					<button type="button" id="button-mount-rb">MOUNT RB</button>
 				</td>
 
 			</tr>
@@ -123,14 +125,14 @@
 	
 	<!-- file input endpoints -->
 	<input type="file" class="hidden" id="upload-ppt" accept=".bin"></input>
-	<input type="file" class="hidden" id="upload-img" accept=".img"></input>
+	<input type="file" class="hidden" id="upload-img" accept=".fs"></input>
 	<audio src="bell.mp3" id="play-bell"></audio>
 	
 	<!-- scriptville -->
+	<script src="dasm.js"></script>
 	<script src="io.js"></script>
 	<script src="cpu.js"></script>
 	<script src="simulator.js"></script>
-	<script src="dasm.js"></script>
 
 	</body>
 </html>
