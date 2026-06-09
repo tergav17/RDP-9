@@ -2505,6 +2505,9 @@ function decode(input) {
 		let flag_maai = getbit(input, 10, 1);
 		
 		//console.log("Opcode: " + opcode + ", Step: " + step);
+		if (doTrace && enableUcTrace) {
+			console.log("Decode ISR Opcode: " + opcode + ", Step: " + step);
+		}
 		
 		// Execute instructions here
 		

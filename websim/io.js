@@ -71,7 +71,7 @@ for (let i = 0; i < 8; i++) {
 
 const RTC_DEVICE_ID = 0;
 const RTC_DRQ_PRIORITY = 0;
-const RTC_TICK_TIME = 100;
+const RTC_TICK_TIME = 50000;
 
 // Real time clock
 var rtc_state = {
@@ -809,6 +809,7 @@ function clear_all_flags(devices) {
 	// Clear TTY
 	let tty = devices.tty;
 	tty.r_printer_flag = 0;
+	tty.r_keyboard_flag = 0;
 	
 	// Clear RB stuff
 	let rb = devices.rb;
@@ -1003,6 +1004,7 @@ uartScratchpad = 0;
 function uart_input(ch) {
 	uartHasCharacter = true;
 	uartChar = ch;
+	uart_output(ch);
 }
 
 /*
@@ -1060,6 +1062,10 @@ terminal.onkeydown = function(e) {
 	switch (ch) {
 		case 8:
 			uart_input(8);
+			return false;
+			
+		case 13:
+			uart_input(10);
 			return false;
 		
 		case 46:
@@ -1152,11 +1158,9 @@ upload_img.addEventListener('change', function(e) {
 		while (i < fileContent.length && i < (64 * 80 * 200)) {
 			p = i * 4;
 			rb_state.rb_data[i] = fileContent[p] | (fileContent[p+1] << 8) | (fileContent[p+2] << 16); 
-			if (i >= 0x881C0 && i < 0x881C0 + 64) {
-				console.log("Read data " + oct18(rb_state.rb_data[i]));
-			}
 			i += 1;
 		}
+		alert("Loaded " + rb_state.rb_data.length + " words");
 		
 	})();
 });

@@ -340,6 +340,10 @@ function drawFlow(cpu) {
 	flow_ctx.fillText("RB MAddrs: " + oct18(rb_state.r_rb_addr), x, y + 345);
 	flow_ctx.fillText("RB WrdCnt: " + oct18(rb_state.r_rb_wc), x, y + 360);
 	
+	flow_ctx.fillText("TTYO: " + tty_state.r_printer_flag, x + 130, y + 315);
+	flow_ctx.fillText("TTYI: " + tty_state.r_keyboard_flag, x + 130, y + 330);
+	flow_ctx.fillText("KBUF: " + oct18(tty_state.r_keyboard_buffer), x + 130, y + 345);
+	
 	// Draw front panel box
 	x = 10; y = 90;
 	flow_ctx.beginPath();
