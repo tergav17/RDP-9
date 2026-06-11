@@ -488,14 +488,12 @@ function propagate(cpu, devices) {
 	}
 	
 	// Common arith carry out logic
-	if (alu_select_ones) {
-		arith_carry_out = getbit(shift_input + arith_input_b, 18, 1);
-	} else {
-		arith_carry_out = getbit(arith_out, 18, 1);
-	}
-	
+	arith_carry_out = getbit(arith_out, 18, 1);
+
 	// 1's mode
 	if (alu_select_ones) {
+		arith_carry_out ^= cpu.r_reg_link;
+		
 		if (arith_carry_out || getbit(alu_op_select, 2, 1)) {
 			arith_out++;
 			arith_out &= 0777777;
@@ -507,7 +505,7 @@ function propagate(cpu, devices) {
 		) ? 1 : 0;
 		arith_link_out |= cpu.r_reg_link
 	} else {
-		arith_link_out = getbit(arith_out, 18, 1);
+		arith_link_out = arith_carry_out;
 	}
 	arith_out &= 0777777;
 	
