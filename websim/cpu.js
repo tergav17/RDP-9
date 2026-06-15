@@ -1082,7 +1082,7 @@ function decode(input) {
 	// O[0][6:7] = Next decode mode
 	//
 	// O[1][0] = Latch IR
-	// O[1][1] = Latch MA
+	// O[1][1] = Latch MAw
 	// O[1][2] = Latch PC
 	// O[1][3] = Latch AC
 	// O[1][4] = Latch STEP
