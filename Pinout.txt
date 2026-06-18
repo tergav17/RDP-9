@@ -77,6 +77,83 @@ ALU_ONES		1		ALU Select Ones Comp				CTL
 CLK				1		Clock								CTL
  
 			Bus Connector
+			
+			
+GND				A01 C01		+5V
+N/C				A02 C02		N/C
+D0				A03 C03		A0
+D1				A04 C04		A1
+				A05 C05
+D2				A06 C06		A2
+D3				A07 C07		A3
+				A08 C08
+D4				A09 C09		A4
+D5				A10 C10		A5
+				A11 C11
+D6				A12 C12		A6
+D7				A13 C13		A7
+				A14 C14
+D8				A15 C15		A8
+D9				A16 C16		A9
+				A17 C17
+D10				A18 C18		A10
+D11				A19 C19		A11
+				A20 C20	
+D12				A21 C21		A12
+D14				A22 C22		A13
+				A23 C23
+D15				A24 C24		A14
+D16				A25 C25
+				A26 C26
+D17				A27 C27
+				A28 C28
+				A29 C29
+				A30 C30
++12V			A31 C31		N/C
++5V				A32 C32		GND
+
+
+GND				A01 C01		+5V
+N/C				A02 C02		N/C
+				A03 C03
+				A04 C04
+				A05 C05
+				A06 C06
+				A07 C07
+				A08 C08
+				A09 C09
+				A10 C10
+				A11 C11
+				A12 C12
+				A13 C13
+				A14 C14
+				A15 C15
+				A16 C16
+				A17 C17
+				A18 C18
+				A19 C19
+				A20 C20
+				A21 C21
+				A22 C22
+				A23 C23
+				A24 C24
+				A25 C25
+				A26 C26
+				A27 C27
+				A28 C28
+				A29 C29
+				A30 C30
++12V			A31 C31		N/C
++5V				A32 C32		GND
+			
+			
+			
+			
+			
+			
+			
+			
+			
 GND				01 02		+5V
 D0				03 04		A0
 D1				05 06		A1
