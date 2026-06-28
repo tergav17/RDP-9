@@ -727,7 +727,7 @@ const FP_XCT = 9;
 
 // IOT stuff
 const BUS_LATCH_WRTBK = 0;
-const CLEAR_ALL_FLAGS = 1;
+const EXTRA_SIGNAL = 1;
 const IOT_PULSE = 2;
 const DEV_REQ_GRANT = 3;
 const REQ_ADDR_PHASE = 4;
@@ -1082,7 +1082,7 @@ function decode(input) {
 	// O[0][6:7] = Next decode mode
 	//
 	// O[1][0] = Latch IR
-	// O[1][1] = Latch MAw
+	// O[1][1] = Latch MA
 	// O[1][2] = Latch PC
 	// O[1][3] = Latch AC
 	// O[1][4] = Latch STEP
@@ -1152,7 +1152,7 @@ function decode(input) {
 	
 	// IOT stuff
 	let latch_wrtbk = 0;
-	let clear_all_flags = 0;
+	let extra_signal = 0;
 	let iot_pulse = 0;
 	let dev_req_grant = 0;
 	let req_addr_phase = 0;
@@ -1225,15 +1225,10 @@ function decode(input) {
 				// We enable extension so the entire PC / MA gets reset
 				address_register_mode = ADDR_REG_MODE_EXT_ON;
 				
-				// Perform a write on AC, PC, MQ, MA, STEP
-				latch_pc = 1;
+				// Perform a write on AC, MQ, STEP
 				latch_ac = 1;
 				latch_mq = 1;
-				latch_ma = 1;
 				latch_step = 1;
-				
-				// Set clear all flags here too
-				clear_all_flags = 1;
 				
 				// TODO: Reset all of the flags
 				next_step = STEP_SRV_REFETCH;
@@ -5045,7 +5040,7 @@ function decode(input) {
 						(constant_value << 7);
 	
 	let dev_control =	(latch_wrtbk << BUS_LATCH_WRTBK) |
-						(clear_all_flags << CLEAR_ALL_FLAGS) |
+						(extra_signal << EXTRA_SIGNAL) |
 						(iot_pulse << IOT_PULSE) |
 						(dev_req_grant << DEV_REQ_GRANT) |
 						(req_addr_phase << REQ_ADDR_PHASE) |

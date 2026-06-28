@@ -308,7 +308,6 @@ function io_propagate(cpu, devices) {
 	let interrupt_detect = getbit(iot_cmd, INTERRUPT_DETECT, 1);
 	let read_in_pulse = getbit(iot_cmd, READ_IN_PULSE, 1);
 	let read_in_clear_pulse = (read_in_pulse && getbit(cpu.r_state[2], 7, 1)) ? 1 : 0;
-	let cpu_clear_all_flags = getbit(iot_cmd, CLEAR_ALL_FLAGS, 1);
 	let increment_zero_pulse = (getbit(cpu.r_state[2], 7, 1) && cpu.r_reg_zero) ? 1 : 0;
 	
 	
@@ -710,11 +709,6 @@ function io_propagate(cpu, devices) {
 				console.log("Unknown IOT on device " + device + "." + subdevice + "." + pulse + " with data " + data_in); 
 			}
 			break;
-	}
-	
-	// Do we need to do a CPU CAF?
-	if (cpu_clear_all_flags) {
-		clear_all_flags(devices);
 	}
 	
 	// Do async reset of PIE if an interrupt is detected
