@@ -8680,7 +8680,7 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 18297c6f-c6f6-4abd-9409-ce5956e16f16)
   )
-  (label "WRITE_CORE" (at 471.805 104.775 180) (fields_autoplaced)
+  (label "*WRITE_CORE" (at 471.805 104.775 180) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 1857fe7f-e504-4a52-9884-6e3113bb4551)
   )
@@ -10232,7 +10232,7 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid fa264d93-10e1-41e4-a481-167acebd280f)
   )
-  (label "WRITE_CORE" (at 155.575 127 0) (fields_autoplaced)
+  (label "*WRITE_CORE" (at 155.575 127 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid fa6f6788-475c-4e99-8be6-52bcd68b7681)
   )
@@ -10272,7 +10272,7 @@
   (symbol (lib_id "Connector:DIN41612_02x32_AC") (at 476.885 273.685 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 0083e2a9-3a3b-46df-a51d-e01e6e92abfe)
-    (property "Reference" "J4" (at 478.155 233.045 0)
+    (property "Reference" "J2" (at 478.155 233.045 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "Data Connector" (at 476.885 229.235 0)
@@ -10351,7 +10351,7 @@
     (instances
       (project "Control"
         (path "/9aceca4c-796d-4c9d-8044-fc5cfdda262d"
-          (reference "J4") (unit 1)
+          (reference "J2") (unit 1)
         )
       )
       (project "ALU"
@@ -13439,7 +13439,7 @@
   (symbol (lib_id "Connector:DIN41612_02x32_AC") (at 476.885 89.535 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 64dbaa67-5875-4cc8-8267-a0d896ee2d3b)
-    (property "Reference" "J3" (at 478.155 48.895 0)
+    (property "Reference" "J1" (at 478.155 48.895 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "Control Connector" (at 477.52 45.085 0)
@@ -13518,7 +13518,7 @@
     (instances
       (project "Control"
         (path "/9aceca4c-796d-4c9d-8044-fc5cfdda262d"
-          (reference "J3") (unit 1)
+          (reference "J1") (unit 1)
         )
       )
       (project "ALU"

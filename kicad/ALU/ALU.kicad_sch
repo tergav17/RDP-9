@@ -12117,7 +12117,7 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid d105f802-c4af-4975-81b0-e0ab8a20556f)
   )
-  (label "WRITE_CORE" (at 501.015 77.47 180) (fields_autoplaced)
+  (label "*WRITE_CORE" (at 501.015 77.47 180) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid d116ac34-fe6e-43a1-9bf7-e4d18a1fccd8)
   )
