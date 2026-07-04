@@ -39,6 +39,7 @@ STEP_ZERO		1		STEP Register Zero					REG
 *INT_REQ		1		Interrupt request		X			IOI
 *IOT_SKIP		1		IOT Skip				X			IOI
 *IOT_WAIT		1		IOT Wait				X			IOI
+*REST_PEND		1		Restore Pending			X			IOI
 *IOT_SKIP_L		1		IOT Skip Latched					ALU		X
 FLAG_ZERO		1		OB Zero Flag						ALU		X
 FLAG_SIGN		1		OB Sign Flag						ALU		X
@@ -59,7 +60,7 @@ BUS_SELECT		3		Data Bus Selector					CTL
 *LATCH_MB		1		Latch MB Register					CTL		X
 *LATCH_WRTBK	1		Latch WRTBK Register				CTL
 *LATCH_OB		1		Latch OB Register					CTL
-WRITE_CORE		1		Write to Core						CTL		X
+*WRITE_CORE		1		Write to Core						CTL		X
 SELECT_PCMA		1		Select PC / MA						CTL		X
 HALT			1		Halt Indicator						CTL		X
 ADDR_MODE		2		Address Register Mode				CTL		X
@@ -74,7 +75,9 @@ ALUO			3		ALU Operation						CTL
 LINKS			2		Link Select							CTL
 ALU_SHIFT		1		ALU Select Shifter					CTL
 ALU_ONES		1		ALU Select Ones Comp				CTL
-CLK				1		Clock								CTL
+MA_AUTO_INX		1		MA Auto Index Flag					MEM
+NEXT_BANK0		2		Next Memory Bank					MEM
+CLK				1		Clock								BKP
  
 			Bus Connector
 
@@ -99,7 +102,7 @@ N/C				A02 C02		N/C
 *LATCH_MB		A19 C19		*SELECT_EXTRN
 *LATCH_WRTBK	A20 C20		IOT_PULSE
 *LATCH_OB		A21 C21		DRQ_GRANT
-WRITE_CORE		A22 C22		REQ_ADDR
+*WRITE_CORE		A22 C22		REQ_ADDR
 SELECT_PCMA		A23 C23		JMP_I_DETECT
 ALUO0			A24 C24		INT_DETECT
 ALUO1			A25 C25		READ_IN_PULSE
@@ -138,8 +141,8 @@ CLK				A23 C23		SC5
 EXTRA1			A24 C24		EXTRA2
 EXTRA3			A25 C25		EXTRA4
 EXTRA5			A26 C26		EXTRA6
-EXTRA7			A27 C27		EXTRA8
-REST_PEND		A28 C28		MA_AUTO_INX
+NEXT_BANK0		A27 C27		NEXT_BANK1
+*REST_PEND		A28 C28		MA_AUTO_INX
 FP0				A29 C29		FP1
 FP2				A30 C30		FP3
 N/C				A31 C31		+12V
