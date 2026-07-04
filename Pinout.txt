@@ -78,6 +78,7 @@ ALU_ONES		1		ALU Select Ones Comp				CTL
 MA_AUTO_INX		1		MA Auto Index Flag					MEM
 NEXT_BANK0		2		Next Memory Bank					MEM
 CLK				1		Clock								BKP
+FP				4		Front Panel Status					FTP
  
 			Bus Connector
 
