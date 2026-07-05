@@ -27,9 +27,9 @@ RDP-9A-PRB-0	Paper tape / RB Emulator Card
 /* CPU Backplane Pinout */
 
 SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
-D				18		Data Bus							N/A
-A				15		Address Bus							N/A
-STEP_ZERO		1		STEP Register Zero					REG
+D				18		Data Bus							N/A		X
+A				15		Address Bus							N/A		X
+STEP_ZERO		1		STEP Register Zero					REG		X
 *PI_ENABLE		1		Interrupt Enable		X			IOI
 *MEMM_ENABLE	1		Ext Memory Enable		X			IOI
 *PROT_ENABLE	1		Protection Enable 		X			IOI
@@ -46,11 +46,15 @@ FLAG_SIGN		1		OB Sign Flag						ALU		X
 FLAG_LINK		1		Link Flag							ALU		X
 FLAG_LINK_INIT	1		Link Init Flag						ALU		X
 FLAG_AC_SIGN	1		AC Sign Flag						ALU		X
-BUS_SELECT		3		Data Bus Selector					CTL
-*SELECT_ALU		1		Bus Select ALU						CTL
-*SELECT_CORE	1		Bus Select Core						CTL
-*SELECT_SWR		1		Bus Select SWR						CTL
-*SELECT_EXTRN	1		Bus Select External					CTL
+BUS_SELECT		3		Data Bus Selector					CTL		X
+*SELECT_AC		1		Bus Select AC						CTL		X
+*SELECT_STEP	1		Bus Select STEP						CTL		X
+*SELECT_MQ		1		Bus Select MQ						CTL		X
+*SELECT_CROSS	1		Bus Select Crossbar					CTL		X
+*SELECT_ALU		1		Bus Select ALU						CTL		X
+*SELECT_CORE	1		Bus Select Core						CTL		X
+*SELECT_SWR		1		Bus Select SWR						CTL		X
+*SELECT_EXTRN	1		Bus Select External					CTL		X
 *LATCH_IR		1		Latch IR Register					CTL		X
 *LATCH_MA		1		Latch MA Register					CTL		X
 *LATCH_PC		1		Latch PC Register					CTL		X
@@ -58,25 +62,25 @@ BUS_SELECT		3		Data Bus Selector					CTL
 *LATCH_STEP		1		Latch STEP Register					CTL		X
 *LATCH_MQ		1		Latch MQ Register					CTL		X
 *LATCH_MB		1		Latch MB Register					CTL		X
-*LATCH_WRTBK	1		Latch WRTBK Register				CTL
-*LATCH_OB		1		Latch OB Register					CTL
+*LATCH_WRTBK	1		Latch WRTBK Register				CTL		X
+*LATCH_OB		1		Latch OB Register					CTL		X
 *WRITE_CORE		1		Write to Core						CTL		X
 SELECT_PCMA		1		Select PC / MA						CTL		X
 HALT			1		Halt Indicator						CTL		X
 ADDR_MODE		2		Address Register Mode				CTL		X
 CTL_CONST		1		Control Constant Value				CTL		X
-IOT_PULSE		1		IOT Pulse							CTL
+IOT_PULSE		1		IOT Pulse							CTL		X
 DRQ_GRANT		1		Device Request Grant				CTL		X
 REQ_ADDR		1		IO Request Address					CTL		X
 JMP_I_DETECT	1		JMP I Detect						CTL		X
 INT_DETECT		1		Interrupt Detect					CTL		X
 READ_IN_PULSE	1		Read In Pulse						CTL		X
-ALUO			3		ALU Operation						CTL
-LINKS			2		Link Select							CTL
-ALU_SHIFT		1		ALU Select Shifter					CTL
-ALU_ONES		1		ALU Select Ones Comp				CTL
-MA_AUTO_INX		1		MA Auto Index Flag					MEM
-NEXT_BANK0		2		Next Memory Bank					MEM
+ALUO			3		ALU Operation						CTL		X
+LINKS			2		Link Select							CTL		X
+ALU_SHIFT		1		ALU Select Shifter					CTL		X
+ALU_ONES		1		ALU Select Ones Comp				CTL		X
+MA_AUTO_INX		1		MA Auto Index Flag					MEM		X
+NEXT_BANK0		2		Next Memory Bank					MEM		X
 CLK				1		Clock								BKP
 FP				4		Front Panel Status					FTP
  

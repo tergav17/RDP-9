@@ -9064,7 +9064,7 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 4dc3faed-5fa8-477c-959f-7ac4646f3924)
   )
-  (label "REST_PEND" (at 266.065 220.98 0) (fields_autoplaced)
+  (label "*REST_PEND" (at 266.065 220.98 0) (fields_autoplaced)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 4e57a82e-4425-4efb-9e4d-2e5cad0f1152)
   )
