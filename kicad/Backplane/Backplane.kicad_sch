@@ -1,0 +1,21 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid 44159f72-1097-48fe-bad4-abb772ed1b2f)
+
+  (paper "A3")
+
+  (title_block
+    (title "RDP-9 Backplane")
+    (date "2026-07-05")
+    (rev "A")
+    (company "tergav")
+  )
+
+  (lib_symbols
+  )
+
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
+)
