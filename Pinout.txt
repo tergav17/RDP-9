@@ -164,6 +164,11 @@ D				18		Data Bus							N/A		X
 A_DEVICE		6		Device ID							BKP
 A_SUBDEV		2		Sub-Device ID						BKP
 A_PULSE			3		I/O Pulse							BKP
+PTR_FLAG		1		Paper Tape Reader Flag				BKP
+PTP_FLAG		1		Paper Tape Punch Flag				BKP
+PTR_TAPE		1		Paper Tape Reader Detect			BKP
+PTP_TAPE		1		Paper Tape Punc Detect
+
 
 		
 
