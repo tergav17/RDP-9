@@ -1098,6 +1098,65 @@
         )
       )
     )
+    (symbol "Device:C_Polarized" (pin_numbers hide) (pin_names (offset 0.254)) (in_bom yes) (on_board yes)
+      (property "Reference" "C" (at 0.635 2.54 0)
+        (effects (font (size 1.27 1.27)) (justify left))
+      )
+      (property "Value" "C_Polarized" (at 0.635 -2.54 0)
+        (effects (font (size 1.27 1.27)) (justify left))
+      )
+      (property "Footprint" "" (at 0.9652 -3.81 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "Datasheet" "~" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_keywords" "cap capacitor" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_description" "Polarized capacitor" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (property "ki_fp_filters" "CP_*" (at 0 0 0)
+        (effects (font (size 1.27 1.27)) hide)
+      )
+      (symbol "C_Polarized_0_1"
+        (rectangle (start -2.286 0.508) (end 2.286 1.016)
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -1.778 2.286)
+            (xy -0.762 2.286)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (polyline
+          (pts
+            (xy -1.27 2.794)
+            (xy -1.27 1.778)
+          )
+          (stroke (width 0) (type default))
+          (fill (type none))
+        )
+        (rectangle (start 2.286 -0.508) (end -2.286 -1.016)
+          (stroke (width 0) (type default))
+          (fill (type outline))
+        )
+      )
+      (symbol "C_Polarized_1_1"
+        (pin passive line (at 0 3.81 270) (length 2.794)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "1" (effects (font (size 1.27 1.27))))
+        )
+        (pin passive line (at 0 -3.81 90) (length 2.794)
+          (name "~" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27))))
+        )
+      )
+    )
     (symbol "Device:C_Small" (pin_numbers hide) (pin_names (offset 0.254) hide) (in_bom yes) (on_board yes)
       (property "Reference" "C" (at 0.254 1.778 0)
         (effects (font (size 1.27 1.27)) (justify left))
@@ -1809,6 +1868,7 @@
     (uuid fb2cba4a-a398-45d8-9fd4-4247b7c53b2e)
   )
 
+  (no_connect (at -39.37 102.87) (uuid 042f6959-d4ee-45b5-9841-ffd62c2faa6c))
   (no_connect (at 314.325 219.075) (uuid 14326135-44b6-4b5d-8c35-b946f48fa09e))
   (no_connect (at 203.835 101.6) (uuid 20679a4a-aeee-4d9f-b12b-b1967c328a41))
   (no_connect (at 275.59 104.14) (uuid 219839d6-e35a-4dd6-920a-23e3d390e5c2))
@@ -5173,6 +5233,46 @@
     )
   )
 
+  (symbol (lib_id "power:GND") (at 396.24 234.315 0) (mirror y) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 32dfb651-531b-4c55-b3ff-3234417f6d14)
+    (property "Reference" "#PWR095" (at 396.24 240.665 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND" (at 396.24 238.76 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 396.24 234.315 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 396.24 234.315 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid a39c557c-4500-4c80-bc83-1b65e32d3b81))
+    (instances
+      (project "Nabu_MEGAMAPPER"
+        (path "/08a88c4b-5d36-43ed-bafe-b5ff1ee4c2dd"
+          (reference "#PWR095") (unit 1)
+        )
+      )
+      (project "Front Panel Address"
+        (path "/a6d091a4-b7a7-4622-98da-a8652e256494"
+          (reference "#PWR084") (unit 1)
+        )
+      )
+      (project "ALU"
+        (path "/b26dce39-0c19-4808-8ddd-74847f21ad13"
+          (reference "#PWR0176") (unit 1)
+        )
+      )
+      (project "Memory"
+        (path "/b9764240-fb05-4333-bc5f-d2675d8c17cf"
+          (reference "#PWR0101") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "power:+5V") (at 298.45 244.475 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 32e61daa-a9f6-41f7-be93-99674b2966cd)
@@ -5699,6 +5799,47 @@
       (project "Front Panel Address"
         (path "/a6d091a4-b7a7-4622-98da-a8652e256494"
           (reference "U6") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Device:C_Polarized") (at 392.43 234.315 90) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no)
+    (uuid 40710c71-cecc-46f0-9af1-2aea5fcefc07)
+    (property "Reference" "C20" (at 394.335 227.965 90)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Value" "100 uF" (at 396.24 230.505 90)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm" (at 396.24 233.3498 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 392.43 234.315 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid c63c7f03-ed8e-4314-8211-612ff719a1c7))
+    (pin "2" (uuid 26e055ce-3590-4f0f-b6a7-d47f5cba1d20))
+    (instances
+      (project "Nabu_MEGAMAPPER"
+        (path "/08a88c4b-5d36-43ed-bafe-b5ff1ee4c2dd"
+          (reference "C20") (unit 1)
+        )
+      )
+      (project "Front Panel Address"
+        (path "/a6d091a4-b7a7-4622-98da-a8652e256494"
+          (reference "C14") (unit 1)
+        )
+      )
+      (project "ALU"
+        (path "/b26dce39-0c19-4808-8ddd-74847f21ad13"
+          (reference "C40") (unit 1)
+        )
+      )
+      (project "Memory"
+        (path "/b9764240-fb05-4333-bc5f-d2675d8c17cf"
+          (reference "C21") (unit 1)
         )
       )
     )
@@ -8278,6 +8419,46 @@
       (project "Front Panel Address"
         (path "/a6d091a4-b7a7-4622-98da-a8652e256494"
           (reference "D21") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "power:+5V") (at 388.62 234.315 0) (mirror y) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid b7b68032-d7eb-4df6-a108-92736fe82bab)
+    (property "Reference" "#PWR048" (at 388.62 238.125 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "+5V" (at 388.62 229.87 0)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 388.62 234.315 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (at 388.62 234.315 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid d34ac4e6-4a9f-4e0d-99a8-cb59d6837a96))
+    (instances
+      (project "Nabu_MEGAMAPPER"
+        (path "/08a88c4b-5d36-43ed-bafe-b5ff1ee4c2dd"
+          (reference "#PWR048") (unit 1)
+        )
+      )
+      (project "Front Panel Address"
+        (path "/a6d091a4-b7a7-4622-98da-a8652e256494"
+          (reference "#PWR083") (unit 1)
+        )
+      )
+      (project "ALU"
+        (path "/b26dce39-0c19-4808-8ddd-74847f21ad13"
+          (reference "#PWR0175") (unit 1)
+        )
+      )
+      (project "Memory"
+        (path "/b9764240-fb05-4333-bc5f-d2675d8c17cf"
+          (reference "#PWR0100") (unit 1)
         )
       )
     )
