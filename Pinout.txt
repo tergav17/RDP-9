@@ -177,6 +177,8 @@ REQ_ADDR		1		Request Address			X			BKP
 *DMA_REQ		1		DMA Request				X			N/A
 *CHAN_REQ		1		Channel Request			X			N/A
 *EXTERNAL		1		External Data			X			N/A
+*IOT_SKIP		1		IOT Skip Request		X			N/A
+*IOT_WAIT		1		IOT Wait Request		X			N/A
 *DRQ_GRANT		1		Data Request Grant					BKP
 *INT_DETECT		1		Interrupt Detect					BKP
 *JMP_I_DETECT	1		JMP I Detect						BKP
@@ -194,7 +196,7 @@ CLK				1		Clock								BKP
 			  I/O Connector
 
 GND				A01 C01		+5V
-N/C				A02 C02		N/C
+N/C				A02 C02		*IOT_SKIP
 D0				A03 C03		A_DEVICE0
 D1				A04 C04		A_DEVICE1
 D2				A05 C05		A_DEVICE2
@@ -223,7 +225,7 @@ REQ_ADDR		A24 C24		*PROT_ENABLE
 *IOT_PULSE		A28 C28		*EXTERNAL
 *READ_IN_PULSE	A29 C29		*CAF_REQ
 *READ_IN_CLEAR	A30 C30		*INCREMENT_ZERO
-N/C				A31 C31		+12V
+*IOT_WAIT		A31 C31		+12V
 +5V				A32 C32		GND
 			
 			
