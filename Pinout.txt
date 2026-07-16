@@ -5,8 +5,7 @@ PRD-9A-FTP-1	Address Register Panel Segment (Flags, MA, PC, CTRL Switches)
 
 /* Backplane */
 
-RDP-9A-CBP-0	CPU Backplane
-RDP-9A-IBP-0	I/O Backplane
+RDP-9A-BKP-0	CPU + I/O Backplane
 
 /* CPU Cards */
 
@@ -14,7 +13,6 @@ RDP-9A-CTL-0	Microcode Control Card
 RDP-9A-REG-0	Register File Card
 RDP-9A-ALU-0	ALU Card
 RDP-9A-MEM-0	Memory / Addressing Card
-RDP-9A-IOI-0	I/O Interconnect Card (Build into the I/O backplane?)
 
 /* I/O Cards */
 
@@ -30,16 +28,16 @@ SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
 D				18		Data Bus							N/A		X
 A				15		Address Bus							N/A		X
 STEP_ZERO		1		STEP Register Zero					REG		X
-*PI_ENABLE		1		Interrupt Enable		X			IOI
-*MEMM_ENABLE	1		Ext Memory Enable		X			IOI
-*PROT_ENABLE	1		Protection Enable 		X			IOI
-*DMA_REQ		1		DMA Request				X			IOI
-*CHAN_REQ		1		Data Channel Request	X			IOI
-*DEV_REQ		1		Device request			X			IOI
-*INT_REQ		1		Interrupt request		X			IOI
-*IOT_SKIP		1		IOT Skip				X			IOI
-*IOT_WAIT		1		IOT Wait				X			IOI
-*REST_PEND		1		Restore Pending			X			IOI
+*PI_ENABLE		1		Interrupt Enable		X			BKP
+*MEMM_ENABLE	1		Ext Memory Enable		X			BKP
+*PROT_ENABLE	1		Protection Enable 		X			BKP
+*DMA_REQ		1		DMA Request				X			BKP
+*CHAN_REQ		1		Data Channel Request	X			BKP
+*DEV_REQ		1		Device request			X			BKP
+*INT_REQ		1		Interrupt request		X			BKP
+*IOT_SKIP		1		IOT Skip				X			BKP
+*IOT_WAIT		1		IOT Wait				X			BKP
+*REST_PEND		1		Restore Pending			X			BKP
 *IOT_SKIP_L		1		IOT Skip Latched					ALU		X
 FLAG_ZERO		1		OB Zero Flag						ALU		X
 FLAG_SIGN		1		OB Sign Flag						ALU		X
@@ -69,12 +67,12 @@ SELECT_PCMA		1		Select PC / MA						CTL		X
 HALT			1		Halt Indicator						CTL		X
 ADDR_MODE		2		Address Register Mode				CTL		X
 CTL_CONST		1		Control Constant Value				CTL		X
-IOT_PULSE		1		IOT Pulse							CTL		X
-DRQ_GRANT		1		Device Request Grant				CTL		X
+*IOT_PULSE		1		IOT Pulse							CTL		X
+*DRQ_GRANT		1		Device Request Grant				CTL		X
 REQ_ADDR		1		IO Request Address					CTL		X
-JMP_I_DETECT	1		JMP I Detect						CTL		X
-INT_DETECT		1		Interrupt Detect					CTL		X
-READ_IN_PULSE	1		Read In Pulse						CTL		X
+*JMP_I_DETECT	1		JMP I Detect						CTL		X
+*INT_DETECT		1		Interrupt Detect					CTL		X
+*READ_IN_PULSE	1		Read In Pulse						CTL		X
 ALUO			3		ALU Operation						CTL		X
 LINKS			2		Link Select							CTL		X
 ALU_SHIFT		1		ALU Select Shifter					CTL		X
@@ -83,6 +81,8 @@ MA_AUTO_INX		1		MA Auto Index Flag					MEM		X
 NEXT_BANK0		2		Next Memory Bank					MEM		X
 CLK				1		Clock								BKP
 FP				4		Front Panel Status					FTP
+*CAF			1		Clear All Flags						BKP
+*RESET			1		CPU RESET							BKP
  
 			Control Connector
 
@@ -105,12 +105,12 @@ N/C				A02 C02		N/C
 *LATCH_STEP		A17 C17		*SELECT_CORE
 *LATCH_MQ		A18 C18		*SELECT_SWR
 *LATCH_MB		A19 C19		*SELECT_EXTRN
-*LATCH_WRTBK	A20 C20		IOT_PULSE
-*LATCH_OB		A21 C21		DRQ_GRANT
+*LATCH_WRTBK	A20 C20		*IOT_PULSE
+*LATCH_OB		A21 C21		*DRQ_GRANT
 *WRITE_CORE		A22 C22		REQ_ADDR
-SELECT_PCMA		A23 C23		JMP_I_DETECT
-ALUO0			A24 C24		INT_DETECT
-ALUO1			A25 C25		READ_IN_PULSE
+SELECT_PCMA		A23 C23		*JMP_I_DETECT
+ALUO0			A24 C24		*INT_DETECT
+ALUO1			A25 C25		*READ_IN_PULSE
 ALUO2			A26 C26		HALT
 LINKS0			A27 C27		ADDR_MODE0
 LINKS1			A28 C28		ADDR_MODE1
@@ -164,11 +164,30 @@ D				18		Data Bus							N/A		X
 A_DEVICE		6		Device ID							BKP
 A_SUBDEV		2		Sub-Device ID						BKP
 A_PULSE			3		I/O Pulse							BKP
-PTR_FLAG		1		Paper Tape Reader Flag				BKP
-PTP_FLAG		1		Paper Tape Punch Flag				BKP
-PTR_TAPE		1		Paper Tape Reader Detect			BKP
-PTP_TAPE		1		Paper Tape Punc Detect
-
+REQ_ADDR		1		Request Address			X			BKP
+*IORS_FLAG		4		User-Defined IORS		X			N/A
+*PTR_FLAG		1		Paper Tape Reader Flag	X			PRB
+*PTP_FLAG		1		Paper Tape Punch Flag	X			PRB
+*PTR_TAPE		1		Read Tape Detect		X			PRB
+*PTP_TAPE		1		Punch Tape Detect		X			PRB
+*PI_ENABLE		1		Interrupt Enabled		X			FLG
+*MEMM_ENABLE	1		Ext Memory Enabled		X			FLG
+*PROT_ENABLE	1		Protection Enabled		X			N/A
+*INT_REQ		1		Interrupt Request		X			N/A
+*DMA_REQ		1		DMA Request				X			N/A
+*CHAN_REQ		1		Channel Request			X			N/A
+*EXTERNAL		1		External Data			X			N/A
+*DRQ_GRANT		1		Data Request Grant					BKP
+*INT_DETECT		1		Interrupt Detect					BKP
+*JMP_I_DETECT	1		JMP I Detect						BKP
+*IOT_PULSE		1		IOT Pulse							BKP
+*READ_IN_PULSE	1		Read In Pulse						BKP
+*READ_IN_CLEAR	1		Read In Clear						BKP
+*INCREMENT_ZERO	1		Increment Zero						BKP
+CLK				1		Clock								BKP
+*CAF			1		Clear All Flags						BKP
+*CAF_REQ		1		Clear All Flags Request				N/A
+*RESET			1		CPU Reset							BKP
 
 		
 
@@ -176,37 +195,41 @@ PTP_TAPE		1		Paper Tape Punc Detect
 
 GND				A01 C01		+5V
 N/C				A02 C02		N/C
-D0				A03 C03		IO_PULSE
-D1				A04 C04		A1
-D2				A05 C05		A2
-D3				A06 C06		A3
-D4				A07 C07		A4
-D5				A08 C08		A5
-D6				A09 C09		A6
-D7				A10 C10		A7
-D8				A11 C11		A8
-D9				A12 C12		A9
-D10				A13 C13		A10
-D11				A14 C14		A11
-D12				A15 C15		A12
-D13				A16 C16		A13
-D14				A17 C17		A14
-D15				A18 C18		SC0
-D16				A19 C19		SC1
-D17				A20 C20		SC2
-*RESET			A21 C21		SC3
-*CAF			A22 C22		SC4
-CLK				A23 C23		SC5
-				A24 C24		EXTRA2
-				A25 C25		EXTRA4
-				A26 C26		EXTRA6
-				A27 C27		NEXT_BANK1
-				A28 C28		MA_AUTO_INX
-				A29 C29		FP1
-				A30 C30		FP3
+D0				A03 C03		A_DEVICE0
+D1				A04 C04		A_DEVICE1
+D2				A05 C05		A_DEVICE2
+D3				A06 C06		A_DEVICE3
+D4				A07 C07		A_DEVICE4
+D5				A08 C08		A_DEVICE5
+D6				A09 C09		A_SUBDEV0
+D7				A10 C10		A_SUBDEV1
+D8				A11 C11		A_PULSE0
+D9				A12 C12		A_PULSE1
+D10				A13 C13		A_PULSE2
+D11				A14 C14		*IORS_FLAG0
+D12				A15 C15		*IORS_FLAG1
+D13				A16 C16		*IORS_FLAG2
+D14				A17 C17		*IORS_FLAG3
+D15				A18 C18		*PTR_FLAG
+D16				A19 C19		*PTP_FLAG
+D17				A20 C20		*PTR_TAPE
+*RESET			A21 C21		*PTP_TAPE
+*CAF			A22 C22		*PI_ENABLE
+CLK				A23 C23		*MEMM_ENABLE
+REQ_ADDR		A24 C24		*PROT_ENABLE
+*DRQ_GRANT		A25 C25		*INT_REQ
+*INT_DETECT		A26 C26		*DMA_REQ
+*JMP_I_DETECT	A27 C27		*CHAN_REQ
+*IOT_PULSE		A28 C28		*EXTERNAL
+*READ_IN_PULSE	A29 C29		*CAF_REQ
+*READ_IN_CLEAR	A30 C30		*INCREMENT_ZERO
 N/C				A31 C31		+12V
 +5V				A32 C32		GND
 			
 			
-			
-			
+TODO:
+DRQ_GRANT
+IOT_PULSE
+JMP_I_DETECT
+INT_DETECT
+READ_IN_PULSE
