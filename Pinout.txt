@@ -161,35 +161,35 @@ N/C				A31 C31		+12V
 
 SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
 ID				18		I/O Data Bus						N/A		X
-A_DEVICE		6		Device ID							BKP
-A_SUBDEV		2		Sub-Device ID						BKP
-A_PULSE			3		I/O Pulse							BKP
-REQ_ADDR		1		Request Address			X			BKP
-*IORS_FLAG		4		User-Defined IORS		X			N/A
-*PTR_FLAG		1		Paper Tape Reader Flag	X			PRB
-*PTP_FLAG		1		Paper Tape Punch Flag	X			PRB
-*PTR_TAPE		1		Read Tape Detect		X			PRB
-*PTP_TAPE		1		Punch Tape Detect		X			PRB
-*PI_ENABLE		1		Interrupt Enabled		X			FLG
-*MEMM_ENABLE	1		Ext Memory Enabled		X			FLG
-*PROT_ENABLE	1		Protection Enabled		X			N/A
-*INT_REQ		1		Interrupt Request		X			N/A
-*DMA_REQ		1		DMA Request				X			N/A
-*CHAN_REQ		1		Channel Request			X			N/A
-*EXTERNAL		1		External Data			X			N/A
-*IOT_SKIP		1		IOT Skip Request		X			N/A
-*IOT_WAIT		1		IOT Wait Request		X			N/A
-*DRQ_GRANT		1		Data Request Grant					BKP
-*INT_DETECT		1		Interrupt Detect					BKP
-*JMP_I_DETECT	1		JMP I Detect						BKP
-*IOT_PULSE		1		IOT Pulse							BKP
-*READ_IN_PULSE	1		Read In Pulse						BKP
-*READ_IN_CLEAR	1		Read In Clear						BKP
-*INCREMENT_ZERO	1		Increment Zero						BKP
-CLK				1		Clock								BKP
-*CAF			1		Clear All Flags						BKP
-*CAF_REQ		1		Clear All Flags Request				N/A
-*RESET			1		CPU Reset							BKP
+A_DEVICE		6		Device ID							BKP		X
+A_SUBDEV		2		Sub-Device ID						BKP		X
+A_PULSE			3		I/O Pulse							BKP		X
+REQ_ADDR		1		Request Address						BKP		X
+*IORS_FLAG		4		User-Defined IORS		X			N/A		X
+*PTR_FLAG		1		Paper Tape Reader Flag	X			PRB		X
+*PTP_FLAG		1		Paper Tape Punch Flag	X			PRB		X
+*PTR_TAPE		1		Read Tape Detect		X			PRB		X
+*PTP_TAPE		1		Punch Tape Detect		X			PRB		X
+*PI_ENABLE		1		Interrupt Enabled		X			FLG		X
+*MEMM_ENABLE	1		Ext Memory Enabled		X			FLG		X
+*REST_PEND		1		Restore Pending			X			FLG		X
+*INT_REQ		1		Interrupt Request		X			N/A		X
+*DMA_REQ		1		DMA Request				X			N/A		X
+*CHAN_REQ		1		Channel Request			X			N/A		X
+*EXTERNAL		1		External Data			X			N/A		X
+*IOT_SKIP		1		IOT Skip Request		X			N/A		X
+*IOT_WAIT		1		IOT Wait Request		X			N/A		X
+*DRQ_GRANT		1		Data Request Grant					BKP		X
+*INT_DETECT		1		Interrupt Detect					BKP		X
+*JMP_I_DETECT	1		JMP I Detect						BKP		X
+*IOT_PULSE		1		IOT Pulse							BKP		X
+*READ_IN_PULSE	1		Read In Pulse						BKP		X
+*READ_IN_CLEAR	1		Read In Clear						BKP		X
+*INCREMENT_ZERO	1		Increment Zero						BKP		X
+CLK				1		Clock								BKP		X
+*CAF			1		Clear All Flags						BKP		X
+*CAF_REQ		1		Clear All Flags Request				N/A		X
+*RESET			1		CPU Reset							BKP		X
 
 		
 
@@ -218,7 +218,7 @@ ID17			A20 C20		*PTR_TAPE
 *RESET			A21 C21		*PTP_TAPE
 *CAF			A22 C22		*PI_ENABLE
 CLK				A23 C23		*MEMM_ENABLE
-REQ_ADDR		A24 C24		*PROT_ENABLE
+REQ_ADDR		A24 C24		*REST_PEND
 *DRQ_GRANT		A25 C25		*INT_REQ
 *INT_DETECT		A26 C26		*DMA_REQ
 *JMP_I_DETECT	A27 C27		*CHAN_REQ
