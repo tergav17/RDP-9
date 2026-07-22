@@ -188,7 +188,7 @@ REQ_ADDR		1		Request Address						BKP		X
 *INCREMENT_ZERO	1		Increment Zero						BKP		X
 CLK				1		Clock								BKP		X
 *CAF			1		Clear All Flags						BKP		X
-*CAF_REQ		1		Clear All Flags Request				N/A		X
+*CAF_REQ		1		Clear All Flags Request	X			N/A		X
 *RESET			1		CPU Reset							BKP		X
 
 		
