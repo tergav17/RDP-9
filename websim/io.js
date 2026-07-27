@@ -1065,10 +1065,12 @@ terminal.onkeydown = function(e) {
 		case 17:
 			// CTRL+C
 			uart_input(3);
+			break;
 
 		case 40:
 			// CTRL+D
 			uart_input(4);
+			break;
 		
 		case 46:
 			uart_input(127);

@@ -5101,4 +5101,5 @@ function getbit(input, bit, count) {
 }
 
 // Initalize CPU
+clear_all_flags(device_states);
 propagate(cpu_state, device_states);
