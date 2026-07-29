@@ -1050,6 +1050,7 @@ function uart_output(ch) {
 // On key down event handler
 // only really does special keys
 terminal.onkeydown = function(e) {
+	//console.log(e.keyCode + ", " + e.charCode);
 	let ch = (e.keyCode || e.charCode);
 	
 	switch (ch) {
@@ -1060,6 +1061,16 @@ terminal.onkeydown = function(e) {
 		case 13:
 			uart_input(10);
 			return false;
+
+		case 17:
+			// CTRL+C
+			uart_input(3);
+			break;
+
+		case 40:
+			// CTRL+D
+			uart_input(4);
+			break;
 		
 		case 46:
 			uart_input(127);
@@ -1073,7 +1084,7 @@ terminal.onkeydown = function(e) {
 // On key press event handler
 terminal.onkeypress = function(e) {
 	let ch = (e.keyCode || e.charCode);
-	
+
 	uart_input(ch);
 	
 	return false;

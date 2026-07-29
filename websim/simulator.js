@@ -79,13 +79,20 @@ function simHalt() {
 }
 
 /*
- * Set PC to 0 and re-propagate
+ * Set state to 0 and re-propagate
  */
 function simReset() {
 	cpu_state.r_state = [0, 0, 0, 0, 0];
 	propagate(cpu_state, device_states);
 	
 	updateFlow(false);
+}
+
+/*
+ * Clear all flags
+ */
+function simIoReset() {
+	clear_all_flags(device_states);
 }
 
 /*
