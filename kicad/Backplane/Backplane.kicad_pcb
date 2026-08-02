@@ -4262,7 +4262,7 @@
 
   (footprint "Connector_TE-Connectivity:TE_MATE-N-LOK_350211-1_1x04_P5.08mm_Vertical" (layer "F.Cu")
     (tstamp 613f4a8e-3cc1-46d3-a97d-32d7b3d556db)
-    (at 233.68 154.305 90)
+    (at 241.995 153.035 90)
     (descr "https://www.te.com/commerce/DocumentDelivery/DDEController?Action=showdoc&DocId=Customer+Drawing%7F350211%7FU5%7Fpdf%7FEnglish%7FENG_CD_350211_U5.pdf%7F350211-1")
     (tags "connector TE MATE-N-LOK top entry ATA PATA IDE 5.25 inch floppy drive power")
     (property "Sheetfile" "Backplane.kicad_sch")
