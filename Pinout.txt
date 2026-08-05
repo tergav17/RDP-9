@@ -1,7 +1,7 @@
 /* Front Panel */
 
-RDP-9A-FTP-0	Word Register Panel Segment (MB, AC, MQ, SWR)
-PRD-9A-FTP-1	Address Register Panel Segment (Flags, MA, PC, CTRL Switches)
+RDP-9A-FPR-0	Register Front Panel Segment (MB, AC, MQ, SWR)
+PRD-9A-FPA-0	Address Front Panel Segment (Flags, MA, PC, CTRL Switches)
 
 /* Backplane */
 
