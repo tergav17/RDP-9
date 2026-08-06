@@ -16,8 +16,7 @@ RDP-9A-MEM-0	Memory / Addressing Card
 
 /* I/O Cards */
 
-RDP-9A-FLG-0	PI / MEMM / Clock Flag Card
-RDP-9A-TTY-0	TTY Card
+RDP-9A-TTC-0	TTY / Clock / Flags Card
 RDP-9A-PRB-0	Paper tape / RB Emulator Card
 
 
