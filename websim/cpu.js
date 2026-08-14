@@ -1861,7 +1861,7 @@ function decode(input) {
 			// If DMA is select, read into WRTBK instead
 			// 1 -> DEV_REQ_GRANT
 			// 1 -> REQ_ADDR_PHASE
-			// IF DMA_REQUEST:
+			// IF DMA_REQUEST AND !DATA_CHAN_REQUEST:
 			//  CORE[MA] -> WRTBK, MB
 			//  STEP_SRV_DRQ_DATA_READ -> NEXT
 			// ELSE
@@ -1877,7 +1877,7 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_MA;
 				bus_output_select = BUS_SELECT_CORE;
 				
-				if (dma_request) {
+				if (dma_request && !data_chan_request) {
 					latch_wrtbk = 1;
 					latch_mb = 1;
 					next_step = STEP_SRV_DRQ_DATA_READ;
@@ -1923,7 +1923,7 @@ function decode(input) {
 			// 1 -> DEV_REQ_GRANT
 			// 1 -> REQ_ADDR_PHASE
 			// MA + 1 -> MA
-			// IF DATA_CHAN_REQUEST:
+			// IF DATA_CHAN_REQUEST AND !DMA_REQUEST:
 			//  STEP_SRV_DRQ_PTR_READ -> NEXT
 			// ELSE:
 			//  STEP_SRV_FETCH_IGDV -> NEXT
@@ -1942,7 +1942,7 @@ function decode(input) {
 				select_pc_ma = ADDR_SELECT_MA;
 				
 				// Get next step
-				if (data_chan_request) {
+				if (data_chan_request && !dma_request) {
 					next_step = STEP_SRV_DRQ_PTR_READ;
 				} else {
 					next_step = STEP_SRV_FETCH_IGDV;
