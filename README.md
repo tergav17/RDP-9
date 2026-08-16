@@ -63,7 +63,7 @@ A wait signal is sampled at the beginning of the IOT as well. This can be used t
 
 3. Signal "IOT_PULSE" remains asserted. External input is sampled into MB. Signal "EXTRN" must be asserted to take value from device bus.
 
-4. IF "IOT_WAIT" is asserted, goto step 4 in place. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
+4. IF "IOT_WAIT" is asserted, goto step 3 in place. No IOT signals are asserted. Interally, the CPU is performing the logical OR and writeback of potential provided data.
 
 5. No IOT signals are asserted. Internally, the CPU will perform the skip here if it has been requested. The next fetch cycle will ignore interrupts and device requests.
 
