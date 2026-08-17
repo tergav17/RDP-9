@@ -27,16 +27,16 @@ SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
 D				18		Data Bus							N/A		X
 A				15		Address Bus							N/A		X
 STEP_ZERO		1		STEP Register Zero					REG		X
-*PI_ENABLE		1		Interrupt Enable		X			BKP
-*MEMM_ENABLE	1		Ext Memory Enable		X			BKP
-*PROT_ENABLE	1		Protection Enable 		X			BKP
-*DMA_REQ		1		DMA Request				X			BKP
-*CHAN_REQ		1		Data Channel Request	X			BKP
-*DEV_REQ		1		Device request			X			BKP
-*INT_REQ		1		Interrupt request		X			BKP
-*IOT_SKIP		1		IOT Skip				X			BKP
-*IOT_WAIT		1		IOT Wait				X			BKP
-*REST_PEND		1		Restore Pending			X			BKP
+*PI_ENABLE		1		Interrupt Enable		X			BKP		X
+*MEMM_ENABLE	1		Ext Memory Enable		X			BKP		X
+*PROT_ENABLE	1		Protection Enable 		X			BKP		X
+*DMA_REQ		1		DMA Request				X			BKP		X
+*CHAN_REQ		1		Data Channel Request	X			BKP		X
+*DEV_REQ		1		Device request			X			BKP		X
+*INT_REQ		1		Interrupt request		X			BKP		X
+*IOT_SKIP		1		IOT Skip				X			BKP		X
+*IOT_WAIT		1		IOT Wait				X			BKP		X
+*REST_PEND		1		Restore Pending			X			BKP		X
 *IOT_SKIP_L		1		IOT Skip Latched					ALU		X
 FLAG_ZERO		1		OB Zero Flag						ALU		X
 FLAG_SIGN		1		OB Sign Flag						ALU		X
