@@ -1,0 +1,137 @@
+
+(rules PCB Memory
+  (snap_angle 
+    fortyfive_degree
+  )
+  (autoroute_settings
+    (fanout off)
+    (autoroute on)
+    (postroute on)
+    (vias on)
+    (via_costs 50)
+    (plane_via_costs 5)
+    (start_ripup_costs 100)
+    (start_pass_no 39268)
+    (layer_rule F.Cu
+      (active on)
+      (preferred_direction horizontal)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 2.5)
+    )
+    (layer_rule B.Cu
+      (active on)
+      (preferred_direction vertical)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 1.7)
+    )
+  )
+  (rule
+    (width 250.0)
+    (clear 200.2)
+    (clear 125.0 (type smd_to_turn_gap))
+    (clear 50.0 (type smd_smd))
+  )
+  (padstack "Via[0-1]_800:400_um"
+    (shape
+      (circle F.Cu 800.0 0.0 0.0)
+    )
+    (shape
+      (circle B.Cu 800.0 0.0 0.0)
+    )
+    (attach off)
+  )
+  (padstack "Via[0-1]_1000:500_um"
+    (shape
+      (circle F.Cu 1000.0 0.0 0.0)
+    )
+    (shape
+      (circle B.Cu 1000.0 0.0 0.0)
+    )
+    (attach off)
+  )
+  (via 
+    "Via[0-1]_800:400_um" "Via[0-1]_800:400_um" default
+  )
+  (via 
+    "Via[0-1]_1000:500_um" "Via[0-1]_1000:500_um" default
+  )
+  (via 
+    "Via[0-1]_800:400_um-kicad_default" "Via[0-1]_800:400_um" "kicad_default"
+  )
+  (via 
+    "Via[0-1]_1000:500_um-kicad_default" "Via[0-1]_1000:500_um" "kicad_default"
+  )
+  (via 
+    "Via[0-1]_800:400_um-Power" "Via[0-1]_800:400_um" Power
+  )
+  (via 
+    "Via[0-1]_1000:500_um-Power" "Via[0-1]_1000:500_um" Power
+  )
+  (via_rule
+    default "Via[0-1]_800:400_um"
+  )
+  (via_rule
+    "kicad_default" "Via[0-1]_800:400_um-kicad_default"
+  )
+  (via_rule
+    Power "Via[0-1]_1000:500_um-Power"
+  )
+  (class default
+    (clearance_class default)
+    (via_rule default)
+    (rule
+      (width 250.0)
+    )
+    (circuit 
+      (use_layer F.Cu B.Cu)
+    )
+  )
+  (class "kicad_default"
+    "unconnected-(J1-Pin_a2-Pada2)" /D0 /D1 /D2 /D3 /D4 /D5 /D6
+    /D7 /D8 /D9 /D10 /D11 /D12 /D13 /D14
+    /D15 /D16 /D17 /*RESET /*CAF /CLK /EXTRA1 /EXTRA3
+    /EXTRA5 "/NEXT_BANK0" "/*REST_PEND" /FP0 /FP2 "unconnected-(J1-Pin_a31-Pada31)" "unconnected-(J1-Pin_b2-Padb2)" /A0
+    /A1 /A2 /A3 /A4 /A5 /A6 /A7 /A8
+    /A9 /A10 /A11 /A12 /A13 /A14 /SC0 /SC1
+    /SC2 /SC3 /SC4 /SC5 /EXTRA2 /EXTRA4 /EXTRA6 "/NEXT_BANK1"
+    "/MA_AUTO_INX" /FP1 /FP3 "unconnected-(J1-Pin_b31-Padb31)" "unconnected-(J2-Pin_a2-Pada2)" "/*PI_ENABLE" "/*MEMM_ENABLE" "/*PROT_ENABLE"
+    "/*DMA_REQ" "/*CHAN_REQ" "/*DEV_REQ" "/*INT_REQ" "/*IOT_SKIP" "/*IOT_WAIT" "/*IOT_SKIP_L" "/*LATCH_IR"
+    "/*LATCH_MA" "/*LATCH_PC" "/*LATCH_AC" "/*LATCH_STEP" "/*LATCH_MQ" "/*LATCH_MB" "/*LATCH_WRTBK" "/*LATCH_OB"
+    "/*WRITE_CORE" "/SELECT_PCMA" /ALUO0 /ALUO1 /ALUO2 /LINKS0 /LINKS1 "/ALU_SHIFT"
+    "/ALU_ONES" "unconnected-(J2-Pin_a31-Pada31)" "unconnected-(J2-Pin_b2-Padb2)" "/STEP_ZERO" "/FLAG_ZERO" "/FLAG_SIGN" "/FLAG_LINK" "/FLAG_LINK_INIT"
+    "/FLAG_AC_SIGN" "/BUS_SELECT0" "/BUS_SELECT1" "/BUS_SELECT2" "/*SELECT_AC" "/*SELECT_STEP" "/*SELECT_MQ" "/*SELECT_CROSS"
+    "/*SELECT_ALU" "/*SELECT_CORE" "/*SELECT_SWR" "/*SELECT_EXTRN" "/*IOT_PULSE" "/*DRQ_GRANT" "/REQ_ADDR" "/*JMP_I_DETECT"
+    "/*INT_DETECT" "/*READ_IN_PULSE" /HALT "/ADDR_MODE0" "/ADDR_MODE1" "/CTL_CONST" /EXTRA0 "unconnected-(J2-Pin_b31-Padb31)"
+    /T0 /T1 /T2 /T3 /T4 /T5 /T6 /T7
+    /T8 /T9 /T10 /T11 /T12 /T13 /T14 /T15
+    /T16 /T17 /M0 /M1 /M2 /M3 /M4 /M5
+    /M6 /M7 "Net-(U1-~{WE})" /M8 /M9 /M10 /M11 /M12
+    /M13 /M14 /M15 /M16 /M17 /PC0 /MA0 /PC1
+    /MA1 /MA3 /PC3 /MA2 /PC2 /PC4 /MA4 /PC5
+    /MA5 /MA7 /PC7 /MA6 /PC6 /PC8 /MA8 /PC9
+    /MA9 /MA11 /PC11 /MA10 /PC10 /PC12 /MA12 /PC13
+    /MA13 "Net-(U10-Zb)" "unconnected-(U10-Zd-Pad9)" "Net-(U10-Zc)" /MA14 /PC14 "unconnected-(U12-Q7-Pad19)" "unconnected-(U14-Q7-Pad19)"
+    "Net-(U15-Pad4)" "Net-(U15-Pad5)" /EXTEND "Net-(U15-Pad8)" "Net-(U15-Pad9)" "unconnected-(U15-Pad11)" "unconnected-(U16-Zd-Pad9)" "unconnected-(U16-Zc-Pad12)"
+    "Net-(U17-Pad2)" "Net-(U17-Pad10)" "Net-(U17-Pad13)" "Net-(U19-Pad6)" "Net-(U19-Pad8)" "Net-(U19-Pad12)" "Net-(U20-Pad3)" "unconnected-(U20-Pad8)"
+    "unconnected-(U20-Pad11)"
+    (clearance_class "kicad_default")
+    (via_rule kicad_default)
+    (rule
+      (width 250.0)
+    )
+    (circuit 
+      (use_layer F.Cu B.Cu)
+    )
+  )
+  (class Power
+    +5V GND
+    (clearance_class Power)
+    (via_rule Power)
+    (rule
+      (width 500.0)
+    )
+    (circuit 
+      (use_layer F.Cu B.Cu)
+    )
+  )
+)

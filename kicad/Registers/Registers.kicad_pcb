@@ -612,7 +612,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 13e2eb78-765c-40ec-a09d-480cd41cd1bd)
-    (at 209.51 64.135 180)
+    (at 209.51 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -674,7 +674,7 @@
 
   (footprint "Package_DIP:DIP-20_W7.62mm" (layer "F.Cu")
     (tstamp 1aa8ae8b-d7a1-4665-8485-064a49d5aab1)
-    (at 203.19 67.31)
+    (at 203.19 29.21)
     (descr "20-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -874,7 +874,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 27b25eb2-9ba2-41d0-a3ce-183d283c6cd9)
-    (at 118.03 24.13 180)
+    (at 118.03 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -998,7 +998,7 @@
 
   (footprint "Package_DIP:DIP-20_W7.62mm" (layer "F.Cu")
     (tstamp 2f25626b-e848-4303-b84d-086184f232e0)
-    (at 226.05 67.31)
+    (at 226.05 29.21)
     (descr "20-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1160,7 +1160,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 382bbeb3-39b9-468e-b4a2-61f7c9dcd06f)
-    (at 209.51 24.13 180)
+    (at 209.51 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1384,7 +1384,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 415d1dfe-9590-4ec9-9ef4-2281fc0e8f1c)
-    (at 88.89 67.295)
+    (at 88.89 29.195)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1476,7 +1476,7 @@
 
   (footprint "Package_DIP:DIP-20_W7.62mm" (layer "F.Cu")
     (tstamp 427e8f95-821d-4a35-aa16-30dcdb5e2c1d)
-    (at 180.33 67.31)
+    (at 180.33 29.21)
     (descr "20-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1576,7 +1576,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 45063819-49dc-4fd9-bd6e-d4c833377d4d)
-    (at 95.25 24.13 180)
+    (at 95.25 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1704,7 +1704,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 4c73f0e8-72ac-4191-8198-1955b6ccf5ab)
-    (at 140.89 24.13 180)
+    (at 140.89 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1766,7 +1766,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 4d24bb7f-2955-40a4-ba53-875fda8ad4f5)
-    (at 180.34 27.305)
+    (at 180.34 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1858,7 +1858,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 4dab57c2-2d0c-4514-bc3c-9e12a000743e)
-    (at 72.31 24.13 180)
+    (at 72.31 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -1920,7 +1920,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 4fc809c9-9f91-4443-a1c9-ab3994cbbe00)
-    (at 111.75 67.31)
+    (at 111.75 29.21)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2012,7 +2012,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 55561171-6a59-4470-8d14-b9362f6e4b6b)
-    (at 134.61 67.31)
+    (at 134.61 29.21)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2316,7 +2316,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 6ce166bf-32da-4427-a6aa-6d886d5db348)
-    (at 49.53 24.13 180)
+    (at 49.53 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2440,7 +2440,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 71ab0def-b361-43c5-ab68-e71dad53d208)
-    (at 118.07 64.135 180)
+    (at 118.07 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2502,7 +2502,7 @@
 
   (footprint "Package_DIP:DIP-14_W7.62mm" (layer "F.Cu")
     (tstamp 72168fb3-f591-40c9-b19a-a131c8d724da)
-    (at 66.05 67.305)
+    (at 66.05 29.205)
     (descr "14-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2590,7 +2590,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 76bf8900-eec2-4920-ba7f-e1287a661f1b)
-    (at 157.47 67.31)
+    (at 157.47 29.21)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -2844,7 +2844,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 7aafd371-d4b5-4df8-87e1-4ba800d3cdda)
-    (at 163.79 24.13 180)
+    (at 163.79 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3098,7 +3098,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 87e83729-cd8d-4a97-a4b1-b62c0e3ab18c)
-    (at 187.245 24.13 180)
+    (at 187.245 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3260,7 +3260,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp 8b304489-fbe0-4ebc-833b-25a947b1b7ad)
-    (at 163.75 64.135 180)
+    (at 163.75 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3322,7 +3322,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 8e92f231-c709-4e4b-aefa-d8ec5c9e8ac1)
-    (at 43.21 27.29)
+    (at 43.21 71.74)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3476,7 +3476,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 935ae9db-5300-48c1-9247-eb6ad3e1df87)
-    (at 111.75 27.305)
+    (at 111.75 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3568,7 +3568,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 93c5154c-6016-4a1c-b0b0-21d3f600ff4b)
-    (at 134.61 27.305)
+    (at 134.61 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3660,7 +3660,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp 99322346-0a24-494b-be22-357ce3107af1)
-    (at 203.19 27.305)
+    (at 203.19 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3752,7 +3752,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp a9592ae6-c0f0-408e-ab40-2ad3db2c4e8f)
-    (at 226.05 27.305)
+    (at 226.05 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3844,7 +3844,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp a9bdb92b-21ca-4b67-a4f6-718edfb3b45a)
-    (at 66.03 27.29)
+    (at 66.03 71.74)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3936,7 +3936,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp aa3e8f38-f7f5-4c50-8b5a-85020bc3cec7)
-    (at 72.37 64.13 180)
+    (at 72.37 26.03 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -3998,7 +3998,7 @@
 
   (footprint "Package_DIP:DIP-14_W7.62mm" (layer "F.Cu")
     (tstamp afcea797-22db-4e95-a017-a8b1199e0ff1)
-    (at 43.17 67.31)
+    (at 43.17 29.21)
     (descr "14-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -4086,7 +4086,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp b242e2c9-d706-4fe9-8824-42dc8967fef7)
-    (at 88.89 27.29)
+    (at 88.89 71.74)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -4178,7 +4178,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp b5714291-f081-4cdd-bc92-2205ceed63d8)
-    (at 95.25 64.135 180)
+    (at 95.25 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -4240,7 +4240,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp bc09edec-d559-4fd7-966a-b771154e16a9)
-    (at 49.49 64.135 180)
+    (at 49.49 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -4368,7 +4368,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp c483a7dc-2387-46e1-8dc5-6bfba891ac80)
-    (at 232.33 24.13 180)
+    (at 232.33 68.58 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -4746,7 +4746,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp c9ca5a0c-0413-43c8-a7f4-dfb1dfd2aaa8)
-    (at 232.41 64.135 180)
+    (at 232.41 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -5110,7 +5110,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp ceaabc98-69f3-4783-8237-fb24cd2feb85)
-    (at 140.97 64.135 180)
+    (at 140.97 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -5172,7 +5172,7 @@
 
   (footprint "Package_DIP:DIP-16_W7.62mm" (layer "F.Cu")
     (tstamp d52e26d9-9995-4fb9-89a2-8c6da08149cf)
-    (at 157.47 27.305)
+    (at 157.47 71.755)
     (descr "16-lead though-hole mounted DIP package, row spacing 7.62 mm (300 mils)")
     (tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -5364,7 +5364,7 @@
 
   (footprint "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" (layer "F.Cu")
     (tstamp d901d2d0-f45e-4c23-a32f-1423eb97514a)
-    (at 186.65 64.135 180)
+    (at 186.65 26.035 180)
     (descr "C, Disc series, Radial, pin pitch=5.00mm, , diameter*width=5*2.5mm^2, Capacitor, http://cdn-reichelt.de/documents/datenblatt/B300/DS_KERKO_TC.pdf")
     (tags "C Disc series Radial pin pitch 5.00mm  diameter 5mm width 2.5mm Capacitor")
     (property "Sheetfile" "Registers.kicad_sch")
@@ -5581,9 +5581,6 @@
   (gr_rect (start 35.56 17.78) (end 241.935 155.321)
     (stroke (width 0.1) (type default)) (fill none) (layer "Edge.Cuts") (tstamp 7272dc26-f211-4a5b-936f-febbcd70b3eb))
   (gr_text "Gavin Tersteeg, 2026\n" (at 52.705 19.685) (layer "B.SilkS") (tstamp 5dbb0b38-d625-461c-9b61-5b5732bb40dd)
-    (effects (font (size 1 1) (thickness 0.15)) (justify left bottom mirror))
-  )
-  (gr_text "JLCJLCJLCJLC" (at 46.99 21.59) (layer "B.SilkS") (tstamp ecd4e714-3f7e-4c8c-b77e-1e0ed5883ecd)
     (effects (font (size 1 1) (thickness 0.15)) (justify left bottom mirror))
   )
   (gr_text "RDP-9A-REG-0" (at 36.195 20.955) (layer "F.SilkS") (tstamp 300a9be5-6f0c-4889-88fb-12412556893d)
