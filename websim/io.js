@@ -986,6 +986,16 @@ function rb_set_ef(status) {
 }
 
 
+/* --- AUXILLARY I/O PORT --- */
+
+function aux_input(ch) {
+	
+}
+
+function aux_output(ch) {
+
+}
+
 /* --- TERMINAL STUFF --- */
 
 /*
