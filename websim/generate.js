@@ -24,7 +24,7 @@ function generate_ucode() {
 
     console.log("ROM 3:")
     out = []
-    for (i = 0; i < 8192; i++) {
+    for (i = 0; i < 8192; i++) {65
         out.push(call_decode(i)[3] ^ 0b11101101);
     }
     download_blob(new Uint8Array(out), "ROM-3.bin");
@@ -43,10 +43,13 @@ function call_decode(address) {
     let decode_mode = getbit(address, 11, 2);
     let step = getbit(address, 0, 6);
 
+    //console.log("Decode mode: " + decode_mode);
+    //console.log("Step: " + step);
+
     if (decode_mode == DECODE_MODE_SERVICE) {
         // Service mode active-low
-        if (step > 32) {
-            if (step > 16) {
+        if (step < 32) {
+            if (step < 16) {
                 // Invert front panel signals
                 uc_input ^= 1 << 7;
                 uc_input ^= 1 << 8;
@@ -63,7 +66,7 @@ function call_decode(address) {
                 uc_input ^= 1 << 9;
             }
         } else {
-            if (step > 48) {
+            if (step < 48) {
                 // Invert device req
                 uc_input ^= 1 << 9;
             } else {
@@ -85,6 +88,7 @@ function call_decode(address) {
 
     }
 
+    //console.log("Using address: " + uc_input.toString(16));
     return decode(uc_input);
 }
 
