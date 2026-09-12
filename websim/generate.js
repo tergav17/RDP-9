@@ -2,39 +2,56 @@ function generate_ucode() {
     console.log("Generating microcode files...")
 
     console.log("ROM 0:")
-    out = []
-    for (i = 0; i < 8192; i++) {
+    let out = []
+    for (let i = 0; i < 8192; i++) {
         out.push(call_decode(i)[0] ^ 0b00000000);
     }
     download_blob(new Uint8Array(out), "ROM-0.bin");
 
     console.log("ROM 1:")
     out = []
-    for (i = 0; i < 8192; i++) {
+    for (let i = 0; i < 8192; i++) {
         out.push(call_decode(i)[1] ^ 0b11111111);
     }
     download_blob(new Uint8Array(out), "ROM-1.bin");
 
     console.log("ROM 2:")
     out = []
-    for (i = 0; i < 8192; i++) {
+    for (let i = 0; i < 8192; i++) {
         out.push(call_decode(i)[2] ^ 0b00000000);
     }
     download_blob(new Uint8Array(out), "ROM-2.bin");
 
     console.log("ROM 3:")
     out = []
-    for (i = 0; i < 8192; i++) {65
+    for (let i = 0; i < 8192; i++) {65
         out.push(call_decode(i)[3] ^ 0b11101101);
     }
     download_blob(new Uint8Array(out), "ROM-3.bin");
 
     console.log("ROM 4:")
     out = []
-    for (i = 0; i < 8192; i++) {
+    for (let i = 0; i < 8192; i++) {
         out.push(call_decode(i)[4] ^ 0b10000000);
     }
     download_blob(new Uint8Array(out), "ROM-4.bin");
+}
+
+function create_save(start_addr, end_addr) {
+    let out = [];
+    out.push(getbit(start_addr, 12, 6) | (1 << 6));
+    out.push(getbit(start_addr, 6, 6));
+    out.push(getbit(start_addr, 0, 6));
+    for (let i = start_addr; i <= end_addr; i++) {
+        let read_word = cpu_state.r_core[i];
+        //console.log(read_word);
+
+        out.push(getbit(read_word, 12, 6) | (1 << 6));
+        out.push(getbit(read_word, 6, 6));
+        out.push(getbit(read_word, 0, 6));
+    }
+    //console.log(out);
+    download_blob(new Uint8Array(out), "out.sav");
 }
 
 function call_decode(address) {
