@@ -618,7 +618,7 @@ function io_propagate(cpu, devices) {
 			// Assert keyboard buffer
 			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
-				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
+				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer | (1 << 7));
 				tty.r_keyboard_flag = 0;  
 			}
 			

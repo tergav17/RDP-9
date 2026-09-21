@@ -177,27 +177,29 @@ cpu_state.r_core[0123] = 0321;
 */
 
 // SAV loader @ 017730
-cpu_state.r_core[017730] = 0617745;	// JMP 017745
+cpu_state.r_core[017730] = 0617747;	// JMP 017747
 cpu_state.r_core[017731] = 0000000;	// READ_BYTE
 cpu_state.r_core[017732] = 0700341;	// KSFA
 cpu_state.r_core[017733] = 0617732;	// JMP 017732
-cpu_state.r_core[017734] = 0640606; // LLS 06
-cpu_state.r_core[017735] = 0700342;	// KRBA
-cpu_state.r_core[017736] = 0637731; // JMP I 017731
-cpu_state.r_core[017737] = 0000000; // READ_WORD
-cpu_state.r_core[017740] = 0754000; // CLA/CLC
-cpu_state.r_core[017741] = 0117731; // JMS 017731
-cpu_state.r_core[017742] = 0117731; // JMS 017731
+cpu_state.r_core[017734] = 0742010; // RTL
+cpu_state.r_core[017735] = 0742010; // RTL
+cpu_state.r_core[017736] = 0742010; // RTL
+cpu_state.r_core[017737] = 0700342;	// KRBA
+cpu_state.r_core[017740] = 0637731; // JMP I 017731
+cpu_state.r_core[017741] = 0000000; // READ_WORD
+cpu_state.r_core[017742] = 0754000; // CLA/CLC
 cpu_state.r_core[017743] = 0117731; // JMS 017731
-cpu_state.r_core[017744] = 0637737; // JMP I 017737
-cpu_state.r_core[017745] = 0650000; // CLQ
-cpu_state.r_core[017746] = 0117737; // JMS 017737
-cpu_state.r_core[017747] = 0057727; // DAC 017727
-cpu_state.r_core[017750] = 0117737; // JMS 017737
-cpu_state.r_core[017751] = 0077727; // DAC I 017727
-cpu_state.r_core[017752] = 0457727; // ISZ 017727
-cpu_state.r_core[017753] = 0740000; // NOP
-cpu_state.r_core[017754] = 0617750; // JMP 017750
+cpu_state.r_core[017744] = 0117731; // JMS 017731
+cpu_state.r_core[017745] = 0117731; // JMS 017731
+cpu_state.r_core[017746] = 0637741; // JMP I 017741
+cpu_state.r_core[017747] = 0650000; // CLQ
+cpu_state.r_core[017750] = 0117741; // JMS 017741
+cpu_state.r_core[017751] = 0057727; // DAC 017727
+cpu_state.r_core[017752] = 0117741; // JMS 017741
+cpu_state.r_core[017753] = 0077727; // DAC I 017727
+cpu_state.r_core[017754] = 0457727; // ISZ 017727
+cpu_state.r_core[017755] = 0740000; // NOP
+cpu_state.r_core[017756] = 0617752; // JMP 017752
 
 // RIM loader @ 017763
 cpu_state.r_core[017763] = 0700101;
