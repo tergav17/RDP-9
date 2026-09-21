@@ -1858,8 +1858,8 @@ function decode(input) {
 					next_step = STEP_SRV_RDIN_NULL_ONE;
 				} else {
 					// Continue
-					//next_step = STEP_SRV_FETCH_IGDV;
-					next_step = STEP_SRV_REFETCH;
+					next_step = STEP_SRV_FETCH_IGDV;
+					//next_step = STEP_SRV_REFETCH;
 				}
 			
 				break;
