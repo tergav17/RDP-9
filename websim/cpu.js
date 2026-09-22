@@ -119,7 +119,18 @@ cpu_state.r_core[040] = 0200000;
 cpu_state.r_core[041] = 0000001;
 */
 
+cpu_state.r_core[0] = 0760067;	// LAW 067
+cpu_state.r_core[1] = 0700446;	// TLSA
+cpu_state.r_core[2] = 0750000;	// CLA
+cpu_state.r_core[3] = 0700341;	// KSFA 
+cpu_state.r_core[4] = 0600003;	// JMP 003
+cpu_state.r_core[5] = 0700352;	// KRBA
+cpu_state.r_core[6] = 0340020;	// TAD 020
+cpu_state.r_core[7] = 0040020;  // DAC 020
+cpu_state.r_core[8] = 0600003;  // JMP 003
+
 // RB test
+/*
 cpu_state.r_core[0] = 0200040;	// LAC 040
 cpu_state.r_core[1] = 0707124;	// DSLW
 cpu_state.r_core[2] = 0200041;	// LAC 041
@@ -129,6 +140,7 @@ cpu_state.r_core[5] = 0707104;	// DSLD
 cpu_state.r_core[6] = 0200043;	// LAC 043
 cpu_state.r_core[7] = 0707144;	// DSLS
 cpu_state.r_core[8] = 0600010;  // JMP 010
+*/
 
 // Word count
 cpu_state.r_core[040] = (0 - 64) & 0777777;

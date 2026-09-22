@@ -141,6 +141,28 @@ var tty_state = {
 	r_keyboard_buffer: 0
 };
 
+// Auxillary I/O port
+var aux_tty_state = {
+	
+	// Aux input buffer
+	input_buffer: [],
+	
+	// Printer ready flag
+	r_printer_flag: 1,
+	
+	// Printer delay constant
+	printer_delay: 0,
+	
+	// Keyboard ready flag
+	r_keyboard_flag: 1,
+	
+	// Keyboard buffer
+	r_keyboard_buffer: 0,
+	
+	// Keyboard input delay
+	keyboard_delay: 0
+};
+
 // RB disk drive
 const RB_DEVICE_ID = 071;
 const RB_DRQ_PRIORITY = 1;
@@ -205,8 +227,9 @@ var device_states = {
 	
 	// Teleprinter state
 	tty: tty_state,
+	aux_tty: aux_tty_state,
 	
-	// RB disk statee
+	// RB disk state
 	rb: rb_state,
 	
 	// Last pulse states
@@ -605,8 +628,14 @@ function io_propagate(cpu, devices) {
 			
 			sysflag = devices.sysflag;
 			ppt = devices.ppt;
-			tty = devices.tty;
 			rtc = devices.rtc;
+			
+			// Switch between main and aux TTY
+			if (subdevice & 002) {
+				tty = devices.aux_tty;
+			} else {
+				tty = devices.tty;
+			}
 			
 			// Assert skip flag if needed
 			if (pulse & 001 && iot_pulse) {
@@ -618,7 +647,7 @@ function io_propagate(cpu, devices) {
 			// Assert keyboard buffer
 			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
-				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer | (1 << 7));
+				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
 				tty.r_keyboard_flag = 0;  
 			}
 			
@@ -652,7 +681,12 @@ function io_propagate(cpu, devices) {
 		// TTY printer
 		case TTY_PRINT_DEVICE_ID:
 		
-			tty = devices.tty;
+			// Switch between main and aux TTY
+			if (subdevice & 002) {
+				tty = devices.aux_tty;
+			} else {
+				tty = devices.tty;
+			}
 			
 			// Check printer ready flag
 			if (pulse & 001 && iot_pulse) {
@@ -666,8 +700,13 @@ function io_propagate(cpu, devices) {
 			}
 			
 			if (pulse & 004 && iot_falling) {
-				tty.printer_delay = 300;
-				uart_output(data_in & 0177);
+				if (subdevice & 002) {
+					tty.printer_delay = 500;
+					aux_output(data_in & 0177);
+				} else {
+					tty.printer_delay = 10000;
+					uart_output(data_in & 0177);
+				}
 			}
 			break;
 			
@@ -804,6 +843,11 @@ function clear_all_flags(devices) {
 	tty.r_printer_flag = 0;
 	tty.r_keyboard_flag = 0;
 	
+	// Clear AUX
+	let aux = devices.aux_tty;
+	aux.r_printer_flag = 0;
+	aux.r_keyboard_flag = 0;
+	
 	// Clear RB stuff
 	let rb = devices.rb;
 	rb.r_rb_status = 0;
@@ -821,6 +865,9 @@ function device_tick(devices) {
 	
 	// Tick the teleprinter subsystem
 	tty_tick(devices.tty);
+	
+	// Tick the auxillary TTY subsystem
+	aux_tick(devices.aux_tty);
 	
 	// Tick the paper tape subsystem
 	ppt_tick(devices.ppt);
@@ -845,6 +892,30 @@ function rtc_tick(rtc, drq) {
 		rtc.rtc_timer++;
 	}
 	
+}
+
+function aux_tick(aux) {
+	
+	// Check input buffer to see if we should be outputting data
+	if (aux.keyboard_delay > 0) {
+		aux.keyboard_delay--;
+	} else {
+		if (aux.input_buffer.length > 0) {
+			console.log("outputting");
+			aux.r_keyboard_flag = 1;
+			aux.r_keyboard_buffer = aux.input_buffer.shift();
+			aux.keyboard_delay = 500;
+		}
+	}
+	
+	// Decrement printer delay value
+	if (aux.printer_delay > 0) {
+		aux.printer_delay--;
+		
+		if (aux.printer_delay == 0) {
+			aux.r_printer_flag = 1;
+		}
+	}
 }
 
 function tty_tick(tty) {
@@ -988,12 +1059,13 @@ function rb_set_ef(status) {
 
 /* --- AUXILLARY I/O PORT --- */
 
-function aux_input(ch) {
-	
-}
-
 function aux_output(ch) {
-
+	let aux = device_states.aux_tty;
+	console.log("pushing");
+	
+	aux.input_buffer.push(0x01);
+	aux.input_buffer.push(0x02);
+	aux.input_buffer.push(0x03);
 }
 
 /* --- TERMINAL STUFF --- */
