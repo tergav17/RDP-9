@@ -847,6 +847,7 @@ function clear_all_flags(devices) {
 	let aux = devices.aux_tty;
 	aux.r_printer_flag = 0;
 	aux.r_keyboard_flag = 0;
+	aux_reset();
 	
 	// Clear RB stuff
 	let rb = devices.rb;
@@ -901,7 +902,6 @@ function aux_tick(aux) {
 		aux.keyboard_delay--;
 	} else {
 		if (aux.input_buffer.length > 0) {
-			console.log("outputting");
 			aux.r_keyboard_flag = 1;
 			aux.r_keyboard_buffer = aux.input_buffer.shift();
 			aux.keyboard_delay = 500;
@@ -1059,13 +1059,41 @@ function rb_set_ef(status) {
 
 /* --- AUXILLARY I/O PORT --- */
 
+// Brain-dead disk server data
+const BDDS_STATE_READY = -1;
+const BDDS_STATE_ADDR_1 = -2;
+const BDDS_STATE_ADDR_2 = -3;
+const BDDS_STATE_GETBLK = 0;
+
+var bdds_state = BDDS_STATE_READY;
+var bdds_address = 0;
+var bdds_buffer = new Array(128).fill(0);
+
+
+/*
+ * Reset BDDS reset
+ */ 
+function aux_reset() {
+	var bdds_state = BDDS_STATE_READY;
+}
+
 function aux_output(ch) {
 	let aux = device_states.aux_tty;
-	console.log("pushing");
 	
-	aux.input_buffer.push(0x01);
-	aux.input_buffer.push(0x02);
-	aux.input_buffer.push(0x03);
+	if (bdds_state >= 0) {
+		// Handle incoming data
+	} else {
+		// State machine
+		switch (bdds_state) {
+			
+			case BDDS_STATE_READY:
+			
+				break;
+			
+			default:
+				break;
+		}
+	}
 }
 
 /* --- TERMINAL STUFF --- */

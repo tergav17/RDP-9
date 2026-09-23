@@ -1,5 +1,6 @@
 Ensure that MQ = 0 before running
-Used to load the SAV loading into 017730
+This can be done by triggering the normal RESET and then I/O RESET
+Used to load the SAV loader into 017730
 
 000017: 017726
 000020: 754000      CLA/CLC
