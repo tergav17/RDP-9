@@ -1060,12 +1060,14 @@ function rb_set_ef(status) {
 /* --- AUXILLARY I/O PORT --- */
 
 // Brain-dead disk server data
-const BDDS_STATE_READY = -1;
-const BDDS_STATE_ADDR_1 = -2;
-const BDDS_STATE_ADDR_2 = -3;
-const BDDS_STATE_GETBLK = 0;
+const BDOS_STATE_READY = -1;
+const BDDS_STATE_GET_0 = -2;
+const BDDS_STATE_GET_1 = -3;
+const BDDS_STATE_GET_2 = -4;
 
-var bdds_state = BDDS_STATE_READY;
+var bdds_state = BDOS_STATE_READY;
+var bdds_return_state = 0;
+var bdds_value = 0;
 var bdds_address = 0;
 var bdds_buffer = new Array(128).fill(0);
 
@@ -1074,11 +1076,12 @@ var bdds_buffer = new Array(128).fill(0);
  * Reset BDDS reset
  */ 
 function aux_reset() {
-	var bdds_state = BDDS_STATE_READY;
+	var bdds_state = BDDS_STATE_ADDR_0;
 }
 
 function aux_output(ch) {
 	let aux = device_states.aux_tty;
+	ch = ch & 077;
 	
 	if (bdds_state >= 0) {
 		// Handle incoming data
@@ -1086,9 +1089,37 @@ function aux_output(ch) {
 		// State machine
 		switch (bdds_state) {
 			
-			case BDDS_STATE_READY:
-			
+			case BDOS_STATE_READY:
+				
+				// Wait to process a command
+				
 				break;
+			
+			case BDDS_STATE_GET_0:
+			
+				// Get the least significant 6 bits of the address
+				bdds_value = ch << 12;
+				
+				bdds_state = BDDS_STATE_GET_1;
+				break;
+				
+			case BDDS_STATE_GET_1:
+			
+				// Get middle 6 bits
+				bdds_value = (bdds_value >> 6) | (ch << 12);
+	
+				bdds_state = BDDS_STATE_GET_2;
+				break;
+				
+			case BDDS_STATE_GET_2:
+			
+				// Get most significant 6 bits
+				bdds_value = (bdds_value >> 6) | (ch << 12);
+	
+				bdds_state = bdds_return_state;
+				break;
+				
+			case BDDS_STATE_ADDR
 			
 			default:
 				break;
