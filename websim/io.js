@@ -1065,10 +1065,12 @@ const BDDS_STATE_GET_0 = -2;
 const BDDS_STATE_GET_1 = -3;
 const BDDS_STATE_GET_2 = -4;
 
+const BDDS_READ_BYTE = 0;
+const BDDS_READ_WORD = 1;
+
 var bdds_state = BDOS_STATE_READY;
-var bdds_return_state = 0;
-var bdds_value = 0;
-var bdds_address = 0;
+var bdds_read_type = BDDS_READ_BYTE;
+var bdds_read_count = 0;
 var bdds_buffer = new Array(128).fill(0);
 
 
