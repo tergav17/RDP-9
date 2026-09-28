@@ -1060,73 +1060,138 @@ function rb_set_ef(status) {
 /* --- AUXILLARY I/O PORT --- */
 
 // Brain-dead disk server data
-const BDOS_STATE_READY = -1;
-const BDDS_STATE_GET_0 = -2;
-const BDDS_STATE_GET_1 = -3;
-const BDDS_STATE_GET_2 = -4;
+const BDDS_STATE_READY = -1;
+const BDDS_STATE_READ = -2;
+const BDDS_STATE_WRITE = 0;
 
 const BDDS_READ_BYTE = 0;
 const BDDS_READ_WORD = 1;
 
-var bdds_state = BDOS_STATE_READY;
+const BDDS_CMD_READ = 1;
+const BDDS_CMD_WRITE = 2;
+
+var bdds_state = BDDS_STATE_READY;
 var bdds_read_type = BDDS_READ_BYTE;
 var bdds_read_count = 0;
-var bdds_buffer = new Array(128).fill(0);
+var bdds_value = 0;
+var bdds_write_address = 0;
+var bdds_buffer = new Array(64).fill(0);
 
 
 /*
  * Reset BDDS reset
  */ 
 function aux_reset() {
-	var bdds_state = BDDS_STATE_ADDR_0;
+	var bdds_state = BDDS_STATE_READY;
+	var bdds_read_type = BDDS_READ_BYTE;
+	var bdds_read_count = 0;
 }
 
 function aux_output(ch) {
 	let aux = device_states.aux_tty;
+	let rb = devices_states.rb;
+
+	// We only care about the bottom 6 bits
 	ch = ch & 077;
+
+	// Are we handling works or bytes?
+	if (bdds_read_type == BDDS_READ_WORD) {
+		if (bdds_read_count == 0) {
+			bdds_value = 0;
+		}
+
+		// Insert byte from serial port into word
+		bdds_vaue = (bdds_value >> 6) | (ch << 12);
+
+		bdds_read_count++;
+		if (bdds_read_count != 3) {
+			return;
+		}
+
+	} else {
+		bdds_value = ch;
+	}
 	
-	if (bdds_state >= 0) {
+	if (bdds_state >= BDDS_STATE_WRITE) {
 		// Handle incoming data
+		if (bdds_state == BDDS_STATE_WRITE) {
+			bdds_write_address = bdds_value;
+		} else {
+			bdds_buffer[bdds_state - 1] = bdds_value;
+		}
+
+		// Are we done?
+		bdds_state++;
+		if (bdds_state == 65) {
+			// Yes!
+			for (let i = 0; i < 64; i++) {
+				rb_data[(bdds_write_address * 64) + i] = bdds_buffer[i];
+				aux_input(077);
+			}
+		}
+
+		// Read another word
+		bdds_read_type = BDDS_READ_WORD;
 	} else {
 		// State machine
 		switch (bdds_state) {
 			
-			case BDOS_STATE_READY:
+			case BDDS_STATE_READY:
 				
-				// Wait to process a command
-				
+				// Process a command
+				switch(bdds_value) {
+					case BDDS_CMD_READ:
+
+						// Perform a read
+						bdds_state = BDDS_STATE_READ;
+						bdds_read_type = BDDS_READ_WORD;
+						break;
+
+					case BDDS_CMD_WRITE:
+
+						// Perform a write
+						bdds_state = BDDS_STATE_WRITE;
+						bdds_read_type = BDDS_READ_WORD;
+						break;
+
+
+					default:
+
+						// Reset to ready state
+						bdds_state = BDDS_STATE_READY;
+						bdds_read_type = BDDS_READ_BYTE;
+						break;
+				}
 				break;
-			
-			case BDDS_STATE_GET_0:
-			
-				// Get the least significant 6 bits of the address
-				bdds_value = ch << 12;
-				
-				bdds_state = BDDS_STATE_GET_1;
+
+			case BDDS_STATE_READ:
+				// Do a read
+
+				for (let i = 0; i < 64; i++) {
+					aux_input_word(rb_data[(bdds_value * 64) + i])
+				}
 				break;
-				
-			case BDDS_STATE_GET_1:
-			
-				// Get middle 6 bits
-				bdds_value = (bdds_value >> 6) | (ch << 12);
-	
-				bdds_state = BDDS_STATE_GET_2;
-				break;
-				
-			case BDDS_STATE_GET_2:
-			
-				// Get most significant 6 bits
-				bdds_value = (bdds_value >> 6) | (ch << 12);
-	
-				bdds_state = bdds_return_state;
-				break;
-				
-			case BDDS_STATE_ADDR
+
 			
 			default:
+				aux_reset();
 				break;
 		}
 	}
+
+	// Reset read count
+	var bdds_read_count = 0;
+}
+
+function aux_input_word(word) {
+	aux_input(getbit(word, 12, 6));
+	aux_input(getbit(word, 6, 6));
+	aux_input(getbit(word, 0, 6));
+}
+
+function aux_input(ch) {
+	let aux = device_states.aux_tty;
+	aux.input_buffer.push(ch);
 }
 
 /* --- TERMINAL STUFF --- */
