@@ -1063,6 +1063,8 @@ function rb_set_ef(status) {
 const BDDS_STATE_READY = -1;
 const BDDS_STATE_READ = -2;
 const BDDS_STATE_WRITE = 0;
+const BDDS_STATE_READ_ADDR = -3;
+const BDDS_STATE_WRITE_ADDR = 4;
 
 const BDDS_READ_BYTE = 0;
 const BDDS_READ_WORD = 1;
@@ -1074,8 +1076,9 @@ var bdds_state = BDDS_STATE_READY;
 var bdds_read_type = BDDS_READ_BYTE;
 var bdds_read_count = 0;
 var bdds_value = 0;
-var bdds_write_address = 0;
-var bdds_buffer = new Array(64).fill(0);
+var bdds_address = 0;
+var bdds_count = 0;
+var bdds_buffer = new Array(4096).fill(0);
 
 
 /*
@@ -1115,17 +1118,17 @@ function aux_output(ch) {
 	if (bdds_state >= BDDS_STATE_WRITE) {
 		// Handle incoming data
 		if (bdds_state == BDDS_STATE_WRITE) {
-			bdds_write_address = bdds_value;
+			bdds_count = bdds_value;
 		} else {
 			bdds_buffer[bdds_state - 1] = bdds_value;
 		}
 
 		// Are we done?
 		bdds_state++;
-		if (bdds_state == 65) {
+		if (bdds_state == bdds_count + 1) {
 			// Yes!
-			for (let i = 0; i < 64; i++) {
-				rb_data[(bdds_write_address * 64) + i] = bdds_buffer[i];
+			for (let i = 0; i < bdds_count; i++) {
+				rb_data[(bdds_address * 64) + i] = bdds_buffer[i];
 				aux_input(077);
 			}
 		}
@@ -1143,14 +1146,14 @@ function aux_output(ch) {
 					case BDDS_CMD_READ:
 
 						// Perform a read
-						bdds_state = BDDS_STATE_READ;
+						bdds_state = BDDS_STATE_READ_ADDR;
 						bdds_read_type = BDDS_READ_WORD;
 						break;
 
 					case BDDS_CMD_WRITE:
 
 						// Perform a write
-						bdds_state = BDDS_STATE_WRITE;
+						bdds_state = BDDS_STATE_WRITE_ADDR;
 						bdds_read_type = BDDS_READ_WORD;
 						break;
 
@@ -1164,11 +1167,30 @@ function aux_output(ch) {
 				}
 				break;
 
+			case BDDS_STATE_READ_ADDR:
+
+				// Save address
+				bdds_address = bdds_value;
+
+				bdds_state = BDDS_STATE_READ;
+				bdds_read_type = BDDS_READ_WORD;
+				break;
+
+			case BDDS_STATE_WRITE_ADDR:
+
+				// Save address
+				bdds_address = bdds_value;
+
+				bdds_state = BDDS_STATE_WRITE;
+				bdds_read_type = BDDS_READ_WORD;
+				break;
+
 			case BDDS_STATE_READ:
 				// Do a read
+				bdds_count = bdds_value;
 
-				for (let i = 0; i < 64; i++) {
-					aux_input_word(rb_data[(bdds_value * 64) + i])
+				for (let i = 0; i < bdds_count; i++) {
+					aux_input_word(rb_data[(bdds_address * 64) + i])
 				}
 				break;
 
