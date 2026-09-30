@@ -1170,7 +1170,15 @@ function aux_output(ch) {
 			case BDDS_STATE_READ_ADDR:
 
 				// Save address
-				bdds_address = bdds_value;
+				sector_ones = getbit(bdds_value, 0, 4);
+				sector_tens = getbit(bdds_value, 4, 4);
+				track_ones = getbit(bdds_value, 8, 4);
+				track_tens = getbit(bdds_value, 12, 4);
+				track_huns = getbit(bdds_value, 16, 1);
+
+				sector = sector_ones + (10 * sector_tens);
+				track = track_ones + (10 * track_tens) + (100 * track_huns);
+				bdds_address = (sector + (80 * track)) * 64;
 
 				bdds_state = BDDS_STATE_READ;
 				bdds_read_type = BDDS_READ_WORD;
@@ -1179,7 +1187,15 @@ function aux_output(ch) {
 			case BDDS_STATE_WRITE_ADDR:
 
 				// Save address
-				bdds_address = bdds_value;
+				sector_ones = getbit(bdds_value, 0, 4);
+				sector_tens = getbit(bdds_value, 4, 4);
+				track_ones = getbit(bdds_value, 8, 4);
+				track_tens = getbit(bdds_value, 12, 4);
+				track_huns = getbit(bdds_value, 16, 1);
+
+				sector = sector_ones + (10 * sector_tens);
+				track = track_ones + (10 * track_tens) + (100 * track_huns);
+				bdds_address = (sector + (80 * track)) * 64;
 
 				bdds_state = BDDS_STATE_WRITE;
 				bdds_read_type = BDDS_READ_WORD;
