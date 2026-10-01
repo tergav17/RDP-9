@@ -1118,7 +1118,7 @@ function aux_output(ch) {
 	if (bdds_state >= BDDS_STATE_WRITE) {
 		// Handle incoming data
 		if (bdds_state == BDDS_STATE_WRITE) {
-			bdds_count = bdds_value;
+			bdds_count = (~bdds_value & 0777777) + 1;
 		} else {
 			bdds_buffer[bdds_state - 1] = bdds_value;
 		}
@@ -1203,7 +1203,7 @@ function aux_output(ch) {
 
 			case BDDS_STATE_READ:
 				// Do a read
-				bdds_count = bdds_value;
+				bdds_count = (~bdds_value & 0777777) + 1;
 
 				for (let i = 0; i < bdds_count; i++) {
 					aux_input_word(rb_data[(bdds_address * 64) + i])

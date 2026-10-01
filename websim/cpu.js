@@ -129,20 +129,24 @@ cpu_state.r_core[6] = 0340020;	// TAD 020
 cpu_state.r_core[7] = 0040020;  // DAC 020
 cpu_state.r_core[8] = 0600003;  // JMP 003
 
-cpu_state.r_core[010000] = 0610020;	// JMP 010020
+cpu_state.r_core[010000] = 0610020;	// JMP 010040
 cpu_state.r_core[010001] = 0000000;	// SEND_CHAR
-cpu_state.r_core[010002] = 0700446; // TLSA
-cpu_state.r_core[010003] = 0700441; // TSFA
-cpu_state.r_core[010004] = 0610003; // JMP 010003
+cpu_state.r_core[010002] = 0700441; // TSFA
+cpu_state.r_core[010003] = 0610002; // JMP 010002
+cpu_state.r_core[010004] = 0700446; // TLSA
 cpu_state.r_core[010005] = 0650001; // JMP I 010001
 cpu_state.r_core[010006] = 0000000; // RECV_CHAR
 cpu_state.r_core[010007] = 0700341; // KSFA
 cpu_state.r_core[010010] = 0610007; // JMP 010007
 cpu_state.r_core[010011] = 0700352; // KRBA
 cpu_state.r_core[010012] = 0650006; // JMP I 010006
-cpu_state.r_core[010020] = 0760001; // LAW 01
-cpu_state.r_core[010021] = 0110001; // JMS 010001
-cpu_state.r_core[010022] =
+cpu_state.r_core[010013] =
+
+cpu_state.r_core[010040] = 0750000;	// CLA
+cpu_state.r_core[010041] = 0700446;	// TLSA
+cpu_state.r_core[010042] = 0760001; // LAW 01
+cpu_state.r_core[010043] = 0110001; // JMS 010001
+cpu_state.r_core[010044] =
 
 // RB test
 /*
