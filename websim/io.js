@@ -1061,10 +1061,10 @@ function rb_set_ef(status) {
 
 // Brain-dead disk server data
 const BDDS_STATE_READY = -1;
-const BDDS_STATE_READ = -2;
-const BDDS_STATE_WRITE = 0;
-const BDDS_STATE_READ_ADDR = -3;
-const BDDS_STATE_WRITE_ADDR = 4;
+const BDDS_STATE_READ_ADDR = -2;
+const BDDS_STATE_WRITE_ADDR = 3;
+const BDDS_STATE_READ = 0;
+const BDDS_STATE_WRITE = 8192;
 
 const BDDS_READ_BYTE = 0;
 const BDDS_READ_WORD = 1;
@@ -1117,24 +1117,49 @@ function aux_output(ch) {
 	
 	if (bdds_state >= BDDS_STATE_WRITE) {
 		// Handle incoming data
-		if (bdds_state == BDDS_STATE_WRITE) {
-			bdds_count = (~bdds_value & 0777777) + 1;
+
+		let count = (bdds_state - BDDS_STATE_WRITE) - 1;
+		if (count < 0) {
+			bdds_count = (~bdds_value + 1) & 0777777;
 		} else {
 			bdds_buffer[bdds_state - 1] = bdds_value;
 		}
 
 		// Are we done?
-		bdds_state++;
-		if (bdds_state == bdds_count + 1) {
+		if (count == bdds_count - 1) {
 			// Yes!
-			for (let i = 0; i < bdds_count; i++) {
+			for (let i = 0; i < count; i++) {
 				rb_data[(bdds_address * 64) + i] = bdds_buffer[i];
 				aux_input(077);
 			}
+
+			// Done, return to ready
+			bdds_state = BDDS_STATE_READY;
+			bdds_read_type = BDDS_READ_BYTE;
+		} else {
+			// Read another word
+			bdds_state++;
+			bdds_read_type = BDDS_READ_WORD;
+		}
+	} else if (bdds_state >= BDDS_STATE_READ) {
+		// Handle outgoing data
+
+		let count = (bdds_state - BDDS_STATE_READ) - 1;
+		if (count < 0) {
+			bdds_count = (~bdds_value + 1) & 0777777;
 		}
 
-		// Read another word
-		bdds_read_type = BDDS_READ_WORD;
+		aux_input_word(rb_data[(bdds_address * 64) + count])
+
+		if (count == bdds_count - 1) {
+			// Done, return to ready
+			bdds_state = BDDS_STATE_READY;
+			bdds_read_type = BDDS_READ_BYTE;
+		} else {
+			// Wait to send another word
+			bdds_state++;
+			bdds_read_type = BDDS_READ_BYTE;
+		}
 	} else {
 		// State machine
 		switch (bdds_state) {
@@ -1200,16 +1225,6 @@ function aux_output(ch) {
 				bdds_state = BDDS_STATE_WRITE;
 				bdds_read_type = BDDS_READ_WORD;
 				break;
-
-			case BDDS_STATE_READ:
-				// Do a read
-				bdds_count = (~bdds_value & 0777777) + 1;
-
-				for (let i = 0; i < bdds_count; i++) {
-					aux_input_word(rb_data[(bdds_address * 64) + i])
-				}
-				break;
-
 			
 			default:
 				aux_reset();
