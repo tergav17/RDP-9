@@ -1085,14 +1085,14 @@ var bdds_buffer = new Array(4096).fill(0);
  * Reset BDDS reset
  */ 
 function aux_reset() {
-	var bdds_state = BDDS_STATE_READY;
-	var bdds_read_type = BDDS_READ_BYTE;
-	var bdds_read_count = 0;
+	bdds_state = BDDS_STATE_READY;
+	bdds_read_type = BDDS_READ_BYTE;
+	bdds_read_count = 0;
 }
 
 function aux_output(ch) {
 	let aux = device_states.aux_tty;
-	let rb = devices_states.rb;
+	let rb = device_states.rb;
 
 	// We only care about the bottom 6 bits
 	ch = ch & 077;
@@ -1104,9 +1104,12 @@ function aux_output(ch) {
 		}
 
 		// Insert byte from serial port into word
-		bdds_vaue = (bdds_value >> 6) | (ch << 12);
+		bdds_value = (bdds_value >> 6) | (ch << 12);
+
 
 		bdds_read_count++;
+
+		//console.log("Read count: " + bdds_read_count);
 		if (bdds_read_count != 3) {
 			return;
 		}
@@ -1114,6 +1117,8 @@ function aux_output(ch) {
 	} else {
 		bdds_value = ch;
 	}
+
+	console.log("Got value: " + bdds_value.toString(8));
 	
 	if (bdds_state >= BDDS_STATE_WRITE) {
 		// Handle incoming data
@@ -1129,7 +1134,7 @@ function aux_output(ch) {
 		if (count == bdds_count - 1) {
 			// Yes!
 			for (let i = 0; i < count; i++) {
-				rb_data[(bdds_address * 64) + i] = bdds_buffer[i];
+				rb.rb_data[(bdds_address * 64) + i] = bdds_buffer[i];
 				aux_input(077);
 			}
 
@@ -1144,12 +1149,13 @@ function aux_output(ch) {
 	} else if (bdds_state >= BDDS_STATE_READ) {
 		// Handle outgoing data
 
-		let count = (bdds_state - BDDS_STATE_READ) - 1;
-		if (count < 0) {
+		let count = (bdds_state - BDDS_STATE_READ);
+		if (count == 0) {
 			bdds_count = (~bdds_value + 1) & 0777777;
 		}
 
-		aux_input_word(rb_data[(bdds_address * 64) + count])
+		console.log("Count: " + count);
+		aux_input_word(rb.rb_data[(bdds_address * 64) + count])
 
 		if (count == bdds_count - 1) {
 			// Done, return to ready
@@ -1169,6 +1175,8 @@ function aux_output(ch) {
 				// Process a command
 				switch(bdds_value) {
 					case BDDS_CMD_READ:
+
+						console.log("Starting BDDS Read");
 
 						// Perform a read
 						bdds_state = BDDS_STATE_READ_ADDR;
@@ -1205,6 +1213,8 @@ function aux_output(ch) {
 				track = track_ones + (10 * track_tens) + (100 * track_huns);
 				bdds_address = (sector + (80 * track)) * 64;
 
+				console.log("Starting read at " + bdds_address);
+
 				bdds_state = BDDS_STATE_READ;
 				bdds_read_type = BDDS_READ_WORD;
 				break;
@@ -1233,7 +1243,7 @@ function aux_output(ch) {
 	}
 
 	// Reset read count
-	var bdds_read_count = 0;
+	bdds_read_count = 0;
 }
 
 function aux_input_word(word) {
@@ -1245,6 +1255,7 @@ function aux_input_word(word) {
 function aux_input(ch) {
 	let aux = device_states.aux_tty;
 	aux.input_buffer.push(ch);
+	console.log("Input buffer: " + aux.input_buffer.length);
 }
 
 /* --- TERMINAL STUFF --- */
