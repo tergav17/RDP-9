@@ -168,19 +168,19 @@ cpu_state.r_core[010103] = 0110001; // JMS SEND_CHAR
 cpu_state.r_core[010104] = 0210200; // LAC 010200
 cpu_state.r_core[010105] = 0110040; // JMS SEND_WORD
 cpu_state.r_core[010106] = -64 & 0777777; // LAW -64
-cpu_state.r_core[010107] = 0050201; // DAC 010201
+cpu_state.r_core[010107] = 0040020; // DAC 000020
 cpu_state.r_core[010110] = 0110040; // JMS SEND_WORD
 cpu_state.r_core[010111] = 0610121; // JMP 010121
 
 cpu_state.r_core[010120] = 0110001; // JMS SEND_CHAR
 cpu_state.r_core[010121] = 0110050; // JMS RECV_WORD
 cpu_state.r_core[010122] = 0060017; // DAC I 017
-cpu_state.r_core[010123] = 0150201; // DZM 010201
+cpu_state.r_core[010123] = 0440020; // ISZ 000020
 cpu_state.r_core[010124] = 0610120; // JMP 010120
 cpu_state.r_core[010125] = 0740040; // HLT
 
 cpu_state.r_core[010200] = 0x00001; // Disk Address
-cpu_state.r_core[010201] = 0		// Word counter
+cpu_state.r_core[000020] = 0		// Word counter
 cpu_state.r_core[017] = 000300-1	// Pointer
 
 // RB test
