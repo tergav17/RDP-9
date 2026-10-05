@@ -648,11 +648,13 @@ function io_propagate(cpu, devices) {
 			if (pulse & 002 && iot_pulse) {
 				extrn = 1;
 				cpu.s_device_bus = assert(cpu.s_device_bus, tty.r_keyboard_buffer);
+				console.log("Asserting: " + tty.r_keyboard_buffer);
 				tty.r_keyboard_flag = 0;  
 			}
 			
 			// IORS (it's in KEYBD for some reason?)
 			if (pulse & 004 && iot_pulse) {
+				tty = devices.tty;
 				iors = 	(sysflag.r_flag_pi << 17) || 
 						(ppt.r_pptr_flag << 16) ||
 						(0 << 15) ||
@@ -1211,9 +1213,10 @@ function aux_output(ch) {
 
 				sector = sector_ones + (10 * sector_tens);
 				track = track_ones + (10 * track_tens) + (100 * track_huns);
-				bdds_address = (sector + (80 * track)) * 64;
+				bdds_address = (sector + (80 * track));
 
 				console.log("Starting read at " + bdds_address);
+				console.log("Sector: " + sector + ", Track: " + track);
 
 				bdds_state = BDDS_STATE_READ;
 				bdds_read_type = BDDS_READ_WORD;
@@ -1230,7 +1233,7 @@ function aux_output(ch) {
 
 				sector = sector_ones + (10 * sector_tens);
 				track = track_ones + (10 * track_tens) + (100 * track_huns);
-				bdds_address = (sector + (80 * track)) * 64;
+				bdds_address = (sector + (80 * track));
 
 				bdds_state = BDDS_STATE_WRITE;
 				bdds_read_type = BDDS_READ_WORD;
@@ -1247,6 +1250,7 @@ function aux_output(ch) {
 }
 
 function aux_input_word(word) {
+	console.log("Sending: " + word.toString(8));
 	aux_input(getbit(word, 12, 6));
 	aux_input(getbit(word, 6, 6));
 	aux_input(getbit(word, 0, 6));
@@ -1255,7 +1259,6 @@ function aux_input_word(word) {
 function aux_input(ch) {
 	let aux = device_states.aux_tty;
 	aux.input_buffer.push(ch);
-	console.log("Input buffer: " + aux.input_buffer.length);
 }
 
 /* --- TERMINAL STUFF --- */

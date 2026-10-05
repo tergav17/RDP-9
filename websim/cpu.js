@@ -156,10 +156,10 @@ cpu_state.r_core[010044] = 0630040; // JMP I 010040
 
 cpu_state.r_core[010050] = 0000000; // RECV_WORD
 cpu_state.r_core[010051] = 0754000; // CLA
-cpu_state.r_core[010051] = 0110020; // JMS RECV_CHAR
 cpu_state.r_core[010052] = 0110020; // JMS RECV_CHAR
 cpu_state.r_core[010053] = 0110020; // JMS RECV_CHAR
-cpu_state.r_core[010054] = 0630050; // JMP I 010050
+cpu_state.r_core[010054] = 0110020; // JMS RECV_CHAR
+cpu_state.r_core[010055] = 0630050; // JMP I 010050
 
 cpu_state.r_core[010100] = 0754000;	// CLA
 cpu_state.r_core[010101] = 0700446;	// TLSA
@@ -179,7 +179,7 @@ cpu_state.r_core[010123] = 0440020; // ISZ 000020
 cpu_state.r_core[010124] = 0610120; // JMP 010120
 cpu_state.r_core[010125] = 0740040; // HLT
 
-cpu_state.r_core[010200] = 0x00001; // Disk Address
+cpu_state.r_core[010200] = 0x18000; // Disk Address
 cpu_state.r_core[000020] = 0		// Word counter
 cpu_state.r_core[017] = 000300-1	// Pointer
 
