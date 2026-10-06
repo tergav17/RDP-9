@@ -1,0 +1,236 @@
+/* Front Panel */
+
+RDP-9A-FPR-0	Register Front Panel Segment (MB, AC, MQ, SWR)
+PRD-9A-FPA-0	Address Front Panel Segment (Flags, MA, PC, CTRL Switches)
+
+/* Backplane */
+
+RDP-9A-BKP-0	CPU + I/O Backplane
+
+/* CPU Cards */
+
+RDP-9A-CTL-0	Microcode Control Card
+RDP-9A-REG-0	Register File Card
+RDP-9A-ALU-0	ALU Card
+RDP-9A-MEM-0	Memory / Addressing Card
+
+/* I/O Cards */
+
+RDP-9A-TTC-0	TTY / Clock / Flags Card
+RDP-9A-PRB-0	Paper tape / RB Emulator Card
+
+
+
+/* CPU Backplane Pinout */
+
+SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
+D				18		Data Bus							N/A		X
+A				15		Address Bus							N/A		X
+STEP_ZERO		1		STEP Register Zero					REG		X
+*PI_ENABLE		1		Interrupt Enable		X			BKP		X
+*MEMM_ENABLE	1		Ext Memory Enable		X			BKP		X
+*PROT_ENABLE	1		Protection Enable 		X			BKP		X
+*DMA_REQ		1		DMA Request				X			BKP		X
+*CHAN_REQ		1		Data Channel Request	X			BKP		X
+*DEV_REQ		1		Device request			X			BKP		X
+*INT_REQ		1		Interrupt request		X			BKP		X
+*IOT_SKIP		1		IOT Skip				X			BKP		X
+*IOT_WAIT		1		IOT Wait				X			BKP		X
+*REST_PEND		1		Restore Pending			X			BKP		X
+*IOT_SKIP_L		1		IOT Skip Latched					ALU		X
+FLAG_ZERO		1		OB Zero Flag						ALU		X
+FLAG_SIGN		1		OB Sign Flag						ALU		X
+FLAG_LINK		1		Link Flag							ALU		X
+FLAG_LINK_INIT	1		Link Init Flag						ALU		X
+FLAG_AC_SIGN	1		AC Sign Flag						ALU		X
+BUS_SELECT		3		Data Bus Selector					CTL		X
+*SELECT_AC		1		Bus Select AC						CTL		X
+*SELECT_STEP	1		Bus Select STEP						CTL		X
+*SELECT_MQ		1		Bus Select MQ						CTL		X
+*SELECT_CROSS	1		Bus Select Crossbar					CTL		X
+*SELECT_ALU		1		Bus Select ALU						CTL		X
+*SELECT_CORE	1		Bus Select Core						CTL		X
+*SELECT_SWR		1		Bus Select SWR						CTL		X
+*SELECT_EXTRN	1		Bus Select External					CTL		X
+*LATCH_IR		1		Latch IR Register					CTL		X
+*LATCH_MA		1		Latch MA Register					CTL		X
+*LATCH_PC		1		Latch PC Register					CTL		X
+*LATCH_AC		1		Latch AC Register					CTL		X
+*LATCH_STEP		1		Latch STEP Register					CTL		X
+*LATCH_MQ		1		Latch MQ Register					CTL		X
+*LATCH_MB		1		Latch MB Register					CTL		X
+*LATCH_WRTBK	1		Latch WRTBK Register				CTL		X
+*LATCH_OB		1		Latch OB Register					CTL		X
+*WRITE_CORE		1		Write to Core						CTL		X
+SELECT_PCMA		1		Select PC / MA						CTL		X
+HALT			1		Halt Indicator						CTL		X
+ADDR_MODE		2		Address Register Mode				CTL		X
+CTL_CONST		1		Control Constant Value				CTL		X
+*IOT_PULSE		1		IOT Pulse							CTL		X
+*DRQ_GRANT		1		Device Request Grant				CTL		X
+REQ_ADDR		1		IO Request Address					CTL		X
+*JMP_I_DETECT	1		JMP I Detect						CTL		X
+*INT_DETECT		1		Interrupt Detect					CTL		X
+*READ_IN_PULSE	1		Read In Pulse						CTL		X
+ALUO			3		ALU Operation						CTL		X
+LINKS			2		Link Select							CTL		X
+ALU_SHIFT		1		ALU Select Shifter					CTL		X
+ALU_ONES		1		ALU Select Ones Comp				CTL		X
+MA_AUTO_INX		1		MA Auto Index Flag					MEM		X
+NEXT_BANK0		2		Next Memory Bank					MEM		X
+CLK				1		Clock								BKP
+FP				4		Front Panel Status					FTP
+*CAF			1		Clear All Flags						BKP
+*RESET			1		CPU RESET							BKP
+ 
+			Control Connector
+
+GND				A01 C01		+5V
+N/C				A02 C02		N/C
+*PI_ENABLE		A03 C03		STEP_ZERO
+*MEMM_ENABLE	A04 C04		FLAG_ZERO
+*PROT_ENABLE	A05 C05		FLAG_SIGN
+*DMA_REQ		A06 C06		FLAG_LINK
+*CHAN_REQ		A07 C07		FLAG_LINK_INIT
+*DEV_REQ		A08 C08		FLAG_AC_SIGN
+*INT_REQ		A09 C09		BUS_SELECT0
+*IOT_SKIP		A10 C10		BUS_SELECT1
+*IOT_WAIT		A11 C11		BUS_SELECT2
+*IOT_SKIP_L		A12 C12		*SELECT_AC
+*LATCH_IR		A13 C13		*SELECT_STEP
+*LATCH_MA		A14 C14		*SELECT_MQ
+*LATCH_PC		A15 C15		*SELECT_CROSS
+*LATCH_AC		A16 C16		*SELECT_ALU
+*LATCH_STEP		A17 C17		*SELECT_CORE
+*LATCH_MQ		A18 C18		*SELECT_SWR
+*LATCH_MB		A19 C19		*SELECT_EXTRN
+*LATCH_WRTBK	A20 C20		*IOT_PULSE
+*LATCH_OB		A21 C21		*DRQ_GRANT
+*WRITE_CORE		A22 C22		REQ_ADDR
+SELECT_PCMA		A23 C23		*JMP_I_DETECT
+ALUO0			A24 C24		*INT_DETECT
+ALUO1			A25 C25		*READ_IN_PULSE
+ALUO2			A26 C26		HALT
+LINKS0			A27 C27		ADDR_MODE0
+LINKS1			A28 C28		ADDR_MODE1
+ALU_SHIFT		A29 C29		CTL_CONST
+ALU_ONES		A30 C30		EXTRA0
+N/C				A31 C31		+12V
++5V				A32 C32		GND
+
+			
+			Data Connector
+			
+GND				A01 C01		+5V
+N/C				A02 C02		N/C
+D0				A03 C03		A0
+D1				A04 C04		A1
+D2				A05 C05		A2
+D3				A06 C06		A3
+D4				A07 C07		A4
+D5				A08 C08		A5
+D6				A09 C09		A6
+D7				A10 C10		A7
+D8				A11 C11		A8
+D9				A12 C12		A9
+D10				A13 C13		A10
+D11				A14 C14		A11
+D12				A15 C15		A12
+D13				A16 C16		A13
+D14				A17 C17		A14
+D15				A18 C18		SC0
+D16				A19 C19		SC1
+D17				A20 C20		SC2
+*RESET			A21 C21		SC3
+*CAF			A22 C22		SC4
+CLK				A23 C23		SC5
+EXTRA1			A24 C24		EXTRA2
+EXTRA3			A25 C25		EXTRA4
+EXTRA5			A26 C26		EXTRA6
+NEXT_BANK0		A27 C27		NEXT_BANK1
+*REST_PEND		A28 C28		MA_AUTO_INX
+FP0				A29 C29		FP1
+FP2				A30 C30		FP3
+N/C				A31 C31		+12V
++5V				A32 C32		GND
+
+
+/* IO Backplane Pinout */
+
+
+SIGNAL			COUNT	DESCRIPTION				PULL_UP		SOURCE	DONE
+ID				18		I/O Data Bus						N/A		X
+A_DEVICE		6		Device ID							BKP		X
+A_SUBDEV		2		Sub-Device ID						BKP		X
+A_PULSE			3		I/O Pulse							BKP		X
+REQ_ADDR		1		Request Address						BKP		X
+*IORS_FLAG		4		User-Defined IORS		X			N/A		X
+*PTR_FLAG		1		Paper Tape Reader Flag	X			PRB		X
+*PTP_FLAG		1		Paper Tape Punch Flag	X			PRB		X
+*PTR_TAPE		1		Read Tape Detect		X			PRB		X
+*PTP_TAPE		1		Punch Tape Detect		X			PRB		X
+*PI_ENABLE		1		Interrupt Enabled		X			FLG		X
+*MEMM_ENABLE	1		Ext Memory Enabled		X			FLG		X
+*REST_PEND		1		Restore Pending			X			FLG		X
+*INT_REQ		1		Interrupt Request		X			N/A		X
+*DMA_REQ		1		DMA Request				X			N/A		X
+*CHAN_REQ		1		Channel Request			X			N/A		X
+*EXTERNAL		1		External Data			X			N/A		X
+*IOT_SKIP		1		IOT Skip Request		X			N/A		X
+*IOT_WAIT		1		IOT Wait Request		X			N/A		X
+*DRQ_GRANT		1		Data Request Grant					BKP		X
+*INT_DETECT		1		Interrupt Detect					BKP		X
+*JMP_I_DETECT	1		JMP I Detect						BKP		X
+*IOT_PULSE		1		IOT Pulse							BKP		X
+*READ_IN_PULSE	1		Read In Pulse						BKP		X
+*READ_IN_CLEAR	1		Read In Clear						BKP		X
+*INCREMENT_ZERO	1		Increment Zero						BKP		X
+CLK				1		Clock								BKP		X
+*CAF			1		Clear All Flags						BKP		X
+*CAF_REQ		1		Clear All Flags Request	X			N/A		X
+*RESET			1		CPU Reset							BKP		X
+
+		
+
+			  I/O Connector
+
+GND				A01 C01		+5V
+N/C				A02 C02		*IOT_SKIP
+ID0				A03 C03		A_DEVICE0
+ID1				A04 C04		A_DEVICE1
+ID2				A05 C05		A_DEVICE2
+ID3				A06 C06		A_DEVICE3
+ID4				A07 C07		A_DEVICE4
+ID5				A08 C08		A_DEVICE5
+ID6				A09 C09		A_SUBDEV0
+ID7				A10 C10		A_SUBDEV1
+ID8				A11 C11		A_PULSE0
+ID9				A12 C12		A_PULSE1
+ID10			A13 C13		A_PULSE2
+ID11			A14 C14		*IORS_FLAG0
+ID12			A15 C15		*IORS_FLAG1
+ID13			A16 C16		*IORS_FLAG2
+ID14			A17 C17		*IORS_FLAG3
+ID15			A18 C18		*PTR_FLAG
+ID16			A19 C19		*PTP_FLAG
+ID17			A20 C20		*PTR_TAPE
+*RESET			A21 C21		*PTP_TAPE
+*CAF			A22 C22		*PI_ENABLE
+CLK				A23 C23		*MEMM_ENABLE
+REQ_ADDR		A24 C24		*REST_PEND
+*DRQ_GRANT		A25 C25		*INT_REQ
+*INT_DETECT		A26 C26		*DMA_REQ
+*JMP_I_DETECT	A27 C27		*CHAN_REQ
+*IOT_PULSE		A28 C28		*EXTERNAL
+*READ_IN_PULSE	A29 C29		*CAF_REQ
+*READ_IN_CLEAR	A30 C30		*INCREMENT_ZERO
+*IOT_WAIT		A31 C31		+12V
++5V				A32 C32		GND
+			
+			
+TODO:
+DRQ_GRANT
+IOT_PULSE
+JMP_I_DETECT
+INT_DETECT
+READ_IN_PULSE
