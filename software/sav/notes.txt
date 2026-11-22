@@ -1,0 +1,6 @@
+Starting addresses:
+
+maindec_instruction_test_1: 13041
+maindec_instruction_test_2: 06265
+maindec_ext_mem_addr: 05110
+maindec_ext_mem_checkerboard: 02724

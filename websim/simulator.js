@@ -422,7 +422,7 @@ function drawFlow(cpu) {
 	x = 490; y = 90;
 	flow_ctx.fillStyle = "black";
 	flow_ctx.fillText("MM", x + 1 , y - 10);
-	drawRegister(x, y, device_states.sysflag.r_flag_pi, 1);
+	drawRegister(x, y, device_states.sysflag.r_flag_memm, 1);
 	
 	// Draw 18-Bank Switches
 	x = 10; y = 240;

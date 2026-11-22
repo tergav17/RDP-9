@@ -727,19 +727,19 @@ function io_propagate(cpu, devices) {
 			// Set extended mode flag
 			if (pulse & 002 && iot_falling) {
 				sysflag.r_flag_memm = 1;
-				console.log("MEMM on");
+				//console.log("MEMM on");
 			}
 			
 			// Reset extended mode flag
 			if (pulse & 004 && iot_falling) {
 				sysflag.r_flag_memm = 0;
-				console.log("MEMM off");
+				//console.log("MEMM off");
 			}
 			
 			// Set EMIR pending
 			if (subdevice & 002 && iot_pulse) {
 				sysflag.r_flag_emir_pending = 1;
-				console.log("EMIR set");
+				//console.log("EMIR set");
 			}
 		
 			break;

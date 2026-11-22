@@ -3312,7 +3312,7 @@ function decode(input) {
 					// Perform the jump with the fetched value
 					// If it's not indirect, force disabling of extended memory mode
 					// IF !INDIR
-					//  EXT_OFF = ADDR_REG_MODE
+					//  EXT_OFF -> ADDR_REG_MODE
 					// (OB OR MB) -> PC
 					// STEP_SRV_FETCH -> NEXT
 					case STEP_JMP_LOAD_PC:
@@ -3322,7 +3322,7 @@ function decode(input) {
 						alu_op_select = ALU_OR;
 						
 						// Setup the desired addressing mode
-						if (indirect) {
+						if (!indirect) {
 							address_register_mode = ADDR_REG_MODE_EXT_OFF;
 						}
 						
