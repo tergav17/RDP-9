@@ -318,7 +318,7 @@ function latch(cpu, devices) {
 		if (cpu.r_state[5]) {
 			
 			// Log operation
-			logValue("L: " + cpu.r_reg_link + "AC: " + oct18(cpu.r_reg_ac) + " MQ: " + oct18(cpu.r_reg_mq) + " SC: " + oct18(cpu.r_reg_step) + " ISR: " + disassemble(cpu.r_reg_ir, cpu.s_addr_bus));
+			logValue("L: " + cpu.r_reg_link + " AC: " + oct18(cpu.r_reg_ac) + " MQ: " + oct18(cpu.r_reg_mq) + " SC: " + oct18(cpu.r_reg_step) + " ISR: " + disassemble(cpu.r_reg_ir, cpu.s_addr_bus));
 			
 			if (cpu.s_addr_bus == breakpoint_addr) {
 				cpu.front_panel_ctrl.halt_step = 100;
