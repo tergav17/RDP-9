@@ -1,4 +1,4 @@
-all: ppt/ext_memory_test.bin
+all: ppt/ext_memory_test.bin ppt/dksbt.bin
 
 ppt/%.bin: source/%.s
 	macro7 $<

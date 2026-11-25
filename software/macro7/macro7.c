@@ -1474,7 +1474,7 @@ SYM_T *eval()
 /******************************************************************************/
 WORD32 incrementClc()
 {
-  testForLiteralCollision( clc );
+  //testForLiteralCollision( clc );
   clc = (( clc + 1 ) & ADDRESS_FIELD );
   return( clc );
 } /* incrementClc()                                                           */
