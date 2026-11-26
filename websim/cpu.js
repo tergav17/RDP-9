@@ -55,7 +55,7 @@ cpu_state = {
 	s_iot_wait: 0,
 	
 	// Switch Registers
-	s_switch_data: 010000,
+	s_switch_data: 017637,
 	
 	// System buses
 	s_data_bus: 0,

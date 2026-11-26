@@ -37,140 +37,138 @@
    33                   /NON RESIDENT CELLS
    34                   /
    35                   
-   36       017636      START 17636
-   37       017636      17636/
-   38 17636 740040              HLT
-   39 17637 000000      DTBLK,  0               /LOGICAL BL# (0-3777)
-   40 17640 000000      DTCA,   0               /CORE ADDR -1
-   41 17641 000000      DTWC,   0               /2'S COMP WC
-   42 17642 000000      OCTN,   0               /TEMP.
-   43 17643 000000      HOD,    0               /TEMP
-   44 17644 000000      DTSRC,  0               /VESTGIAL REG. (FROM DTA BOOTSTRAP)
-   45 17645 000000      DTTR,   0               /READ OR WRITE STATUS BITS
-   46                   /
-   47                   /RESIDENT DISK BOOTSTRAP
-   48                   /FOR KM-9 LOAD, START AT BOOT
-   49                   /
-   50 17646 217773      BOOT,   LAC L077       /START TRANSFER AT LOC 100
-   51 17647 057640              DAC DTCA
-   52 17650 761000              LAW 1000                /WC = 17000
-   53 17651 057641              DAC DTWC
-   54 17652 157637              DZM DTBLK      /LOGICAL BL 0 = TRACK 0, SECOTR 0
-   55 17653 157644              DZM DTSRC      /UNIT 0
-   56 17654 617663              JMP DTBEG
-   57 17655 030000      L3000,  30000
+   36       017637      17637/
+   37 17637 000000      DTBLK,  0               /LOGICAL BL# (0-3777)
+   38 17640 000000      DTCA,   0               /CORE ADDR -1
+   39 17641 000000      DTWC,   0               /2'S COMP WC
+   40 17642 000000      OCTN,   0               /TEMP.
+   41 17643 000000      HOD,    0               /TEMP
+   42 17644 000000      DTSRC,  0               /VESTGIAL REG. (FROM DTA BOOTSTRAP)
+   43 17645 000000      DTTR,   0               /READ OR WRITE STATUS BITS
+   44                   /
+   45                   /RESIDENT DISK BOOTSTRAP
+   46                   /FOR KM-9 LOAD, START AT BOOT
+   47                   /
+   48 17646 217772      BOOT,   LAC L077       /START TRANSFER AT LOC 100
+   49 17647 057640              DAC DTCA
+   50 17650 761000              LAW 1000                /WC = 17000
+   51 17651 057641              DAC DTWC
+   52 17652 157637              DZM DTBLK      /LOGICAL BL 0 = TRACK 0, SECOTR 0
+   53 17653 157644              DZM DTSRC      /UNIT 0
+   54 17654 617663              JMP DTBEG
+   55 17655 030000      L3000,  30000
+   56 17656 002000      L002,   2000
+   57 17657 003000      L003,   3000
 
       /COPYRIGHT 1970, DIGITAL EQUIPMENT CORP., MAYNARD, MASS.            Page 2
 
 
-   58 17656 002000      L002,   2000
-   59 17657 003000      L003,   3000
-   60 17660 777754      LM24,   777754
-   61 17661 000024      L24,    24
-   62 17662 000001      L1,     1
-   63                   /
-   64                   /FOR NON-KM9 LOAD, START AT DTBEG
-   65 17663 217656      DTBEG,  LAC L002               /(2000 = READ, GO
-   66 17664 745002              SKP!STL         /SET LINK FOR DISK SIDE INIT
-   67                   /FOR OUTPUT, START AT DTOUT
-   68 17665 217657      DTOUT,  LAC L003               /(3000 = WRITE, GO
-   69 17666 057645              DAC DTTR
-   70 17667 744002              STL
-   71 17670 707712              EEM+10          /ENTER EXT. MEM. + CLEAR AC
-   72 17671 742020              RTR             /AC = 0, L = 1
-   73 17672 057772              DAC DUNIT              /200000
-   74 17673 217644              LAC DTSRC              /UNIT 3 MAPPED INTO 1,7 INTO 5
-   75 17674 742110              SMA!RTL         /UNIT 4-6
-   76 17675 157772              DZM DUNIT      /UNIT 0-2
-   77 17676 740410              SNL!RAL         /UNIT 2 OR 6
-   78 17677 755402              SZL!CLA!STL     /UNIT 0 OR 4
-   79 17700 217655              LAC L3000      /2,6
-   80 17701 740400              SNL             /0,4
-   81 17702 357655              TAD L3000      /1,5
-   82 17703 617706              JMP .+3
-   83                   /
-   84                   
-   85 17704 740040      DSTOP,  HLT             /ERR. HLT
-   86 17705 617646              JMP BOOT               /RESTART
-   87 17706 357772              TAD DUNIT
-   88 17707 057772              DAC DUNIT
-   89 17710 217641              LAC DTWC
-   90 17711 707124              DSLW            /LOAD WC
-   91 17712 217640              LAC DTCA
-   92 17713 357662              TAD L1         /LOAD CA
-   93 17714 707142              DSLM
-   94                   /
-   95                   /DAVE LENEY 2-17-67
-   96                   /DISK TRACK AND SECTOR ENCODER
-   97                   /CONVERTS LOGICAL BLOCK # (OCTAL)
-   98                   /FROM 0-3777 TO BCD TRACK AND SECTOR ADDRESS
-   99                   /WHERE 1 BLOCK = 256 WDS OR 4 DISK SECTORS
-  100                   /
-  101 17715 217637              LAC DTBLK      /LOGICAL BL#
-  102 17716 157770              DZM TRACK               /COMPUTE BCD TRACK AND SECTOR ADDR.
-  103 17717 357660      FINDT,  TAD LM24               /-20 (20 256 WD BLOCK PER TRACK)
-  104 17720 745102              SPA!STL
-  105 17721 617724              JMP FINDS               /TRACK FOUND
-  106 17722 457770              ISZ TRACK
-  107 17723 617717              JMP FINDT               /STILL LOOKING
-  108 17724 357661      FINDS,  TAD L24                /20 (GO BACK 1)
-  109 17725 742010              RTL
-  110 17726 117753              JMS TOBCD      /CONVERT SECTOR TO BCD
-  111 17727 057771              DAC SECTOR      /TEMP
-  112 17730 217770              LAC TRACK
-  113 17731 117753              JMS TOBCD      /CONVERT TRACK TO BCD
-  114 17732 742010              RTL
+   58 17660 777754      LM24,   777754
+   59 17661 000024      L24,    24
+   60 17662 000001      L1,     1
+   61                   /
+   62                   /FOR NON-KM9 LOAD, START AT DTBEG
+   63 17663 217656      DTBEG,  LAC L002               /(2000 = READ, GO
+   64 17664 745002              SKP!STL         /SET LINK FOR DISK SIDE INIT
+   65                   /FOR OUTPUT, START AT DTOUT
+   66 17665 217657      DTOUT,  LAC L003               /(3000 = WRITE, GO
+   67 17666 057645              DAC DTTR
+   68 17667 744002              STL
+   69 17670 707712              EEM+10          /ENTER EXT. MEM. + CLEAR AC
+   70 17671 742020              RTR             /AC = 0, L = 1
+   71 17672 057777              DAC DUNIT              /200000
+   72 17673 217644              LAC DTSRC              /UNIT 3 MAPPED INTO 1,7 INTO 5
+   73 17674 742110              SMA!RTL         /UNIT 4-6
+   74 17675 157777              DZM DUNIT      /UNIT 0-2
+   75 17676 740410              SNL!RAL         /UNIT 2 OR 6
+   76 17677 755402              SZL!CLA!STL     /UNIT 0 OR 4
+   77 17700 217655              LAC L3000      /2,6
+   78 17701 740400              SNL             /0,4
+   79 17702 357655              TAD L3000      /1,5
+   80 17703 617706              JMP .+3
+   81                   /
+   82                   
+   83 17704 740040      DSTOP,  HLT             /ERR. HLT
+   84 17705 617646              JMP BOOT               /RESTART
+   85 17706 357777              TAD DUNIT
+   86 17707 057777              DAC DUNIT
+   87 17710 217641              LAC DTWC
+   88 17711 707124              DSLW            /LOAD WC
+   89 17712 217640              LAC DTCA
+   90 17713 357662              TAD L1         /LOAD CA
+   91 17714 707142              DSLM
+   92                   /
+   93                   /DAVE LENEY 2-17-67
+   94                   /DISK TRACK AND SECTOR ENCODER
+   95                   /CONVERTS LOGICAL BLOCK # (OCTAL)
+   96                   /FROM 0-3777 TO BCD TRACK AND SECTOR ADDRESS
+   97                   /WHERE 1 BLOCK = 256 WDS OR 4 DISK SECTORS
+   98                   /
+   99 17715 217637              LAC DTBLK      /LOGICAL BL#
+  100 17716 157770              DZM TRACK               /COMPUTE BCD TRACK AND SECTOR ADDR.
+  101 17717 357660      FINDT,  TAD LM24               /-20 (20 256 WD BLOCK PER TRACK)
+  102 17720 745102              SPA!STL
+  103 17721 617724              JMP FINDS               /TRACK FOUND
+  104 17722 457770              ISZ TRACK
+  105 17723 617717              JMP FINDT               /STILL LOOKING
+  106 17724 357661      FINDS,  TAD L24                /20 (GO BACK 1)
+  107 17725 742010              RTL
+  108 17726 117753              JMS TOBCD      /CONVERT SECTOR TO BCD
+  109 17727 057771              DAC SECTOR      /TEMP
+  110 17730 217770              LAC TRACK
+  111 17731 117753              JMS TOBCD      /CONVERT TRACK TO BCD
+  112 17732 742010              RTL
+  113 17733 742010              RTL
+  114 17734 742010              RTL
 
       /COPYRIGHT 1970, DIGITAL EQUIPMENT CORP., MAYNARD, MASS.            Page 3
 
 
-  115 17733 742010              RTL
-  116 17734 742010              RTL
-  117 17735 742010              RTL
-  118 17736 257771              XOR SECTOR
-  119 17737 357772              TAD DUNIT
-  120 17740 707104              DSLD            /LOAD SECTOR AND TRACK ADDR.
-  121 17741 217645              LAC DTTR               /LOAD STATUD (READ OR WRITE)
-  122 17742 707145              DSCS!DSLS
-  123 17743 707133              DSSF!DSRS               /SKIP ON FLAGS AND READ STATUS
-  124 17744 617743              JMP .-1
-  125 17745 741100              SPA
-  126 17746 617704              JMP DSTOP      /ERROR FLAG UP
-  127 17747 237777              LAC I L105     /DONE EXIT THROUGH BANK0, 105
-  128 17750 057753              DAC TOBCD
-  129 17751 703302              CAF
-  130 17752 137753              JMS I TOBCD
-  131                   /
-  132                   
-  133                   /DAVE LENEY 2-17-67
-  134                   /ROUTINE TO CONVERT OCTAL NUMBER IN
-  135                   /AC TO A BCD NUMBER IN AC
-  136                   /OCTAL NUMBER MUST BE LESS THAN 144
-  137                   /CALLING SEQUENCE
-  138                   /       JMS TOBCD
-  139                   /       (RETURN)
-  140                   /
-  141 17753 000000      TOBCD,  0
-  142                   /STRAIGHTENED OUT BY C. PROTEAU
-  143 17754 157643              DZM HOD         /HIGH ORDER DIGIT
-  144 17755 741000              SKP
-  145 17756 457643      NXT,    ISZ HOD
-  146 17757 057642              DAC OCTN                /REMAINDER (+)
-  147 17760 357774              TAD LM12       /(-12
-  148 17761 744100              SMA!CLL
-  149 17762 617756              JMP NXT
-  150 17763 217643              LAC HOD         /COMBINE DIGITS
-  151 17764 742010              RTL             /4 TIMES
-  152 17765 742010              RTL
-  153 17766 257642              XOR OCTN
-  154 17767 637753              JMP I TOBCD            /EXIT
-  155 17770 000000      TRACK,  0               /TEMP
-  156 17771 000000      SECTOR, 0               /TEMP
-  157 17772 000000      DUNIT,  0               /LOGICAL BLK # (0-3777)
-  158 17773 000077      L077,   77              /KM-9 CA-1
-  159 17774 777765      LM12,   -12
-  160 17775 000000              0
-  161 17776 000000              0
-  162 17777 000105      L105,  105
+  115 17735 742010              RTL
+  116 17736 257771              XOR SECTOR
+  117 17737 357777              TAD DUNIT
+  118 17740 707104              DSLD            /LOAD SECTOR AND TRACK ADDR.
+  119 17741 217645              LAC DTTR               /LOAD STATUD (READ OR WRITE)
+  120 17742 707145              DSCS!DSLS
+  121 17743 707133              DSSF!DSRS               /SKIP ON FLAGS AND READ STATUS
+  122 17744 617743              JMP .-1
+  123 17745 741100              SPA
+  124 17746 617704              JMP DSTOP      /ERROR FLAG UP
+  125 17747 237776              LAC I L105     /DONE EXIT THROUGH BANK0, 105
+  126 17750 057753              DAC TOBCD
+  127 17751 703302              CAF
+  128 17752 137753              JMS I TOBCD
+  129                   /
+  130                   
+  131                   /DAVE LENEY 2-17-67
+  132                   /ROUTINE TO CONVERT OCTAL NUMBER IN
+  133                   /AC TO A BCD NUMBER IN AC
+  134                   /OCTAL NUMBER MUST BE LESS THAN 144
+  135                   /CALLING SEQUENCE
+  136                   /       JMS TOBCD
+  137                   /       (RETURN)
+  138                   /
+  139 17753 000000      TOBCD,  0
+  140                   /STRAIGHTENED OUT BY C. PROTEAU
+  141 17754 157643              DZM HOD         /HIGH ORDER DIGIT
+  142 17755 741000              SKP
+  143 17756 457643      NXT,    ISZ HOD
+  144 17757 057642              DAC OCTN                /REMAINDER (+)
+  145 17760 357773              TAD LM12       /(-12
+  146 17761 744100              SMA!CLL
+  147 17762 617756              JMP NXT
+  148 17763 217643              LAC HOD         /COMBINE DIGITS
+  149 17764 742010              RTL             /4 TIMES
+  150 17765 742010              RTL
+  151 17766 257642              XOR OCTN
+  152 17767 637753              JMP I TOBCD            /EXIT
+  153 17770 000000      TRACK,  0               /TEMP
+  154 17771 000000      SECTOR, 0               /TEMP
+  155 17772 000077      L077,   77              /KM-9 CA-1
+  156 17773 777765      LM12,   -12
+  157 17774 000000              0
+  158 17775 000000              0
+  159 17776 000105      L105,   105
+  160 17777 617646      DUNIT,  JMP BOOT        /LOGICAL BLK # (0-3777)
 
       No detected errors

@@ -33,9 +33,7 @@
 /NON RESIDENT CELLS
 /
 
-START 17636
-17636/
-        HLT
+17637/
 DTBLK,  0               /LOGICAL BL# (0-3777)
 DTCA,   0               /CORE ADDR -1
 DTWC,   0               /2'S COMP WC
@@ -154,9 +152,9 @@ NXT,    ISZ HOD
         JMP I TOBCD            /EXIT
 TRACK,  0               /TEMP
 SECTOR, 0               /TEMP
-DUNIT,  0               /LOGICAL BLK # (0-3777)
 L077,   77              /KM-9 CA-1
 LM12,   -12
         0
         0
-L105,  105
+L105,   105
+DUNIT,  JMP BOOT        /LOGICAL BLK # (0-3777)
