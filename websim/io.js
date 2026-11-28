@@ -1424,7 +1424,7 @@ upload_ppt.addEventListener('change', function(e) {
 	})();
 });
 
-// Shove the .IMG into an emulated CF card
+// Shove the .IMG into an emulated RB drive
 upload_img.addEventListener('change', function(e) {
 	let imgFile = upload_img.files[0];
 	
@@ -1439,6 +1439,7 @@ upload_img.addEventListener('change', function(e) {
 			rb_state.rb_data[i] = fileContent[p] | (fileContent[p+1] << 8) | (fileContent[p+2] << 16); 
 			i += 1;
 		}
+		while (rb_state.rb_data.length < 1024000) rb_state.rb_data.push(0)
 		alert("Loaded " + rb_state.rb_data.length + " words");
 		
 	})();
